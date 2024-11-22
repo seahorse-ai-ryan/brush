@@ -2,10 +2,11 @@ use brush_kernel::create_dispatch_buffer;
 use brush_kernel::create_tensor;
 use brush_kernel::create_uniform_buffer;
 use brush_kernel::CubeCount;
+use burn::tensor::DType;
 use burn::tensor::Int;
 use burn::tensor::Tensor;
+use burn::tensor::TensorMetadata;
 use burn_jit::JitBackend;
-use burn_jit::JitElement;
 use burn_wgpu::JitTensor;
 use burn_wgpu::WgpuRuntime;
 use shaders::sort_count;
@@ -29,12 +30,12 @@ kernel_source_gen!(SortScanAdd {}, sort_scan_add);
 kernel_source_gen!(SortScan {}, sort_scan);
 kernel_source_gen!(SortScatter {}, sort_scatter);
 
-pub fn radix_argsort<EKey: JitElement, EVal: JitElement>(
-    input_keys: JitTensor<WgpuRuntime, EKey>,
-    input_values: JitTensor<WgpuRuntime, EVal>,
-    n_sort: JitTensor<WgpuRuntime, i32>,
+pub fn radix_argsort(
+    input_keys: JitTensor<WgpuRuntime>,
+    input_values: JitTensor<WgpuRuntime>,
+    n_sort: JitTensor<WgpuRuntime>,
     sorting_bits: u32,
-) -> (JitTensor<WgpuRuntime, EKey>, JitTensor<WgpuRuntime, EVal>) {
+) -> (JitTensor<WgpuRuntime>, JitTensor<WgpuRuntime>) {
     assert_eq!(input_keys.shape.dims[0], input_values.shape.dims[0]);
     assert!(sorting_bits <= 32);
 
@@ -52,20 +53,24 @@ pub fn radix_argsort<EKey: JitElement, EVal: JitElement>(
     let num_reduce_wgs: Tensor<JitBackend<WgpuRuntime, f32, i32>, 1, Int> =
         Tensor::from_primitive(create_dispatch_buffer(num_wgs.clone(), [BLOCK_SIZE, 1, 1]))
             * Tensor::from_ints([BIN_COUNT, 1, 1], device);
-    let num_reduce_wgs: JitTensor<WgpuRuntime, i32> = num_reduce_wgs.into_primitive();
+    let num_reduce_wgs: JitTensor<WgpuRuntime> = num_reduce_wgs.into_primitive();
 
     let mut cur_keys = input_keys;
     let mut cur_vals = input_values;
 
     for pass in 0..sorting_bits.div_ceil(4) {
-        let uniforms_buffer: JitTensor<WgpuRuntime, i32> = create_uniform_buffer(
+        let uniforms_buffer: JitTensor<WgpuRuntime> = create_uniform_buffer(
             shaders::sort_count::Uniforms { shift: pass * 4 },
             device,
             client,
         );
 
-        let count_buf =
-            create_tensor::<i32, 1, WgpuRuntime>([(max_needed_wgs as usize) * 16], device, client);
+        let count_buf = create_tensor::<1, WgpuRuntime>(
+            [(max_needed_wgs as usize) * 16],
+            device,
+            client,
+            DType::U32,
+        );
 
         // SAFETY: wgsl FFI, kernel checked to have no OOB.
         unsafe {
@@ -83,7 +88,7 @@ pub fn radix_argsort<EKey: JitElement, EVal: JitElement>(
 
         {
             let reduced_buf =
-                create_tensor::<i32, 1, WgpuRuntime>([BLOCK_SIZE as usize], device, client);
+                create_tensor::<1, WgpuRuntime>([BLOCK_SIZE as usize], device, client, DType::U32);
 
             unsafe {
                 client.execute_unchecked(
@@ -121,8 +126,9 @@ pub fn radix_argsort<EKey: JitElement, EVal: JitElement>(
             }
         }
 
-        let output_keys = create_tensor::<EKey, 1, _>([max_n as usize], device, client);
-        let output_values = create_tensor::<EVal, 1, _>([max_n as usize], device, client);
+        let output_keys = create_tensor::<1, _>([max_n as usize], device, client, cur_keys.dtype());
+        let output_values =
+            create_tensor::<1, _>([max_n as usize], device, client, cur_vals.dtype());
 
         unsafe {
             client.execute_unchecked(

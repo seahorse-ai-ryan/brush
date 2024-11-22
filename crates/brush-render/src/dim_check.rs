@@ -1,4 +1,4 @@
-use burn_jit::{JitElement, JitRuntime};
+use burn_jit::JitRuntime;
 use burn_wgpu::JitTensor;
 use std::collections::HashMap;
 
@@ -22,11 +22,7 @@ impl<R: JitRuntime> DimCheck<'_, R> {
         }
     }
 
-    pub fn check_dims<E: JitElement>(
-        mut self,
-        tensor: &JitTensor<R, E>,
-        bounds: &[DimBound],
-    ) -> Self {
+    pub fn check_dims(mut self, tensor: &JitTensor<R>, bounds: &[DimBound]) -> Self {
         let dims = &tensor.shape.dims;
 
         match self.device.as_ref() {

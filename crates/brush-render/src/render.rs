@@ -17,8 +17,8 @@ use brush_kernel::{
 };
 use brush_prefix_sum::prefix_sum;
 use brush_sort::radix_argsort;
-use burn::tensor::ops::FloatTensorOps;
 use burn::tensor::ops::IntTensorOps;
+use burn::tensor::{ops::FloatTensorOps, DType};
 use burn_jit::JitBackend;
 use burn_wgpu::{JitTensor, WgpuRuntime};
 use glam::uvec2;
@@ -49,13 +49,13 @@ pub fn rgb_to_sh(rgb: f32) -> f32 {
 pub(crate) fn render_forward(
     camera: &Camera,
     img_size: glam::UVec2,
-    means: JitTensor<WgpuRuntime, f32>,
-    log_scales: JitTensor<WgpuRuntime, f32>,
-    quats: JitTensor<WgpuRuntime, f32>,
-    sh_coeffs: JitTensor<WgpuRuntime, f32>,
-    raw_opacities: JitTensor<WgpuRuntime, f32>,
+    means: JitTensor<WgpuRuntime>,
+    log_scales: JitTensor<WgpuRuntime>,
+    quats: JitTensor<WgpuRuntime>,
+    sh_coeffs: JitTensor<WgpuRuntime>,
+    raw_opacities: JitTensor<WgpuRuntime>,
     raster_u32: bool,
-) -> (JitTensor<WgpuRuntime, f32>, RenderAux<InnerWgpu>) {
+) -> (JitTensor<WgpuRuntime>, RenderAux<InnerWgpu>) {
     assert!(
         img_size[0] > 0 && img_size[1] > 0,
         "Can't render 0 sized images"
@@ -123,7 +123,7 @@ pub(crate) fn render_forward(
 
     let (global_from_compact_gid, num_visible) = {
         let global_from_presort_gid = InnerWgpu::int_zeros([num_points].into(), device);
-        let depths = create_tensor::<f32, 1, _>([num_points], device, client);
+        let depths = create_tensor::<1, _>([num_points], device, client, DType::F32);
 
         tracing::trace_span!("ProjectSplats", sync_burn = true).in_scope(||
             // SAFETY: wgsl FFI, kernel checked to have no OOB.
@@ -160,7 +160,8 @@ pub(crate) fn render_forward(
     };
 
     let projected_size = size_of::<shaders::helpers::ProjectedSplat>() / size_of::<f32>();
-    let projected_splats = create_tensor::<f32, 2, _>([num_points, projected_size], device, client);
+    let projected_splats =
+        create_tensor::<2, _>([num_points, projected_size], device, client, DType::F32);
 
     // Number of tiles hit per splat. Has to be zerod as we later sum over this.
     let num_tiles_hit = InnerWgpu::int_zeros([num_points].into(), device);
@@ -204,10 +205,12 @@ pub(crate) fn render_forward(
         // that it's easy to run out of memory... How do we actually properly deal with this :/
         let max_intersects = num_points
             .saturating_mul(num_tiles as usize)
-            .min(128 * 65535);
+            .min(256 * 65535);
 
-        let tile_id_from_isect = create_tensor::<i32, 1, _>([max_intersects], device, client);
-        let compact_gid_from_isect = create_tensor::<i32, 1, _>([max_intersects], device, client);
+        let tile_id_from_isect =
+            create_tensor::<1, _>([max_intersects], device, client, DType::U32);
+        let compact_gid_from_isect =
+            create_tensor::<1, _>([max_intersects], device, client, DType::U32);
 
         tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(|| unsafe {
             client.execute_unchecked(
@@ -278,6 +281,9 @@ pub(crate) fn render_forward(
         [img_size.y as usize, img_size.x as usize, out_dim],
         device,
         client,
+        // We always pretend this image is a float to simplify other code.
+        // In reality it might be a packed u32 aka 4xu8.
+        DType::F32,
     );
 
     // Only record the final visible splat per tile if we're not rendering a u32 buffer.
@@ -292,8 +298,12 @@ pub(crate) fn render_forward(
     ];
 
     // Record the final visible splat per tile.
-    let final_index =
-        create_tensor::<i32, 2, _>([img_size.y as usize, img_size.x as usize], device, client);
+    let final_index = create_tensor::<2, _>(
+        [img_size.y as usize, img_size.x as usize],
+        device,
+        client,
+        DType::U32,
+    );
 
     if !raster_u32 {
         handles.push(final_index.handle.clone().binding());
@@ -324,20 +334,20 @@ pub(crate) fn render_forward(
 }
 
 pub(crate) fn render_backward(
-    means: JitTensor<WgpuRuntime, f32>,
-    quats: JitTensor<WgpuRuntime, f32>,
-    log_scales: JitTensor<WgpuRuntime, f32>,
-    raw_opac: JitTensor<WgpuRuntime, f32>,
-    out_img: JitTensor<WgpuRuntime, f32>,
-    v_output: JitTensor<WgpuRuntime, f32>,
+    means: JitTensor<WgpuRuntime>,
+    quats: JitTensor<WgpuRuntime>,
+    log_scales: JitTensor<WgpuRuntime>,
+    raw_opac: JitTensor<WgpuRuntime>,
+    out_img: JitTensor<WgpuRuntime>,
+    v_output: JitTensor<WgpuRuntime>,
 
-    projected_splats: JitTensor<WgpuRuntime, f32>,
-    num_visible: JitTensor<WgpuRuntime, i32>,
-    uniforms_buffer: JitTensor<WgpuRuntime, i32>,
-    compact_gid_from_isect: JitTensor<WgpuRuntime, i32>,
-    global_from_compact_gid: JitTensor<WgpuRuntime, i32>,
-    tile_bins: JitTensor<WgpuRuntime, i32>,
-    final_index: JitTensor<WgpuRuntime, i32>,
+    projected_splats: JitTensor<WgpuRuntime>,
+    num_visible: JitTensor<WgpuRuntime>,
+    uniforms_buffer: JitTensor<WgpuRuntime>,
+    compact_gid_from_isect: JitTensor<WgpuRuntime>,
+    global_from_compact_gid: JitTensor<WgpuRuntime>,
+    tile_bins: JitTensor<WgpuRuntime>,
+    final_index: JitTensor<WgpuRuntime>,
 
     sh_degree: u32,
 ) -> SplatGrads<InnerWgpu> {
@@ -590,7 +600,25 @@ mod tests {
                 glam::vec2(0.5, 0.5),
             );
 
-            let (out, aux) = splats.render(&cam, glam::uvec2(w as u32, h as u32), false);
+            // Gsplat norms before rendering and gets gradients for that.
+            // Training without this and norming after step performs just as well and is faster,
+            // but do it here so tests pass.
+            let rotations = splats.rotation.val();
+            let norm_rot = rotations.clone() / Tensor::sum_dim(rotations.powi_scalar(2), 1).sqrt();
+
+            let (img, aux) = DiffBack::render_splats(
+                &cam,
+                glam::uvec2(w as u32, h as u32),
+                splats.means.val().into_primitive().tensor(),
+                splats.xys_dummy.clone().into_primitive().tensor(),
+                splats.log_scales.val().into_primitive().tensor(),
+                norm_rot.into_primitive().tensor(),
+                splats.sh_coeffs.val().into_primitive().tensor(),
+                splats.raw_opacity.val().into_primitive().tensor(),
+                false,
+            );
+
+            let (out, aux) = (Tensor::from_primitive(TensorPrimitive::Float(img)), aux);
 
             if let Some(rec) = rec.as_ref() {
                 rec.set_time_sequence("test case", i as i64);
