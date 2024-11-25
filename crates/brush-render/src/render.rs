@@ -12,15 +12,19 @@ use crate::{
     SplatGrads,
 };
 
-use brush_kernel::{
-    calc_cube_count, create_dispatch_buffer, create_tensor, create_uniform_buffer, CubeCount,
-};
+use brush_kernel::create_dispatch_buffer;
+use brush_kernel::create_tensor;
+use brush_kernel::create_uniform_buffer;
+use brush_kernel::{calc_cube_count, CubeCount};
 use brush_prefix_sum::prefix_sum;
 use brush_sort::radix_argsort;
 use burn::tensor::ops::IntTensorOps;
-use burn::tensor::{ops::FloatTensorOps, DType};
+use burn::tensor::DType;
 use burn_jit::JitBackend;
-use burn_wgpu::{JitTensor, WgpuRuntime};
+use burn_wgpu::JitTensor;
+use burn_wgpu::WgpuRuntime;
+
+use burn::tensor::ops::FloatTensorOps;
 use glam::uvec2;
 
 type InnerWgpu = JitBackend<WgpuRuntime, f32, i32>;

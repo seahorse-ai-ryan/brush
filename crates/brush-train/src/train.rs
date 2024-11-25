@@ -200,7 +200,7 @@ where
         Self {
             config: config.clone(),
             iter: 0,
-            sched_mean: config.lr_mean.init(),
+            sched_mean: config.lr_mean.init().expect("Lr schedule must be valid."),
             optim,
             opt_config,
             grad_2d_accum: Tensor::zeros([num_points], device),
