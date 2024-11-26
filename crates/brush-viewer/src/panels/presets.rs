@@ -1,5 +1,5 @@
 use crate::{
-    viewer::{ViewerContext, ViewerMessage},
+    viewer::{ViewerContext, ProcessMessage},
     ViewerPanel,
 };
 use egui::Hyperlink;
@@ -23,7 +23,7 @@ impl ViewerPanel for PresetsPanel {
         "Presets".to_owned()
     }
 
-    fn on_message(&mut self, _: &ViewerMessage, _: &mut ViewerContext) {}
+    fn on_message(&mut self, _: &ProcessMessage, _: &mut ViewerContext) {}
 
     fn ui(&mut self, ui: &mut egui::Ui, _: &mut ViewerContext) {
         ui.heading("Mipnerf scenes");

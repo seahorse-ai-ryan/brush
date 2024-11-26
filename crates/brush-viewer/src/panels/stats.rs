@@ -1,5 +1,5 @@
 use crate::{
-    viewer::{ViewerContext, ViewerMessage},
+    viewer::{ViewerContext, ProcessMessage},
     ViewerPanel,
 };
 use burn_jit::cubecl::Runtime;
@@ -65,9 +65,9 @@ impl ViewerPanel for StatsPanel {
         "Stats".to_owned()
     }
 
-    fn on_message(&mut self, message: &ViewerMessage, _: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, _: &mut ViewerContext) {
         match message {
-            ViewerMessage::StartLoading { training } => {
+            ProcessMessage::StartLoading { training } => {
                 self.start_load_time = Instant::now();
                 self.last_train_step = (Instant::now(), 0);
                 self.train_iter_per_s = 0.0;
@@ -75,7 +75,7 @@ impl ViewerPanel for StatsPanel {
                 self.last_eval_psnr = None;
                 self.training_started = *training;
             }
-            ViewerMessage::ViewSplats {
+            ProcessMessage::ViewSplats {
                 up_axis: _,
                 splats,
                 frame,
@@ -83,7 +83,7 @@ impl ViewerPanel for StatsPanel {
                 self.num_splats = splats.num_splats();
                 self.frames = *frame;
             }
-            ViewerMessage::TrainStep {
+            ProcessMessage::TrainStep {
                 splats,
                 stats: _,
                 iter,
@@ -97,7 +97,7 @@ impl ViewerPanel for StatsPanel {
                 self.train_iter_per_s = 0.95 * self.train_iter_per_s + 0.05 * current_iter_per_s;
                 self.last_train_step = (*timestamp, *iter);
             }
-            ViewerMessage::EvalResult { iter: _, eval } => {
+            ProcessMessage::EvalResult { iter: _, eval } => {
                 let avg_psnr =
                     eval.samples.iter().map(|s| s.psnr).sum::<f32>() / (eval.samples.len() as f32);
                 self.last_eval_psnr = Some(avg_psnr);

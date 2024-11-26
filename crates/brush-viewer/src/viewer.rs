@@ -16,8 +16,9 @@ use tokio_with_wasm::alias as tokio;
 
 use ::tokio::io::AsyncReadExt;
 use ::tokio::sync::mpsc::error::TrySendError;
-use ::tokio::sync::mpsc::{Receiver, Sender};
+use ::tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver};
 use ::tokio::{io::AsyncRead, io::BufReader, sync::mpsc::channel};
+use std::collections::HashMap;
 use tokio::task;
 
 use tokio_stream::{Stream, StreamExt};
@@ -37,8 +38,43 @@ struct TrainStats {
     train_image_index: usize,
 }
 
+fn parse_search(search: &str) -> HashMap<String, String> {
+    let mut params = HashMap::new();
+    let search = search.trim_start_matches('?');
+    for pair in search.split('&') {
+        // Split each pair on '=' to separate key and value
+        if let Some((key, value)) = pair.split_once('=') {
+            // URL decode the key and value and insert into HashMap
+            params.insert(
+                urlencoding::decode(key).unwrap_or_default().into_owned(),
+                urlencoding::decode(value).unwrap_or_default().into_owned(),
+            );
+        }
+    }
+    params
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_search() {
+        let search = "?url=https%3A%2F%2Fexample.com&foo=bar&empty=";
+        let params = parse_search(search);
+
+        assert_eq!(params.get("url").unwrap(), "https://example.com");
+        assert_eq!(params.get("foo").unwrap(), "bar");
+        assert_eq!(params.get("empty").unwrap(), "");
+    }
+}
+
+pub enum UiControlMessage {
+    LoadData(String),
+}
+
 #[derive(Clone)]
-pub(crate) enum ViewerMessage {
+pub(crate) enum ProcessMessage {
     NewSource,
     StartLoading {
         training: bool,
@@ -94,8 +130,10 @@ pub(crate) struct ViewerContext {
     device: WgpuDevice,
     ctx: egui::Context,
 
-    sender: Option<Sender<TrainMessage>>,
-    receiver: Option<Receiver<ViewerMessage>>,
+    rec_ui_control_msg: UnboundedReceiver<UiControlMessage>,
+
+    send_train_msg: Option<Sender<TrainMessage>>,
+    rec_process_msg: Option<Receiver<ProcessMessage>>,
 }
 
 fn process_loop(
@@ -105,9 +143,9 @@ fn process_loop(
     load_data_args: LoadDatasetArgs,
     load_init_args: LoadInitArgs,
     train_config: TrainConfig,
-) -> Pin<Box<impl Stream<Item = anyhow::Result<ViewerMessage>>>> {
+) -> Pin<Box<impl Stream<Item = anyhow::Result<ProcessMessage>>>> {
     let stream = try_fn_stream(|emitter| async move {
-        let _ = emitter.emit(ViewerMessage::NewSource).await;
+        let _ = emitter.emit(ProcessMessage::NewSource).await;
 
         // Small hack to peek some bytes: Read them
         // and add them at the start again.
@@ -123,7 +161,7 @@ fn process_loop(
             log::info!("Attempting to load data as .ply data");
 
             let _ = emitter
-                .emit(ViewerMessage::StartLoading { training: false })
+                .emit(ProcessMessage::StartLoading { training: false })
                 .await;
 
             let subsample = None; // Subsampling a trained ply doesn't really make sense.
@@ -134,7 +172,7 @@ fn process_loop(
             while let Some(message) = splat_stream.next().await {
                 let message = message?;
                 emitter
-                    .emit(ViewerMessage::ViewSplats {
+                    .emit(ProcessMessage::ViewSplats {
                         up_axis: message.meta.up_axis,
                         splats: Box::new(message.splats),
                         frame: message.meta.current_frame,
@@ -143,13 +181,13 @@ fn process_loop(
             }
 
             emitter
-                .emit(ViewerMessage::DoneLoading { training: true })
+                .emit(ProcessMessage::DoneLoading { training: true })
                 .await;
         } else if peek.starts_with("PK".as_bytes()) {
             log::info!("Attempting to load data as .zip data");
 
             let _ = emitter
-                .emit(ViewerMessage::StartLoading { training: true })
+                .emit(ProcessMessage::StartLoading { training: true })
                 .await;
 
             let stream = train_loop::train_loop(
@@ -211,7 +249,12 @@ impl DataSource {
 }
 
 impl ViewerContext {
-    fn new(device: WgpuDevice, ctx: egui::Context, up_axis: Vec3) -> Self {
+    fn new(
+        device: WgpuDevice,
+        ctx: egui::Context,
+        up_axis: Vec3,
+        controller: UnboundedReceiver<UiControlMessage>,
+    ) -> Self {
         let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
 
         let model_transform =
@@ -228,8 +271,9 @@ impl ViewerContext {
             device,
             ctx,
             dataset: Dataset::empty(),
-            receiver: None,
-            sender: None,
+            rec_process_msg: None,
+            send_train_msg: None,
+            rec_ui_control_msg: controller,
         }
     }
 
@@ -271,8 +315,8 @@ impl ViewerContext {
         // Bigger channels could mean the train loop spends less time waiting for the UI though.
         let (sender, receiver) = channel(1);
 
-        self.receiver = Some(receiver);
-        self.sender = Some(train_sender);
+        self.rec_process_msg = Some(receiver);
+        self.send_train_msg = Some(train_sender);
 
         self.dataset = Dataset::empty();
         let ctx = self.ctx.clone();
@@ -289,7 +333,7 @@ impl ViewerContext {
             )
             .map(|m| match m {
                 Ok(m) => m,
-                Err(e) => ViewerMessage::Error(Arc::new(e)),
+                Err(e) => ProcessMessage::Error(Arc::new(e)),
             });
 
             // Loop until there are no more messages, processing is done.
@@ -311,7 +355,7 @@ impl ViewerContext {
     }
 
     pub fn send_train_message(&self, message: TrainMessage) {
-        if let Some(sender) = self.sender.as_ref() {
+        if let Some(sender) = self.send_train_msg.as_ref() {
             match sender.try_send(message) {
                 Ok(_) => {}
                 Err(TrySendError::Closed(_)) => {}
@@ -321,10 +365,29 @@ impl ViewerContext {
             }
         }
     }
+
+    fn receive_controls(&mut self) {
+        while let Ok(m) = self.rec_ui_control_msg.try_recv() {
+            match m {
+                UiControlMessage::LoadData(url) => {
+                    self.start_data_load(
+                        DataSource::Url(url.to_owned()),
+                        LoadDatasetArgs::default(),
+                        LoadInitArgs::default(),
+                        TrainConfig::default(),
+                    );
+                }
+            }
+        }
+    }
 }
 
 impl Viewer {
-    pub fn new(cc: &eframe::CreationContext) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext,
+        start_uri: Option<String>,
+        controller: UnboundedReceiver<UiControlMessage>,
+    ) -> Self {
         // For now just assume we're running on the default
         let state = cc.wgpu_render_state.as_ref().unwrap();
         let device = brush_ui::create_wgpu_device(
@@ -333,86 +396,74 @@ impl Viewer {
             state.queue.clone(),
         );
 
-        cfg_if::cfg_if! {
-            if #[cfg(target_family = "wasm")] {
-                use tracing_subscriber::layer::SubscriberExt;
+        #[cfg(target_family = "wasm")]
+        let start_uri = start_uri.or(web_sys::window().and_then(|w| w.location().search().ok()));
+        let search_params = parse_search(&start_uri.unwrap_or("".to_owned()));
 
-                let subscriber = tracing_subscriber::registry().with(tracing_wasm::WASMLayer::new(Default::default()));
-                tracing::subscriber::set_global_default(subscriber)
-                    .expect("Failed to set tracing subscriber");
-            } else if #[cfg(feature = "tracy")] {
-                use tracing_subscriber::layer::SubscriberExt;
-                let subscriber = tracing_subscriber::registry()
-                    .with(tracing_tracy::TracyLayer::default())
-                    .with(sync_span::SyncLayer::new(device.clone()));
-                tracing::subscriber::set_global_default(subscriber)
-                    .expect("Failed to set tracing subscriber");
-            }
+        let mut zen = false;
+        if let Some(z) = search_params.get("zen") {
+            zen = z.parse::<bool>().unwrap_or(false);
         }
 
-        let mut start_url = None;
-        if cfg!(target_family = "wasm") {
-            if let Some(window) = web_sys::window() {
-                if let Ok(search) = window.location().search() {
-                    if let Ok(search_params) = web_sys::UrlSearchParams::new_with_str(&search) {
-                        let url = search_params.get("url");
-                        start_url = url;
-                    }
-                }
-            }
-        }
+        let up_axis = Vec3::Y;
+        let context = ViewerContext::new(device.clone(), cc.egui_ctx.clone(), up_axis, controller);
 
         let mut tiles: Tiles<PaneType> = egui_tiles::Tiles::default();
-        let up_axis = Vec3::Y;
-        let context = ViewerContext::new(device.clone(), cc.egui_ctx.clone(), up_axis);
-
         let scene_pane = ScenePanel::new(
             state.queue.clone(),
             state.device.clone(),
             state.renderer.clone(),
         );
 
-        let loading_subs = vec![
-            tiles.insert_pane(Box::new(LoadDataPanel::new())),
-            tiles.insert_pane(Box::new(PresetsPanel::new())),
-        ];
-        let loading_pane = tiles.insert_tab_tile(loading_subs);
-
-        #[allow(unused_mut)]
-        let mut sides = vec![
-            loading_pane,
-            tiles.insert_pane(Box::new(StatsPanel::new(
-                device.clone(),
-                state.adapter.clone(),
-            ))),
-        ];
-
-        #[cfg(not(target_family = "wasm"))]
-        {
-            sides.push(tiles.insert_pane(Box::new(crate::panels::RerunPanel::new(device.clone()))));
-        }
-
-        if cfg!(feature = "tracing") {
-            sides.push(tiles.insert_pane(Box::new(TracingPanel::default())));
-        }
-
-        let side_panel = tiles.insert_vertical_tile(sides);
         let scene_pane_id = tiles.insert_pane(Box::new(scene_pane));
 
-        let mut lin = egui_tiles::Linear::new(
-            egui_tiles::LinearDir::Horizontal,
-            vec![side_panel, scene_pane_id],
-        );
-        lin.shares.set_share(side_panel, 0.4);
+        let root_container = if !zen {
+            let loading_subs = vec![
+                tiles.insert_pane(Box::new(LoadDataPanel::new())),
+                tiles.insert_pane(Box::new(PresetsPanel::new())),
+            ];
+            let loading_pane = tiles.insert_tab_tile(loading_subs);
 
-        let root_container = tiles.insert_container(lin);
+            #[allow(unused_mut)]
+            let mut sides = vec![
+                loading_pane,
+                tiles.insert_pane(Box::new(StatsPanel::new(
+                    device.clone(),
+                    state.adapter.clone(),
+                ))),
+            ];
+
+            #[cfg(not(target_family = "wasm"))]
+            {
+                sides.push(
+                    tiles.insert_pane(Box::new(crate::panels::RerunPanel::new(device.clone()))),
+                );
+            }
+
+            if cfg!(feature = "tracing") {
+                sides.push(tiles.insert_pane(Box::new(TracingPanel::default())));
+            }
+
+            let side_panel = tiles.insert_vertical_tile(sides);
+
+            let mut lin = egui_tiles::Linear::new(
+                egui_tiles::LinearDir::Horizontal,
+                vec![side_panel, scene_pane_id],
+            );
+            lin.shares.set_share(side_panel, 0.4);
+            tiles.insert_container(lin)
+        } else {
+            scene_pane_id
+        };
+
         let tree = egui_tiles::Tree::new("viewer_tree", root_container, tiles);
 
-        let mut tree_ctx = ViewerTree { context };
+        let mut tree_ctx = ViewerTree { zen, context };
 
-        if let Some(start_url) = start_url {
+        let url = search_params.get("url");
+        if let Some(url) = url {
             tree_ctx.context.start_data_load(
-                DataSource::Url(start_url.to_owned()),
+                DataSource::Url(url.to_owned()),
                 LoadDatasetArgs::default(),
                 LoadInitArgs::default(),
                 TrainConfig::default(),
@@ -429,7 +480,9 @@ impl Viewer {
 
 impl eframe::App for Viewer {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        if let Some(rec) = self.tree_ctx.context.receiver.as_mut() {
+        self.tree_ctx.context.receive_controls();
+
+        if let Some(rec) = self.tree_ctx.context.rec_process_msg.as_mut() {
             let mut messages = vec![];
 
             while let Ok(message) = rec.try_recv() {
@@ -437,7 +490,7 @@ impl eframe::App for Viewer {
             }
 
             for message in messages {
-                if let ViewerMessage::Dataset { data: _ } = message {
+                if let ProcessMessage::Dataset { data: _ } = message {
                     // Show the dataset panel if we've loaded one.
                     if self.datasets.is_none() {
                         let pane_id = self.tree.tiles.insert_pane(Box::new(DatasetPanel::new()));

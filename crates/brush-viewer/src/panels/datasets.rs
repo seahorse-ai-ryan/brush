@@ -1,5 +1,5 @@
 use crate::{
-    viewer::{ViewerContext, ViewerMessage},
+    viewer::{ViewerContext, ProcessMessage},
     ViewerPanel,
 };
 use brush_train::scene::{Scene, ViewType};
@@ -39,22 +39,22 @@ impl ViewerPanel for DatasetPanel {
         "Dataset".to_owned()
     }
 
-    fn on_message(&mut self, message: &ViewerMessage, context: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
         match message {
-            ViewerMessage::NewSource => {
+            ProcessMessage::NewSource => {
                 self.loading = false;
             }
-            ViewerMessage::StartLoading { training } => {
+            ProcessMessage::StartLoading { training } => {
                 self.loading = *training;
             }
-            ViewerMessage::Dataset { data: d } => {
+            ProcessMessage::Dataset { data: d } => {
                 // Set train view to last loaded camera.
                 if let Some(view) = d.train.views.last() {
                     context.focus_view(&view.camera);
                 }
                 context.dataset = d.clone();
             }
-            ViewerMessage::DoneLoading { training: _ } => {
+            ProcessMessage::DoneLoading { training: _ } => {
                 self.loading = false;
             }
             _ => {}

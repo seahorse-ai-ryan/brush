@@ -3,7 +3,7 @@
 #![allow(clippy::single_range_in_vec_init)]
 
 use egui_tiles::SimplificationOptions;
-use viewer::{ViewerContext, ViewerMessage};
+use viewer::{ViewerContext, ProcessMessage};
 
 mod orbit_controls;
 
@@ -15,13 +15,14 @@ pub mod viewer;
 trait ViewerPanel {
     fn title(&self) -> String;
     fn ui(&mut self, ui: &mut egui::Ui, controls: &mut ViewerContext);
-    fn on_message(&mut self, message: &ViewerMessage, context: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
         let _ = message;
         let _ = context;
     }
 }
 
 struct ViewerTree {
+    zen: bool,
     context: ViewerContext,
 }
 
@@ -45,7 +46,7 @@ impl egui_tiles::Behavior<PaneType> for ViewerTree {
     /// What are the rules for simplifying the tree?
     fn simplification_options(&self) -> SimplificationOptions {
         SimplificationOptions {
-            all_panes_must_have_tabs: true,
+            all_panes_must_have_tabs: !self.zen,
             ..Default::default()
         }
     }

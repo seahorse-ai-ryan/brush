@@ -30,6 +30,9 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
     )
     .unwrap();
 
+    // Unused.
+    let (_, rec) = ::tokio::sync::mpsc::unbounded_channel();
+
     runtime.block_on(async {
         android_logger::init_once(
             android_logger::Config::default().with_max_level(log::LevelFilter::Info),
@@ -46,7 +49,7 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
                 wgpu_options,
                 ..Default::default()
             },
-            Box::new(|cc| Ok(Box::new(brush_viewer::viewer::Viewer::new(cc)))),
+            Box::new(|cc| Ok(Box::new(brush_viewer::viewer::Viewer::new(cc, None, rec)))),
         )
         .unwrap();
     });

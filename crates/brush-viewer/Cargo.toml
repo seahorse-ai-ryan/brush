@@ -55,6 +55,7 @@ tokio-stream.workspace = true
 wasm-bindgen-futures.workspace = true
 
 parking_lot.workspace = true
+urlencoding.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rerun.workspace = true

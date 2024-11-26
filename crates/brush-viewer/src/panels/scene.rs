@@ -18,7 +18,7 @@ use web_time::Instant;
 
 use crate::{
     train_loop::TrainMessage,
-    viewer::{ViewerContext, ViewerMessage},
+    viewer::{ProcessMessage, ViewerContext},
     ViewerPanel,
 };
 
@@ -183,27 +183,27 @@ impl ViewerPanel for ScenePanel {
         "Scene".to_owned()
     }
 
-    fn on_message(&mut self, message: &ViewerMessage, context: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
         if self.live_update {
             self.dirty = true;
         }
 
         match message {
-            ViewerMessage::NewSource => {
+            ProcessMessage::NewSource => {
                 self.view_splats = vec![];
                 self.paused = false;
                 self.is_loading = false;
                 self.is_training = false;
                 self.err = None;
             }
-            ViewerMessage::DoneLoading { training: _ } => {
+            ProcessMessage::DoneLoading { training: _ } => {
                 self.is_loading = false;
             }
-            ViewerMessage::StartLoading { training } => {
+            ProcessMessage::StartLoading { training } => {
                 self.is_training = *training;
                 self.is_loading = true;
             }
-            ViewerMessage::ViewSplats {
+            ProcessMessage::ViewSplats {
                 up_axis,
                 splats,
                 frame,
@@ -217,7 +217,7 @@ impl ViewerPanel for ScenePanel {
                     self.frame = *frame as f32 - 0.5;
                 }
             }
-            ViewerMessage::TrainStep {
+            ProcessMessage::TrainStep {
                 splats,
                 stats: _,
                 iter: _,
@@ -227,7 +227,7 @@ impl ViewerPanel for ScenePanel {
                     self.view_splats = vec![*splats.clone()];
                 }
             }
-            ViewerMessage::Error(e) => {
+            ProcessMessage::Error(e) => {
                 self.err = Some(e.clone());
             }
             _ => {}

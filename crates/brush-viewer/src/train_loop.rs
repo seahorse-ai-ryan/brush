@@ -18,7 +18,7 @@ use tokio_stream::{Stream, StreamExt};
 use tracing::{trace_span, Instrument};
 use web_time::Instant;
 
-use crate::viewer::ViewerMessage;
+use crate::viewer::ProcessMessage;
 
 const UPDATE_EVERY: u32 = 5;
 
@@ -35,7 +35,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
     load_data_args: LoadDatasetArgs,
     load_init_args: LoadInitArgs,
     config: TrainConfig,
-) -> impl Stream<Item = anyhow::Result<ViewerMessage>> {
+) -> impl Stream<Item = anyhow::Result<ProcessMessage>> {
     try_fn_stream(|emitter| async move {
         let mut bytes = vec![];
         data.read_to_end(&mut bytes).await?;
@@ -60,7 +60,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
         while let Some(message) = splat_stream.next().await {
             let message = message?;
             let splats = message.splats.with_min_sh_degree(load_init_args.sh_degree);
-            let msg = ViewerMessage::ViewSplats {
+            let msg = ProcessMessage::ViewSplats {
                 up_axis: message.meta.up_axis,
                 splats: Box::new(splats.valid()),
                 frame: 0,
@@ -74,13 +74,13 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
             dataset = d?;
 
             emitter
-                .emit(ViewerMessage::Dataset {
+                .emit(ProcessMessage::Dataset {
                     data: dataset.clone(),
                 })
                 .await;
         }
         emitter
-            .emit(ViewerMessage::DoneLoading { training: true })
+            .emit(ProcessMessage::DoneLoading { training: true })
             .await;
 
         let mut splats = if let Some(splats) = initial_splats {
@@ -135,7 +135,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
                         .await;
 
                         emitter
-                            .emit(ViewerMessage::EvalResult {
+                            .emit(ProcessMessage::EvalResult {
                                 iter: trainer.iter,
                                 eval,
                             })
@@ -157,7 +157,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
 
                     if trainer.iter % UPDATE_EVERY == 0 {
                         emitter
-                            .emit(ViewerMessage::TrainStep {
+                            .emit(ProcessMessage::TrainStep {
                                 splats: Box::new(splats.valid()),
                                 stats: Box::new(stats),
                                 iter: trainer.iter,
