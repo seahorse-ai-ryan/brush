@@ -41,7 +41,7 @@ impl PropertyAccess for GaussianData {
     fn set_property(&mut self, key: &str, property: Property) {
         let ascii = key.as_bytes();
 
-        let value = if let Property::Float(value) = property {
+        let mut value = if let Property::Float(value) = property {
             value
         } else if let Property::UChar(value) = property {
             (value as f32) / (u8::MAX as f32)
@@ -50,6 +50,11 @@ impl PropertyAccess for GaussianData {
         } else {
             return;
         };
+
+        if value.is_nan() || value.is_infinite() || value.is_subnormal() {
+            log::warn!("Invalid numbers in your friggin splat!!");
+            value = 0.0;
+        }
 
         match ascii {
             b"x" => self.means[0] = value,
@@ -322,9 +327,6 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                     .await;
             } else if element.name.starts_with("meta_delta_min_") {
                 let splat = decode_splat(&mut reader, &gaussian_parser, &header, element).await?;
-
-                log::info!("Splat means:::: {:?}", splat.means);
-
                 meta_min.mean = splat.means;
                 meta_min.rotation = splat.rotation.into();
                 meta_min.scale = splat.log_scale;

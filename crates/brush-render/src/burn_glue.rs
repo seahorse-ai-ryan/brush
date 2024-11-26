@@ -15,11 +15,13 @@ use burn::{
 use burn_fusion::{client::FusionClient, stream::Operation, Fusion};
 use burn_jit::fusion::{FusionJitRuntime, JitFusionHandle};
 use burn_wgpu::WgpuRuntime;
-use glam::uvec2;
 
 use crate::{
     camera::Camera,
-    render::{render_backward, render_forward, sh_coeffs_for_degree, sh_degree_from_coeffs},
+    render::{
+        calc_tile_bounds, max_intersections, render_backward, render_forward, sh_coeffs_for_degree,
+        sh_degree_from_coeffs,
+    },
     shaders, AutodiffBackend, Backend, GaussianBackwardState, InnerWgpu, RenderAux, SplatGrads,
 };
 
@@ -280,16 +282,8 @@ impl Backend for Fusion<InnerWgpu> {
 
         let proj_size = size_of::<shaders::helpers::ProjectedSplat>() / 4;
         let uniforms_size = size_of::<shaders::helpers::RenderUniforms>() / 4;
-
-        // Divide screen into tiles.
-        let tile_bounds = uvec2(
-            img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),
-            img_size.y.div_ceil(shaders::helpers::TILE_WIDTH),
-        );
-
-        let max_intersects = num_points
-            .saturating_mul(tile_bounds[0] as usize * tile_bounds[1] as usize)
-            .min(128 * 65535);
+        let tile_bounds = calc_tile_bounds(img_size);
+        let max_intersects = max_intersections(img_size, num_points as u32);
 
         // If render_u32_buffer is true, we render a packed buffer of u32 values, otherwise
         // render RGBA f32 values.
@@ -302,19 +296,19 @@ impl Backend for Fusion<InnerWgpu> {
 
         let aux = RenderAux::<Self> {
             projected_splats: client.tensor_uninitialized(vec![num_points, proj_size], DType::F32),
-            uniforms_buffer: client
-                .tensor_uninitialized(vec![num_points, uniforms_size], DType::I32),
-            num_intersections: client.tensor_uninitialized(vec![1], DType::I32),
-            num_visible: client.tensor_uninitialized(vec![1], DType::I32),
+            uniforms_buffer: client.tensor_uninitialized(vec![uniforms_size], DType::U32),
+            num_intersections: client.tensor_uninitialized(vec![1], DType::U32),
+            num_visible: client.tensor_uninitialized(vec![1], DType::U32),
             final_index: client
-                .tensor_uninitialized(vec![img_size.y as usize, img_size.x as usize], DType::I32),
-            cum_tiles_hit: client.tensor_uninitialized(vec![num_points], DType::I32),
+                .tensor_uninitialized(vec![img_size.y as usize, img_size.x as usize], DType::U32),
+            cum_tiles_hit: client.tensor_uninitialized(vec![num_points], DType::U32),
             tile_bins: client.tensor_uninitialized(
-                vec![img_size.y as usize, img_size.x as usize, 2],
-                DType::I32,
+                vec![tile_bounds.y as usize, tile_bounds.x as usize, 2],
+                DType::U32,
             ),
-            compact_gid_from_isect: client.tensor_uninitialized(vec![max_intersects], DType::I32),
-            global_from_compact_gid: client.tensor_uninitialized(vec![num_points], DType::I32),
+            compact_gid_from_isect: client
+                .tensor_uninitialized(vec![max_intersects as usize], DType::U32),
+            global_from_compact_gid: client.tensor_uninitialized(vec![num_points], DType::U32),
         };
 
         let desc = CustomOpDescription::new(

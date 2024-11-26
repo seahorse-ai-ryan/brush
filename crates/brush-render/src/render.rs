@@ -50,6 +50,30 @@ pub fn rgb_to_sh(rgb: f32) -> f32 {
     (rgb - 0.5) / shaders::gather_grads::SH_C0
 }
 
+pub(crate) fn calc_tile_bounds(img_size: glam::UVec2) -> glam::UVec2 {
+    uvec2(
+        img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),
+        img_size.y.div_ceil(shaders::helpers::TILE_WIDTH),
+    )
+}
+
+pub(crate) fn max_intersections(img_size: glam::UVec2, num_splats: u32) -> u32 {
+    // Divide screen into tiles.
+    let tile_bounds = calc_tile_bounds(img_size);
+    let num_tiles = tile_bounds[0] as u32 * tile_bounds[1] as u32;
+
+    // On wasm, we cannot do a sync readback at all.
+    // Instead, can just estimate a max number of intersects. All the kernels only handle the actual
+    // cound of intersects, and spin up empty threads for the rest atm. In the future, could use indirect
+    // dispatch to avoid this.
+    // Estimating the max number of intersects can be a bad hack though... The worst case sceneario is so massive
+    // that it's easy to run out of memory... How do we actually properly deal with this :/
+    let max = num_splats.saturating_mul(num_tiles);
+
+    // clamp to max nr. of dispatches.
+    max.min(256 * 65535)
+}
+
 pub(crate) fn render_forward(
     camera: &Camera,
     img_size: glam::UVec2,
@@ -198,23 +222,14 @@ pub(crate) fn render_forward(
         InnerWgpu::int_slice(cum_tiles_hit.clone(), &[num_points - 1..num_points]);
 
     let num_tiles = tile_bounds[0] * tile_bounds[1];
+    let max_intersects = max_intersections(img_size, num_points as u32);
 
     // Each intersection maps to a gaussian.
     let (tile_bins, compact_gid_from_isect) = {
-        // On wasm, we cannot do a sync readback at all.
-        // Instead, can just estimate a max number of intersects. All the kernels only handle the actual
-        // cound of intersects, and spin up empty threads for the rest atm. In the future, could use indirect
-        // dispatch to avoid this.
-        // Estimating the max number of intersects can be a bad hack though... The worst case sceneario is so massive
-        // that it's easy to run out of memory... How do we actually properly deal with this :/
-        let max_intersects = num_points
-            .saturating_mul(num_tiles as usize)
-            .min(256 * 65535);
-
         let tile_id_from_isect =
-            create_tensor::<1, _>([max_intersects], device, client, DType::U32);
+            create_tensor::<1, _>([max_intersects as usize], device, client, DType::U32);
         let compact_gid_from_isect =
-            create_tensor::<1, _>([max_intersects], device, client, DType::U32);
+            create_tensor::<1, _>([max_intersects as usize], device, client, DType::U32);
 
         tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(|| unsafe {
             client.execute_unchecked(
@@ -306,7 +321,7 @@ pub(crate) fn render_forward(
         [img_size.y as usize, img_size.x as usize],
         device,
         client,
-        DType::U32,
+        DType::I32,
     );
 
     if !raster_u32 {

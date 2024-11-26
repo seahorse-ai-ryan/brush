@@ -52,7 +52,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     let mean2d = uniforms.focal * mean_c.xy * (1.0 / mean_c.z) + uniforms.pixel_center;
 
     // TODO: Include opacity here or is this ok?
-    let radius = helpers::radius_from_cov(cov2d, 1.0);
+    let radius = helpers::radius_from_cov(helpers::inverse_symmetric(conic), 1.0);
 
     if (radius <= 0) {
         return;

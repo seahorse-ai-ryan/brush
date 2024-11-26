@@ -18,17 +18,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
 
     let projected = projected_splats[compact_gid];
     // get the tile bbox for gaussian
-    let xy = vec2f(projected.xy_x, projected.xy_y);
+    let mean2d = vec2f(projected.xy_x, projected.xy_y);
+
     let conic = vec3f(projected.conic_x, projected.conic_y, projected.conic_z);
-    let invDet = 1.0 / (conic.x * conic.z - conic.y * conic.y);
-    let cov2d = vec3f(conic.z * invDet, -conic.y * invDet, conic.x * invDet);
+    let radius = helpers::radius_from_cov(helpers::inverse_symmetric(conic), 1.0);
 
     let opac = projected.color_a;
 
-    let radius = helpers::radius_from_cov(cov2d, opac);
     let tile_bounds = uniforms.tile_bounds;
 
-    let tile_minmax = helpers::get_tile_bbox(xy, radius, tile_bounds);
+    let tile_minmax = helpers::get_tile_bbox(mean2d, radius, tile_bounds);
     let tile_min = tile_minmax.xy;
     let tile_max = tile_minmax.zw;
 
@@ -40,8 +39,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
 
     for (var ty = tile_min.y; ty < tile_max.y; ty++) {
         for (var tx = tile_min.x; tx < tile_max.x; tx++) {
-            if helpers::can_be_visible(vec2u(tx, ty), xy, conic, opac) && isect_id < arrayLength(&tile_id_from_isect) {
+            if helpers::can_be_visible(vec2u(tx, ty), mean2d, conic, opac) {
                 let tile_id = tx + ty * tile_bounds.x; // tile within image
+
                 tile_id_from_isect[isect_id] = tile_id;
                 compact_gid_from_isect[isect_id] = compact_gid;
                 isect_id++; // handles gaussians that hit more than one tile

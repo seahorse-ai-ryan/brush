@@ -237,7 +237,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     var color = sh_coeffs_to_color(sh_degree, viewdir, sh) + vec3f(0.5);
     // color = max(color, vec3f(0.0));
 
-    let radius = helpers::radius_from_cov(cov2d, opac);
+    let radius = helpers::radius_from_cov(helpers::inverse_symmetric(conic), 1.0);
 
     let tile_minmax = helpers::get_tile_bbox(mean2d, radius, uniforms.tile_bounds);
     let tile_min = tile_minmax.xy;
@@ -257,5 +257,5 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
         conic,
         vec4f(color, opac)
     );
-    num_tiles_hit[compact_gid] = u32(tile_area);
+    num_tiles_hit[compact_gid] = tile_area;
 }
