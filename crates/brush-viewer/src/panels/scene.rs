@@ -42,6 +42,8 @@ pub(crate) struct ScenePanel {
     queue: Arc<wgpu::Queue>,
     device: Arc<wgpu::Device>,
     renderer: Arc<EguiRwLock<Renderer>>,
+
+    zen: bool,
 }
 
 impl ScenePanel {
@@ -49,6 +51,7 @@ impl ScenePanel {
         queue: Arc<wgpu::Queue>,
         device: Arc<wgpu::Device>,
         renderer: Arc<EguiRwLock<Renderer>>,
+        zen: bool,
     ) -> Self {
         Self {
             frame: 0.0,
@@ -65,6 +68,7 @@ impl ScenePanel {
             queue,
             device,
             renderer,
+            zen,
         }
     }
 
@@ -244,7 +248,7 @@ impl ViewerPanel for ScenePanel {
         self.last_draw = Some(cur_time);
 
         // Empty scene, nothing to show.
-        if !self.is_loading && self.view_splats.is_empty() && self.err.is_none() {
+        if !self.is_loading && self.view_splats.is_empty() && self.err.is_none() && !self.zen {
             ui.heading("Load a ply file or dataset to get started.");
             ui.add_space(5.0);
             ui.label(

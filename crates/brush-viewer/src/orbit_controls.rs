@@ -10,16 +10,21 @@ pub struct OrbitControls {
 
     pan_momentum: Vec2,
     rotate_momentum: Vec2,
+
+    min_radius: f32,
+    max_radius: f32,
 }
 
 impl OrbitControls {
-    pub fn new(transform: Affine3A) -> Self {
+    pub fn new(transform: Affine3A, min_radius: f32, max_radius: f32) -> Self {
         Self {
             transform,
             focus: Vec3A::ZERO,
             pan_momentum: Vec2::ZERO,
             rotate_momentum: Vec2::ZERO,
             dirty: false,
+            min_radius,
+            max_radius
         }
     }
 
@@ -65,15 +70,13 @@ impl OrbitControls {
         self.focus += translation;
         radius -= scroll * radius * 0.2;
 
-        let min = 0.25;
-        let max = 35.0;
         // smooth clamp to min/max radius.
-        if radius < min {
-            radius = radius * 0.5 + min * 0.5;
+        if radius < self.min_radius {
+            radius = radius * 0.5 + self.min_radius * 0.5;
         }
 
-        if radius > max {
-            radius = radius * 0.5 + max * 0.5;
+        if radius > self.max_radius {
+            radius = radius * 0.5 + self.max_radius * 0.5;
         }
 
         self.transform.translation = self.focus + rotation * Vec3A::new(0.0, 0.0, -radius);

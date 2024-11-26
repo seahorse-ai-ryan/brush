@@ -233,26 +233,34 @@ impl DataSource {
     }
 }
 
+struct CameraSettings {
+    focal: f64,
+    min_radius: f32,
+    max_radius: f32,
+}
+
 impl ViewerContext {
     fn new(
         device: WgpuDevice,
         ctx: egui::Context,
-        up_axis: Vec3,
-        focal: f64,
+        cam_settings: CameraSettings,
         controller: UnboundedReceiver<UiControlMessage>,
     ) -> Self {
-        let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
+        let model_transform = Affine3A::IDENTITY;
 
-        let model_transform =
-            Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
-        let controls = OrbitControls::new(Affine3A::from_translation(-Vec3::Z * 10.0));
+        let avg_radius = (cam_settings.min_radius + cam_settings.max_radius) / 2.0;
+        let controls = OrbitControls::new(
+            Affine3A::from_translation(-Vec3::Z * avg_radius),
+            cam_settings.min_radius,
+            cam_settings.max_radius,
+        );
 
         // Camera position will be controller by controls.
         let camera = Camera::new(
             Vec3::ZERO,
             Quat::IDENTITY,
-            focal,
-            focal,
+            cam_settings.focal,
+            cam_settings.focal,
             glam::vec2(0.5, 0.5),
         );
 
@@ -271,8 +279,7 @@ impl ViewerContext {
 
     pub fn set_up_axis(&mut self, up_axis: Vec3) {
         let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
-        let model_transform =
-            Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
+        let model_transform = Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
         self.model_transform = model_transform;
     }
 
@@ -398,21 +405,29 @@ impl Viewer {
             .get("focal")
             .and_then(|f| f.parse().ok())
             .unwrap_or(0.5);
+        let min_radius = search_params
+            .get("min_radius")
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(1.0);
+        let max_radius = search_params
+            .get("max_radius")
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(10.0);
 
-        let up_axis = Vec3::Y;
-        let context = ViewerContext::new(
-            device.clone(),
-            cc.egui_ctx.clone(),
-            up_axis,
+        let settings = CameraSettings {
             focal,
-            controller,
-        );
+            min_radius,
+            max_radius,
+        };
+
+        let context = ViewerContext::new(device.clone(), cc.egui_ctx.clone(), settings, controller);
 
         let mut tiles: Tiles<PaneType> = Tiles::default();
         let scene_pane = ScenePanel::new(
             state.queue.clone(),
             state.device.clone(),
             state.renderer.clone(),
+            zen,
         );
 
         let scene_pane_id = tiles.insert_pane(Box::new(scene_pane));
