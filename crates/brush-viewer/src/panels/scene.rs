@@ -134,7 +134,7 @@ impl ScenePanel {
             delta_time.as_secs_f32(),
         );
 
-        let total_transform = context.model_transform * context.controls.transform;
+        let total_transform = context.model_transform * context.controls.transform();
         context.camera.position = total_transform.translation.into();
         context.camera.rotation = Quat::from_mat3a(&total_transform.matrix3);
 

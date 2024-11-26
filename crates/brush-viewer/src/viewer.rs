@@ -1,3 +1,5 @@
+use core::f32;
+use std::ops::Range;
 use std::{pin::Pin, sync::Arc};
 
 use async_fn_stream::try_fn_stream;
@@ -235,8 +237,11 @@ impl DataSource {
 
 struct CameraSettings {
     focal: f64,
-    min_radius: f32,
-    max_radius: f32,
+    radius: f32,
+
+    yaw_range: Range<f32>,
+    pitch_range: Range<f32>,
+    radius_range: Range<f32>,
 }
 
 impl ViewerContext {
@@ -248,11 +253,11 @@ impl ViewerContext {
     ) -> Self {
         let model_transform = Affine3A::IDENTITY;
 
-        let avg_radius = (cam_settings.min_radius + cam_settings.max_radius) / 2.0;
         let controls = OrbitControls::new(
-            Affine3A::from_translation(-Vec3::Z * avg_radius),
-            cam_settings.min_radius,
-            cam_settings.max_radius,
+            cam_settings.radius,
+            cam_settings.radius_range,
+            cam_settings.yaw_range,
+            cam_settings.pitch_range,
         );
 
         // Camera position will be controller by controls.
@@ -264,6 +269,26 @@ impl ViewerContext {
             glam::vec2(0.5, 0.5),
         );
 
+        // TODO: Generalize this "inner control" logic.
+        let (inner_send, inner_control) = ::tokio::sync::mpsc::unbounded_channel();
+        let ctx_spawn = ctx.clone();
+        let mut controller = controller;
+        task::spawn(async move {
+            // Loop until there are no more messages, processing is done.
+            while let Some(m) = controller.recv().await {
+                ctx_spawn.request_repaint();
+
+                // Give back to the runtime for a second.
+                // This only really matters in the browser.
+                tokio::task::yield_now().await;
+
+                // If channel is closed, bail.
+                if inner_send.send(m).is_err() {
+                    break;
+                }
+            }
+        });
+
         Self {
             camera,
             controls,
@@ -273,7 +298,7 @@ impl ViewerContext {
             dataset: Dataset::empty(),
             rec_process_msg: None,
             send_train_msg: None,
-            rec_ui_control_msg: controller,
+            rec_ui_control_msg: inner_control,
         }
     }
 
@@ -286,10 +311,17 @@ impl ViewerContext {
     pub fn focus_view(&mut self, cam: &Camera) {
         // set the controls transform.
         let cam_transform = Affine3A::from_rotation_translation(cam.rotation, cam.position);
-        self.controls.transform = self.model_transform.inverse() * cam_transform;
+        let transform = self.model_transform.inverse() * cam_transform;
+        let (_, rotation, position) = transform.to_scale_rotation_translation();
+
+        let (pitch, yaw, _) = rotation.to_euler(glam::EulerRot::ZYX);
+        self.controls.position = position.into();
+        self.controls.yaw = yaw;
+        self.controls.pitch = pitch;
+
         // Copy the camera, mostly to copy over the intrinsics and such.
-        self.controls.focus = self.controls.transform.translation
-            + self.controls.transform.matrix3
+        self.controls.focus = transform.translation
+            + transform.matrix3
                 * Vec3A::Z
                 * self.dataset.train.bounds(0.0, 0.0).extent.length()
                 * 0.5;
@@ -319,8 +351,11 @@ impl ViewerContext {
 
         self.dataset = Dataset::empty();
         let ctx = self.ctx.clone();
+        ctx.request_repaint();
 
         let fut = async move {
+            ctx.request_repaint();
+
             // Map errors to a viewer message containing thee error.
             let mut stream = process_loop(
                 source,
@@ -405,6 +440,10 @@ impl Viewer {
             .get("focal")
             .and_then(|f| f.parse().ok())
             .unwrap_or(0.5);
+        let radius = search_params
+            .get("radius")
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(4.0);
         let min_radius = search_params
             .get("min_radius")
             .and_then(|f| f.parse().ok())
@@ -414,10 +453,34 @@ impl Viewer {
             .and_then(|f| f.parse().ok())
             .unwrap_or(10.0);
 
+        let min_yaw = search_params
+            .get("min_yaw")
+            .and_then(|f| f.parse::<f32>().ok())
+            .map(|d| d.to_radians())
+            .unwrap_or(f32::MIN);
+        let max_yaw = search_params
+            .get("max_yaw")
+            .and_then(|f| f.parse::<f32>().ok())
+            .map(|d| d.to_radians())
+            .unwrap_or(f32::MAX);
+
+        let min_pitch = search_params
+            .get("min_pitch")
+            .and_then(|f| f.parse::<f32>().ok())
+            .map(|d| d.to_radians())
+            .unwrap_or(f32::MIN);
+        let max_pitch = search_params
+            .get("max_pitch")
+            .and_then(|f| f.parse::<f32>().ok())
+            .map(|d| d.to_radians())
+            .unwrap_or(f32::MAX);
+
         let settings = CameraSettings {
             focal,
-            min_radius,
-            max_radius,
+            radius,
+            radius_range: min_radius..max_radius,
+            yaw_range: min_yaw..max_yaw,
+            pitch_range: min_pitch..max_pitch,
         };
 
         let context = ViewerContext::new(device.clone(), cc.egui_ctx.clone(), settings, controller);
@@ -526,8 +589,6 @@ impl eframe::App for Viewer {
                         Tile::Container(_) => {}
                     }
                 }
-
-                ctx.request_repaint();
             }
         }
 
