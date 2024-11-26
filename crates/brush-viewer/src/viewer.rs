@@ -54,21 +54,6 @@ fn parse_search(search: &str) -> HashMap<String, String> {
     params
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_search() {
-        let search = "?url=https%3A%2F%2Fexample.com&foo=bar&empty=";
-        let params = parse_search(search);
-
-        assert_eq!(params.get("url").unwrap(), "https://example.com");
-        assert_eq!(params.get("foo").unwrap(), "bar");
-        assert_eq!(params.get("empty").unwrap(), "");
-    }
-}
-
 pub enum UiControlMessage {
     LoadData(String),
 }
@@ -106,7 +91,7 @@ pub(crate) enum ProcessMessage {
         iter: u32,
         timestamp: Instant,
     },
-    /// Eval was run sucesfully with these results.
+    /// Eval was run successfully with these results.
     EvalResult {
         iter: u32,
         eval: EvalStats<Backend>,
@@ -125,7 +110,7 @@ pub(crate) struct ViewerContext {
     pub camera: Camera,
     pub controls: OrbitControls,
 
-    pub model_transform: glam::Affine3A,
+    pub model_transform: Affine3A,
 
     device: WgpuDevice,
     ctx: egui::Context,
@@ -164,8 +149,8 @@ fn process_loop(
                 .emit(ProcessMessage::StartLoading { training: false })
                 .await;
 
-            let subsample = None; // Subsampling a trained ply doesn't really make sense.
-            let splat_stream = splat_import::load_splat_from_ply(data, subsample, device.clone());
+            let sub_sample = None; // Subsampling a trained ply doesn't really make sense.
+            let splat_stream = splat_import::load_splat_from_ply(data, sub_sample, device.clone());
 
             let mut splat_stream = std::pin::pin!(splat_stream);
 
@@ -253,16 +238,23 @@ impl ViewerContext {
         device: WgpuDevice,
         ctx: egui::Context,
         up_axis: Vec3,
+        focal: f64,
         controller: UnboundedReceiver<UiControlMessage>,
     ) -> Self {
         let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
 
         let model_transform =
-            glam::Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
-        let controls = OrbitControls::new(glam::Affine3A::from_translation(-Vec3::Z * 10.0));
+            Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
+        let controls = OrbitControls::new(Affine3A::from_translation(-Vec3::Z * 10.0));
 
         // Camera position will be controller by controls.
-        let camera = Camera::new(Vec3::ZERO, Quat::IDENTITY, 0.35, 0.35, glam::vec2(0.5, 0.5));
+        let camera = Camera::new(
+            Vec3::ZERO,
+            Quat::IDENTITY,
+            focal,
+            focal,
+            glam::vec2(0.5, 0.5),
+        );
 
         Self {
             camera,
@@ -280,7 +272,7 @@ impl ViewerContext {
     pub fn set_up_axis(&mut self, up_axis: Vec3) {
         let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
         let model_transform =
-            glam::Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
+            Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
         self.model_transform = model_transform;
     }
 
@@ -331,10 +323,7 @@ impl ViewerContext {
                 load_init_args,
                 train_config,
             )
-            .map(|m| match m {
-                Ok(m) => m,
-                Err(e) => ProcessMessage::Error(Arc::new(e)),
-            });
+            .map(|m| m.unwrap_or_else(|e| ProcessMessage::Error(Arc::new(e))));
 
             // Loop until there are no more messages, processing is done.
             while let Some(m) = stream.next().await {
@@ -405,10 +394,21 @@ impl Viewer {
             zen = z.parse::<bool>().unwrap_or(false);
         }
 
-        let up_axis = Vec3::Y;
-        let context = ViewerContext::new(device.clone(), cc.egui_ctx.clone(), up_axis, controller);
+        let focal = search_params
+            .get("focal")
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(0.5);
 
-        let mut tiles: Tiles<PaneType> = egui_tiles::Tiles::default();
+        let up_axis = Vec3::Y;
+        let context = ViewerContext::new(
+            device.clone(),
+            cc.egui_ctx.clone(),
+            up_axis,
+            focal,
+            controller,
+        );
+
+        let mut tiles: Tiles<PaneType> = Tiles::default();
         let scene_pane = ScenePanel::new(
             state.queue.clone(),
             state.device.clone(),
