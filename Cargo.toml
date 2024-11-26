@@ -54,7 +54,6 @@ assert_approx_eq = "1.1.0"
 safetensors = "0.4.3"
 log = "0.4.22"
 wasm-bindgen = "0.2.95"
-wasm-bindgen-futures = "0.4.45"
 
 wgpu = "22.1.0"
 naga = "22.1.0"
@@ -97,7 +96,6 @@ rerun = { version = "0.19.1", default-features = false, features = [
 ] }
 
 kiddo = "4.2.1"
-gloo-timers = { version = "0.3.0", features = ["futures"] }
 
 # Build dependencies.
 thiserror = "*"
@@ -130,11 +128,12 @@ naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "flt-atom" }
 opt-level = 0
 debug = true
 
-# Optimize all dependencies even in debug builds (does not affect workspace packages):
+# Optimize dependencies even in debug builds (does not affect workspace packages):
 [profile.dev.package."*"]
 opt-level = 1
 debug = true
 
 [profile.release]
 # debug = true # good for profilers
-# panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm anyways).
+panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm).
+lto = "thin"

@@ -7,5 +7,4 @@ license.workspace = true
 
 [dependencies]
 burn.workspace = true
-bytemuck.workspace = true
 rerun.workspace = true

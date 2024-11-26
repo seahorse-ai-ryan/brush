@@ -19,10 +19,7 @@ burn.workspace = true
 tracing.workspace = true
 log.workspace = true
 ply-rs.workspace = true
-web-time.workspace = true
 rand.workspace = true
-
-safetensors.workspace = true
 
 tokio = { workspace = true, features = ["io-util"] }
 tokio_with_wasm.workspace = true

@@ -10,7 +10,6 @@ license.workspace = true
 brush-render.path = "../brush-render"
 brush-train.path = "../brush-train"
 brush-dataset.path = "../brush-dataset"
-brush-kernel.path = "../brush-kernel"
 brush-ui.path = "../brush-ui"
 
 # Workspace deps.
@@ -27,20 +26,14 @@ egui.workspace = true
 egui_tiles.workspace = true
 tracing.workspace = true
 wgpu.workspace = true
-tracing-subscriber.workspace = true
 rand.workspace = true
 
 web-time.workspace = true
 humantime.workspace = true
 
 log.workspace = true
-gloo-timers.workspace = true
-
-tracing-tracy = { workspace = true, optional = true }
-cfg-if.workspace = true
 
 rrfd.path = "../rrfd"
-sync-span.path = "../sync-span"
 
 zip.workspace = true
 async-fn-stream.workspace = true
@@ -48,13 +41,9 @@ async-fn-stream.workspace = true
 tokio_with_wasm = { workspace = true, features = ["rt"] }
 tokio = { workspace = true, features = ["io-util", "rt"] }
 tokio-util.workspace = true
+tokio-stream.workspace = true
 
 reqwest.workspace = true
-
-tokio-stream.workspace = true
-wasm-bindgen-futures.workspace = true
-
-parking_lot.workspace = true
 urlencoding.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
@@ -66,7 +55,6 @@ tracing-wasm.workspace = true
 web-sys.workspace = true
 
 [features]
-tracy = ["dep:tracing-tracy", "tracing"]
 tracing = []
 
 [package.metadata.wasm-pack.profile.release.wasm-bindgen]

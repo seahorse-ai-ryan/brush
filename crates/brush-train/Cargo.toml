@@ -7,14 +7,12 @@ license.workspace = true
 
 [dependencies]
 brush-render.path = "../brush-render"
+
 anyhow.workspace = true
 image.workspace = true
 glam.workspace = true
 rand.workspace = true
 tracing.workspace = true
-parking_lot.workspace = true
 log.workspace = true
-tokio.workspace = true
 
 burn.workspace = true
-burn-wgpu.workspace = true

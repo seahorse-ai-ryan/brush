@@ -20,7 +20,6 @@ burn-fusion.workspace = true
 
 bytemuck.workspace = true
 glam.workspace = true
-image.workspace = true
 naga_oil.workspace = true
 safetensors.workspace = true
 tracing.workspace = true
@@ -37,6 +36,7 @@ miette.workspace = true
 
 [dev-dependencies]
 rerun.workspace = true
+image.workspace = true
 brush-rerun.path = "../brush-rerun"
 divan = "0.1.14"
 
