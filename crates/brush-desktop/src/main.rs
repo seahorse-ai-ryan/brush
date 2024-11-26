@@ -1,8 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use ::tokio::sync::mpsc::UnboundedSender;
-
-use brush_viewer::viewer::UiControlMessage;
 use tokio_with_wasm::alias as tokio;
 
 #[cfg(target_family = "wasm")]
@@ -99,58 +96,68 @@ fn main() {
     }
 }
 
-use wasm_bindgen::prelude::*;
+#[cfg(target_family = "wasm")]
+mod embedded {
+    use ::tokio::sync::mpsc::UnboundedSender;
+    use tokio_with_wasm::alias as tokio;
 
-#[wasm_bindgen]
-pub struct EmbeddedViewer {
-    ui_control: UnboundedSender<UiControlMessage>,
-}
+    use brush_viewer::viewer::UiControlMessage;
+    use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-impl EmbeddedViewer {
-    #[wasm_bindgen(constructor)]
-    pub fn new(canvas_name: &str, url: &str) -> EmbeddedViewer {
-        let wgpu_options = brush_ui::create_egui_options();
-        let document = web_sys::window().unwrap().document().unwrap();
-        let canvas = document
-            .get_element_by_id(canvas_name)
-            .unwrap()
-            .dyn_into::<web_sys::HtmlCanvasElement>()
-            .unwrap();
-
-        // Unused.
-        let (send, rec) = ::tokio::sync::mpsc::unbounded_channel();
-
-        let url = url.to_owned();
-        // On wasm, run as a local task.
-        tokio::spawn(async {
-            eframe::WebRunner::new()
-                .start(
-                    canvas,
-                    eframe::WebOptions {
-                        wgpu_options,
-                        ..Default::default()
-                    },
-                    Box::new(|cc| {
-                        Ok(Box::new(brush_viewer::viewer::Viewer::new(
-                            cc,
-                            Some(url),
-                            rec,
-                        )))
-                    }),
-                )
-                .await
-                .expect("failed to start eframe");
-        });
-
-        EmbeddedViewer { ui_control: send }
+    #[wasm_bindgen]
+    pub struct EmbeddedViewer {
+        ui_control: UnboundedSender<UiControlMessage>,
     }
 
     #[wasm_bindgen]
-    pub fn load_url(&self, url: &str) {
-        // If channel is dropped, don't do anything.
-        let _ = self
-            .ui_control
-            .send(UiControlMessage::LoadData(url.to_owned()));
+    impl EmbeddedViewer {
+        #[wasm_bindgen(constructor)]
+        pub fn new(canvas_name: &str, url: &str) -> EmbeddedViewer {
+            let wgpu_options = brush_ui::create_egui_options();
+            let document = web_sys::window().unwrap().document().unwrap();
+            let canvas = document
+                .get_element_by_id(canvas_name)
+                .unwrap()
+                .dyn_into::<web_sys::HtmlCanvasElement>()
+                .unwrap();
+
+            // Unused.
+            let (send, rec) = ::tokio::sync::mpsc::unbounded_channel();
+
+            let url = url.to_owned();
+            // On wasm, run as a local task.
+            tokio::spawn(async {
+                eframe::WebRunner::new()
+                    .start(
+                        canvas,
+                        eframe::WebOptions {
+                            wgpu_options,
+                            ..Default::default()
+                        },
+                        Box::new(|cc| {
+                            Ok(Box::new(brush_viewer::viewer::Viewer::new(
+                                cc,
+                                Some(url),
+                                rec,
+                            )))
+                        }),
+                    )
+                    .await
+                    .expect("failed to start eframe");
+            });
+
+            EmbeddedViewer { ui_control: send }
+        }
+
+        #[wasm_bindgen]
+        pub fn load_url(&self, url: &str) {
+            // If channel is dropped, don't do anything.
+            let _ = self
+                .ui_control
+                .send(UiControlMessage::LoadData(url.to_owned()));
+        }
     }
 }
+
+#[cfg(target_family = "wasm")]
+pub use embedded::*;

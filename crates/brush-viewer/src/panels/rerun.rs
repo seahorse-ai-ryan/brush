@@ -2,7 +2,7 @@ use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{
     train_loop::TrainMessage,
-    viewer::{self, ViewerContext, ViewerMessage},
+    viewer::{ProcessMessage, ViewerContext},
     ViewerPanel,
 };
 
@@ -364,9 +364,9 @@ impl ViewerPanel for RerunPanel {
         "Rerun".to_owned()
     }
 
-    fn on_message(&mut self, message: &ViewerMessage, context: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
         match message {
-            ViewerMessage::StartLoading { training } => {
+            ProcessMessage::StartLoading { training } => {
                 if *training {
                     if self.visualize.is_some() {
                         self.visualize = Some(Arc::new(VisualizeTools::new()));
@@ -375,12 +375,12 @@ impl ViewerPanel for RerunPanel {
                     self.visualize = None;
                 }
             }
-            ViewerMessage::DoneLoading { training } => {
+            ProcessMessage::DoneLoading { training } => {
                 if *training {
                     self.ready_to_log_dataset = true;
                 }
             }
-            viewer::ViewerMessage::TrainStep {
+            ProcessMessage::TrainStep {
                 splats,
                 stats,
                 iter,
@@ -410,7 +410,7 @@ impl ViewerPanel for RerunPanel {
                     visualize.log_train_stats(*iter, *stats.clone());
                 }
             }
-            ViewerMessage::EvalResult { iter, eval } => {
+            ProcessMessage::EvalResult { iter, eval } => {
                 let Some(visualize) = self.visualize.clone() else {
                     return;
                 };
