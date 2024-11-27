@@ -79,6 +79,7 @@ impl ViewerPanel for StatsPanel {
                 up_axis: _,
                 splats,
                 frame,
+                total_frames: _,
             } => {
                 self.num_splats = splats.num_splats();
                 self.frames = *frame;

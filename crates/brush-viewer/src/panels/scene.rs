@@ -27,6 +27,8 @@ pub(crate) struct ScenePanel {
     pub(crate) last_draw: Option<Instant>,
 
     view_splats: Vec<Splats<Wgpu>>,
+    frame_count: usize,
+
     frame: f32,
     err: Option<Arc<anyhow::Error>>,
 
@@ -69,6 +71,7 @@ impl ScenePanel {
             device,
             renderer,
             zen,
+            frame_count: 0,
         }
     }
 
@@ -211,6 +214,7 @@ impl ViewerPanel for ScenePanel {
                 up_axis,
                 splats,
                 frame,
+                total_frames,
             } => {
                 context.set_up_axis(*up_axis);
 
@@ -218,8 +222,8 @@ impl ViewerPanel for ScenePanel {
                     self.view_splats.truncate(*frame);
                     log::info!("Received splat at {frame}");
                     self.view_splats.push(*splats.clone());
-                    self.frame = *frame as f32 - 0.5;
                 }
+                self.frame_count = *total_frames;
             }
             ProcessMessage::TrainStep {
                 splats,
@@ -281,8 +285,18 @@ For bigger training runs consider using the native app."#,
         if let Some(err) = self.err.as_ref() {
             ui.label("Error: ".to_owned() + &err.to_string());
         } else if !self.view_splats.is_empty() {
-            const FPS: usize = 24;
-            let frame = ((self.frame * FPS as f32).floor() as usize) % self.view_splats.len();
+            const FPS: f32 = 24.0;
+
+            self.frame += delta_time.as_secs_f32();
+
+            if self.view_splats.len() != self.frame_count {
+                let max_t = (self.view_splats.len() - 1) as f32 / FPS;
+                self.frame = self.frame.min(max_t);
+            }
+
+            let frame = (self.frame * FPS)
+                .rem_euclid(self.frame_count as f32)
+                .floor() as usize;
             let splats = self.view_splats[frame].clone();
 
             self.draw_splats(ui, context, &splats, delta_time);
@@ -309,7 +323,6 @@ For bigger training runs consider using the native app."#,
                     }
 
                     if !self.paused {
-                        self.frame += delta_time.as_secs_f32();
                         self.dirty = true;
                     }
                 }

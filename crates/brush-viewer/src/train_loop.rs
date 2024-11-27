@@ -64,6 +64,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
                 up_axis: message.meta.up_axis,
                 splats: Box::new(splats.valid()),
                 frame: 0,
+                total_frames: 0,
             };
             emitter.emit(msg).await;
             initial_splats = Some(splats);

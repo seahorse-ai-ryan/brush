@@ -77,6 +77,7 @@ pub(crate) enum ProcessMessage {
         up_axis: Vec3,
         splats: Box<Splats<Backend>>,
         frame: usize,
+        total_frames: usize,
     },
     /// Loaded a bunch of viewpoints to train on.
     Dataset {
@@ -163,6 +164,7 @@ fn process_loop(
                         up_axis: message.meta.up_axis,
                         splats: Box::new(message.splats),
                         frame: message.meta.current_frame,
+                        total_frames: message.meta.frame_count,
                     })
                     .await;
             }
