@@ -82,9 +82,7 @@ impl ScenePanel {
         splats: &Splats<Wgpu>,
         delta_time: web_time::Duration,
     ) {
-        let mut size = ui.available_size();
-        // Always keep some margin at the bottom
-        size.y -= 50.0;
+        let mut size = brush_ui::size_for_splat_view(ui);
 
         if size.x < 8.0 || size.y < 8.0 {
             return;
@@ -287,7 +285,9 @@ For bigger training runs consider using the native app."#,
         } else if !self.view_splats.is_empty() {
             const FPS: f32 = 24.0;
 
-            self.frame += delta_time.as_secs_f32();
+            if !self.paused {
+                self.frame += delta_time.as_secs_f32();
+            }
 
             if self.view_splats.len() != self.frame_count {
                 let max_t = (self.view_splats.len() - 1) as f32 / FPS;

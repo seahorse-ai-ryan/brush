@@ -98,12 +98,10 @@ impl ViewerPanel for DatasetPanel {
 
             if let Some(selected) = self.selected_view.as_ref() {
                 let img_size = selected.2.size();
-                let mut available_size = ui.available_size();
-                // Always keep some margin at the bottom
-                available_size.y -= 50.0;
+                let size = brush_ui::size_for_splat_view(ui);
 
                 let size = egui::Image::new(&selected.2).shrink_to_fit().calc_size(
-                    available_size,
+                    size,
                     Some(egui::vec2(img_size[0] as f32, img_size[1] as f32)),
                 );
                 let min = ui.cursor().min;
