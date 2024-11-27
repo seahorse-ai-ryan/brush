@@ -69,7 +69,7 @@ pub fn radix_argsort(
             [(max_needed_wgs as usize) * 16],
             device,
             client,
-            DType::U32,
+            DType::I32,
         );
 
         // SAFETY: wgsl FFI, kernel checked to have no OOB.
@@ -88,7 +88,7 @@ pub fn radix_argsort(
 
         {
             let reduced_buf =
-                create_tensor::<1, WgpuRuntime>([BLOCK_SIZE as usize], device, client, DType::U32);
+                create_tensor::<1, WgpuRuntime>([BLOCK_SIZE as usize], device, client, DType::I32);
 
             unsafe {
                 client.execute_unchecked(

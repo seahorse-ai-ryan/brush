@@ -19,7 +19,7 @@ pub fn prefix_sum(input: JitTensor<WgpuRuntime>) -> JitTensor<WgpuRuntime> {
     let threads_per_group = shaders::prefix_sum_helpers::THREADS_PER_GROUP as usize;
     let num = input.shape.dims[0];
     let client = &input.client;
-    let outputs = create_tensor(input.shape.dims::<1>(), &input.device, client, DType::U32);
+    let outputs = create_tensor(input.shape.dims::<1>(), &input.device, client, DType::I32);
 
     unsafe {
         client.execute_unchecked(
@@ -42,7 +42,7 @@ pub fn prefix_sum(input: JitTensor<WgpuRuntime>) -> JitTensor<WgpuRuntime> {
             [work_sz],
             &input.device,
             client,
-            DType::U32,
+            DType::I32,
         ));
         work_size.push(work_sz);
     }

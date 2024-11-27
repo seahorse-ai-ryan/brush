@@ -227,9 +227,9 @@ pub(crate) fn render_forward(
     // Each intersection maps to a gaussian.
     let (tile_bins, compact_gid_from_isect) = {
         let tile_id_from_isect =
-            create_tensor::<1, _>([max_intersects as usize], device, client, DType::U32);
+            create_tensor::<1, _>([max_intersects as usize], device, client, DType::I32);
         let compact_gid_from_isect =
-            create_tensor::<1, _>([max_intersects as usize], device, client, DType::U32);
+            create_tensor::<1, _>([max_intersects as usize], device, client, DType::I32);
 
         tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(|| unsafe {
             client.execute_unchecked(

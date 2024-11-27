@@ -163,7 +163,7 @@ pub fn create_uniform_buffer<R: JitRuntime, T: Pod>(
         device.clone(),
         Shape::new([shape]),
         client.create(bytes),
-        DType::U32,
+        DType::I32,
     )
 }
 
@@ -204,7 +204,7 @@ pub fn create_dispatch_buffer<R: JitRuntime>(
         &thread_nums.device,
         &client,
     );
-    let ret = create_tensor([3], &thread_nums.device, &client, DType::U32);
+    let ret = create_tensor([3], &thread_nums.device, &client, DType::I32);
 
     // SAFETY: wgsl FFI, kernel checked to have no OOB.
     unsafe {
