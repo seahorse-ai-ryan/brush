@@ -315,11 +315,8 @@ impl ViewerContext {
         let cam_transform = Affine3A::from_rotation_translation(cam.rotation, cam.position);
         let transform = self.model_transform.inverse() * cam_transform;
         let (_, rotation, position) = transform.to_scale_rotation_translation();
-
-        let (pitch, yaw, _) = rotation.to_euler(glam::EulerRot::ZYX);
         self.controls.position = position.into();
-        self.controls.yaw = yaw;
-        self.controls.pitch = pitch;
+        self.controls.rotation = rotation;
 
         // Copy the camera, mostly to copy over the intrinsics and such.
         self.controls.focus = transform.translation

@@ -182,15 +182,6 @@ impl<B: Backend> Splats<B> {
         let num_points = means.shape().dims[0];
         let device = means.device();
 
-        log::info!(
-            "New splat created {:?} {:?} {:?} {:?} {:?}",
-            means.shape(),
-            rotation.shape(),
-            log_scales.shape(),
-            sh_coeffs.shape(),
-            raw_opacity.shape()
-        );
-
         Splats {
             means: Param::initialized(ParamId::new(), means.detach().require_grad()),
             sh_coeffs: Param::initialized(
