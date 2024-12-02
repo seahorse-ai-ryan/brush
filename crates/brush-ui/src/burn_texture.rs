@@ -13,8 +13,10 @@ use egui::epaint::mutex::RwLock as EguiRwLock;
 use egui::TextureId;
 use wgpu::{CommandEncoderDescriptor, ImageDataLayout};
 
+type InnerWgpu = JitBackend<WgpuRuntime, f32, i32, u32>;
+
 fn copy_buffer_to_texture(
-    img: Tensor<JitBackend<WgpuRuntime, f32, i32>, 3>,
+    img: Tensor<InnerWgpu, 3>,
     texture: &wgpu::Texture,
     encoder: &mut wgpu::CommandEncoder,
 ) {
@@ -150,7 +152,7 @@ impl BurnTexture {
 
         let img = img.into_primitive().tensor();
         let client = img.client.clone();
-        let img = client.resolve_tensor_float::<JitBackend<WgpuRuntime, f32, i32>>(img);
+        let img = client.resolve_tensor_float::<InnerWgpu>(img);
         let img = Tensor::from_primitive(TensorPrimitive::Float(img));
         copy_buffer_to_texture(img, &s.texture, &mut encoder);
 

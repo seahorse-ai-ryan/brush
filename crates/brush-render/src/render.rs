@@ -27,7 +27,7 @@ use burn_wgpu::WgpuRuntime;
 use burn::tensor::ops::FloatTensorOps;
 use glam::uvec2;
 
-type InnerWgpu = JitBackend<WgpuRuntime, f32, i32>;
+type InnerWgpu = JitBackend<WgpuRuntime, f32, i32, u32>;
 
 pub const SH_C0: f32 = shaders::gather_grads::SH_C0;
 

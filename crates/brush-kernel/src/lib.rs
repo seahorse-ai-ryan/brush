@@ -143,7 +143,7 @@ pub fn create_tensor<const D: usize, R: JitRuntime>(
             buffer,
             DType::F32,
         );
-        let noised = JitBackend::<R, f32, i32>::float_add_scalar(f, -12345.0);
+        let noised = JitBackend::<R, f32, i32, u32>::float_add_scalar(f, -12345.0);
         buffer = noised.handle;
     }
 

@@ -138,7 +138,7 @@ where
     config: TrainConfig,
 
     sched_mean: ExponentialLrScheduler,
-    optim: OptimizerAdaptor<Adam<B::InnerBackend>, Splats<B>, B>,
+    optim: OptimizerAdaptor<Adam, Splats<B>, B>,
     opt_config: AdamConfig,
 
     // Helper tensors for accumulating the viewspace_xy gradients and the number

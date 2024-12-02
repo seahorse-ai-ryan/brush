@@ -109,9 +109,10 @@ mod tests {
     use burn::tensor::{Int, Tensor};
     use burn_wgpu::{JitBackend, WgpuRuntime};
 
+    type Backend = JitBackend<WgpuRuntime, f32, i32, u32>;
+
     #[test]
     fn test_sum_tiny() {
-        type Backend = JitBackend<WgpuRuntime, f32, i32>;
         let device = Default::default();
         let keys = Tensor::<Backend, 1, Int>::from_data([1, 1, 1, 1], &device).into_primitive();
         let summed = prefix_sum(keys.clone());
@@ -128,7 +129,6 @@ mod tests {
         for i in 0..ITERS {
             data.push(90 + i as i32);
         }
-        type Backend = JitBackend<WgpuRuntime, f32, i32>;
         let device = Default::default();
         let keys = Tensor::<Backend, 1, Int>::from_data(data.as_slice(), &device).into_primitive();
         let summed = prefix_sum(keys.clone());
@@ -157,7 +157,6 @@ mod tests {
             data.push(30965);
         }
 
-        type Backend = JitBackend<WgpuRuntime, f32, i32>;
         let device = Default::default();
         let keys = Tensor::<Backend, 1, Int>::from_data(data.as_slice(), &device).into_primitive();
         let summed = prefix_sum(keys.clone());

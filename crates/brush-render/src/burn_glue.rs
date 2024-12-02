@@ -237,7 +237,7 @@ impl Backend for Fusion<InnerWgpu> {
             desc: CustomOpDescription,
         }
 
-        impl Operation<FusionJitRuntime<WgpuRuntime>> for CustomOp {
+        impl Operation<FusionJitRuntime<WgpuRuntime, u32>> for CustomOp {
             fn execute(self: Box<Self>, h: &mut HandleContainer<JitFusionHandle<WgpuRuntime>>) {
                 let (
                     [means, log_scales, quats, sh_coeffs, raw_opacity],
@@ -355,7 +355,7 @@ impl Backend for Fusion<InnerWgpu> {
             sh_degree: u32,
         }
 
-        impl Operation<FusionJitRuntime<WgpuRuntime>> for CustomOp {
+        impl Operation<FusionJitRuntime<WgpuRuntime, u32>> for CustomOp {
             fn execute(self: Box<Self>, h: &mut HandleContainer<JitFusionHandle<WgpuRuntime>>) {
                 let (
                     [v_output, means, log_scales, quats, raw_opac, out_img, projected_splats, num_visible, uniforms_buffer, compact_gid_from_isect, global_from_compact_gid, tile_bins, final_index],

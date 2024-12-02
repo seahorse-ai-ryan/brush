@@ -50,7 +50,7 @@ pub fn radix_argsort(
     let max_needed_wgs = max_n.div_ceil(BLOCK_SIZE);
 
     let num_wgs = create_dispatch_buffer(n_sort.clone(), [BLOCK_SIZE, 1, 1]);
-    let num_reduce_wgs: Tensor<JitBackend<WgpuRuntime, f32, i32>, 1, Int> =
+    let num_reduce_wgs: Tensor<JitBackend<WgpuRuntime, f32, i32, u32>, 1, Int> =
         Tensor::from_primitive(create_dispatch_buffer(num_wgs.clone(), [BLOCK_SIZE, 1, 1]))
             * Tensor::from_ints([BIN_COUNT, 1, 1], device);
     let num_reduce_wgs: JitTensor<WgpuRuntime> = num_reduce_wgs.into_primitive();
@@ -159,7 +159,7 @@ mod tests {
     use burn_wgpu::{JitBackend, WgpuRuntime};
     use rand::Rng;
 
-    type Backend = JitBackend<WgpuRuntime, f32, i32>;
+    type Backend = JitBackend<WgpuRuntime, f32, i32, u32>;
 
     pub fn argsort<T: Ord>(data: &[T]) -> Vec<usize> {
         let mut indices = (0..data.len()).collect::<Vec<_>>();
