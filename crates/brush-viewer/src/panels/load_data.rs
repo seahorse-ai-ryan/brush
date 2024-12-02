@@ -13,7 +13,6 @@ pub(crate) struct LoadDataPanel {
 
     sh_degree: u32,
     quality: Quality,
-    proxy: bool,
     url: String,
 }
 
@@ -31,7 +30,6 @@ impl LoadDataPanel {
             },
             sh_degree: 3,
             quality: Quality::Normal,
-            proxy: false,
             url: "splat.com/example.ply".to_owned(),
         }
     }
@@ -44,16 +42,11 @@ impl ViewerPanel for LoadDataPanel {
 
     fn ui(&mut self, ui: &mut egui::Ui, context: &mut ViewerContext) {
         egui::ScrollArea::vertical().show(ui, |ui| {
-
             ui.label("Select a .ply to visualize, or a .zip with training data.");
 
             let file = ui.button("Load file").clicked();
 
             ui.add_space(10.0);
-
-            ui.checkbox(&mut self.proxy, "Proxy proxy.brush-splat.workers.dev/")
-                .on_hover_text("File hosting services often don't allow client-side requests. Using a proxy can solve this. In particular this makes google drive share links work!");
-
             ui.text_edit_singleline(&mut self.url);
 
             let url = ui.button("Load URL").clicked();
@@ -77,12 +70,7 @@ impl ViewerPanel for LoadDataPanel {
                 let source = if file {
                     crate::viewer::DataSource::PickFile
                 } else {
-                    let url = if !self.proxy {
-                        self.url.to_string()
-                    } else {
-                        format!("https://proxy.brush-splat.workers.dev/{}", self.url)
-                    };
-                    crate::viewer::DataSource::Url(url)
+                    crate::viewer::DataSource::Url(self.url.to_string())
                 };
                 context.start_data_load(source, self.load_args.clone(), load_init_args, config);
             }
