@@ -135,5 +135,9 @@ debug = true
 
 [profile.release]
 # debug = true # good for profilers
-panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm).
+#
+# This leads to better optimizations and smaller binaries (and is the default in Wasm).
+# However, this leads to problems in the current burn versions as it uses panics for
+# controls flow
+# panic = "abort"
 lto = "thin"
