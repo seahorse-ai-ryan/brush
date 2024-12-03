@@ -62,7 +62,7 @@ impl OrbitControls {
         window: Vec2,
         delta_time: f32,
     ) -> bool {
-        let (mut yaw, mut pitch, roll) = self.rotation.to_euler(glam::EulerRot::YXZ);
+        let (yaw, pitch, roll) = self.rotation.to_euler(glam::EulerRot::YXZ);
 
         let mut radius = self.radius();
 
@@ -82,11 +82,9 @@ impl OrbitControls {
         let delta_x = rotate_velocity.x * std::f32::consts::PI * 2.0 / window.x;
         let delta_y = rotate_velocity.y * std::f32::consts::PI / window.y;
 
-        yaw = normalize_radians(yaw + delta_x);
-        pitch = normalize_radians(pitch - delta_y);
-
-        self.rotation =
-            Quat::from_rotation_y(yaw) * Quat::from_rotation_x(pitch) * Quat::from_rotation_z(roll);
+        self.rotation = Quat::from_rotation_y(yaw + delta_x)
+            * Quat::from_rotation_x(pitch - delta_y)
+            * Quat::from_rotation_z(roll);
 
         let scaled_pan = pan_velocity * Vec2::new(1.0 / window.x, 1.0 / window.y);
 
