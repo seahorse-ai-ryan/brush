@@ -1,5 +1,5 @@
 use core::f32;
-use std::ops::Range;
+use std::{f32::consts::PI, ops::Range};
 
 use glam::{Affine3A, Quat, Vec2, Vec3A};
 
@@ -62,7 +62,7 @@ impl OrbitControls {
         window: Vec2,
         delta_time: f32,
     ) -> bool {
-        let (mut pitch, mut yaw, roll) = self.rotation.to_euler(glam::EulerRot::XYZ);
+        let (mut yaw, mut pitch, roll) = self.rotation.to_euler(glam::EulerRot::YXZ);
 
         let mut radius = self.radius();
 
@@ -82,9 +82,11 @@ impl OrbitControls {
         let delta_x = rotate_velocity.x * std::f32::consts::PI * 2.0 / window.x;
         let delta_y = rotate_velocity.y * std::f32::consts::PI / window.y;
 
-        yaw = Self::clamp_smooth(yaw + delta_x, self.yaw_range.clone());
-        pitch = Self::clamp_smooth(pitch - delta_y, self.pitch_range.clone());
-        self.rotation = Quat::from_euler(glam::EulerRot::XYZ, pitch, yaw, roll);
+        yaw = normalize_radians(yaw + delta_x);
+        pitch = normalize_radians(pitch - delta_y);
+
+        self.rotation =
+            Quat::from_rotation_y(yaw) * Quat::from_rotation_x(pitch) * Quat::from_rotation_z(roll);
 
         let scaled_pan = pan_velocity * Vec2::new(1.0 / window.x, 1.0 / window.y);
 
