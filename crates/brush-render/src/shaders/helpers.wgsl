@@ -286,3 +286,7 @@ fn as_vec(packed: PackedVec3) -> vec3f {
 fn as_packed(vec: vec3f) -> PackedVec3 {
     return PackedVec3(vec.x, vec.y, vec.z);
 }
+
+fn sigmoid(x: f32) -> f32 {
+    return 1.0 / (1.0 + exp(-x));
+}

@@ -19,11 +19,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     let projected = projected_splats[compact_gid];
     // get the tile bbox for gaussian
     let mean2d = vec2f(projected.xy_x, projected.xy_y);
-
-    let conic = vec3f(projected.conic_x, projected.conic_y, projected.conic_z);
-    let radius = helpers::radius_from_cov(helpers::inverse_symmetric(conic), 1.0);
-
     let opac = projected.color_a;
+    let conic = vec3f(projected.conic_x, projected.conic_y, projected.conic_z);
+
+    let radius = helpers::radius_from_cov(helpers::inverse_symmetric(conic), opac);
 
     let tile_bounds = uniforms.tile_bounds;
 

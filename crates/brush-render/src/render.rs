@@ -149,9 +149,14 @@ pub(crate) fn render_forward(
     let num_points = means.shape.dims[0];
     let client = &means.client.clone();
 
+    // Number of tiles hit per splat. Has to be zerod as we later sum over this.
+    let num_tiles_scatter =
+        create_tensor::<1, WgpuRuntime>([num_points], device, client, DType::U32);
+    let num_tiles = InnerWgpu::int_zeros([num_points].into(), device);
+
     let (global_from_compact_gid, num_visible) = {
         let global_from_presort_gid = InnerWgpu::int_zeros([num_points].into(), device);
-        let depths = create_tensor::<1, _>([num_points], device, client, DType::F32);
+        let depths = create_tensor([num_points], device, client, DType::F32);
 
         tracing::trace_span!("ProjectSplats", sync_burn = true).in_scope(||
             // SAFETY: wgsl FFI, kernel checked to have no OOB.
@@ -162,10 +167,12 @@ pub(crate) fn render_forward(
                 vec![
                     uniforms_buffer.clone().handle.binding(),
                     means.clone().handle.binding(),
-                    log_scales.clone().handle.binding(),
                     quats.clone().handle.binding(),
+                    log_scales.clone().handle.binding(),
+                    raw_opacities.clone().handle.binding(),
                     global_from_presort_gid.clone().handle.binding(),
                     depths.clone().handle.binding(),
+                    num_tiles_scatter.clone().handle.binding()
                 ],
             );
         });
@@ -191,8 +198,6 @@ pub(crate) fn render_forward(
     let projected_splats =
         create_tensor::<2, _>([num_points, projected_size], device, client, DType::F32);
 
-    // Number of tiles hit per splat. Has to be zerod as we later sum over this.
-    let num_tiles_hit = InnerWgpu::int_zeros([num_points].into(), device);
     let num_vis_wg = create_dispatch_buffer(num_visible.clone(), [shaders::helpers::MAIN_WG, 1, 1]);
 
     tracing::trace_span!("ProjectVisibile", sync_burn = true).in_scope(|| unsafe {
@@ -206,16 +211,17 @@ pub(crate) fn render_forward(
                 quats.handle.binding(),
                 sh_coeffs.handle.binding(),
                 raw_opacities.handle.binding(),
+                num_tiles_scatter.handle.binding(),
                 global_from_compact_gid.handle.clone().binding(),
                 projected_splats.handle.clone().binding(),
-                num_tiles_hit.handle.clone().binding(),
+                num_tiles.handle.clone().binding(),
             ],
         );
     });
 
     let cum_tiles_hit = tracing::trace_span!("PrefixSum", sync_burn = true).in_scope(|| {
         // TODO: Only need to do this up to num_visible gaussians really.
-        prefix_sum(num_tiles_hit)
+        prefix_sum(num_tiles)
     });
 
     let num_intersections =
