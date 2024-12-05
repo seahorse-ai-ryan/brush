@@ -14,6 +14,8 @@
 @group(0) @binding(6) var<storage, read_write> depths: array<f32>;
 @group(0) @binding(7) var<storage, read_write> num_tiles: array<u32>;
 
+@group(0) @binding(8) var<storage, read_write> radii: array<f32>;
+
 @compute
 @workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) global_id: vec3u) {
@@ -31,7 +33,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     let R = mat3x3f(viewmat[0].xyz, viewmat[1].xyz, viewmat[2].xyz);
     let mean_c = R * mean + viewmat[3].xyz;
 
-    if mean_c.z < 0.01 || mean_c.z > 1e12 {
+    if mean_c.z < 0.01 || mean_c.z > 1e10 {
         return;
     }
 
@@ -52,8 +54,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
 
     // compute the projected mean
     let mean2d = uniforms.focal * mean_c.xy * (1.0 / mean_c.z) + uniforms.pixel_center;
-
-
     let opac = helpers::sigmoid(raw_opacities[global_gid]);
 
     // NB: It might seem silly to use the inverse of the conic here (as that's the same as cov2d)
@@ -91,4 +91,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     depths[write_id] = mean_c.z;
     // Write metadata to global array.
     num_tiles[global_gid] = tile_area;
+
+    radii[global_gid] = radius;
 }

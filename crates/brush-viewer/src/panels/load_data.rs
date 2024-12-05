@@ -10,8 +10,7 @@ enum Quality {
 
 pub(crate) struct LoadDataPanel {
     load_args: LoadDatasetArgs,
-
-    sh_degree: u32,
+    init_args: LoadInitArgs,
     quality: Quality,
     url: String,
 }
@@ -22,13 +21,10 @@ impl LoadDataPanel {
             // Super high resolutions are a bit sketchy. Limit to at least
             // some size.
             load_args: LoadDatasetArgs {
-                max_frames: None,
                 max_resolution: Some(1920),
-                eval_split_every: None,
-                subsample_frames: None,
-                subsample_points: None,
+                ..Default::default()
             },
-            sh_degree: 3,
+            init_args: LoadInitArgs::default(),
             quality: Quality::Normal,
             url: "splat.com/example.ply".to_owned(),
         }
@@ -54,17 +50,13 @@ impl ViewerPanel for LoadDataPanel {
             ui.add_space(10.0);
 
             if file || url {
-                let load_init_args = LoadInitArgs {
-                    sh_degree: self.sh_degree,
-                };
-
                 let mut config = TrainConfig::default();
                 if matches!(self.quality, Quality::Low) {
                     config = config
                         .with_densify_grad_thresh(0.0003)
                         .with_refine_every(150)
                         .with_ssim_weight(0.0)
-                        .with_cull_alpha_thresh(0.01);
+                        .with_cull_opacity(0.01);
                 }
 
                 let source = if file {
@@ -72,14 +64,19 @@ impl ViewerPanel for LoadDataPanel {
                 } else {
                     crate::viewer::DataSource::Url(self.url.to_string())
                 };
-                context.start_data_load(source, self.load_args.clone(), load_init_args, config);
+                context.start_data_load(
+                    source,
+                    self.load_args.clone(),
+                    self.init_args.clone(),
+                    config,
+                );
             }
 
             ui.add_space(10.0);
             ui.heading("Train settings");
 
             ui.label("Spherical Harmonics Degree:");
-            ui.add(Slider::new(&mut self.sh_degree, 0..=4));
+            ui.add(Slider::new(&mut self.init_args.sh_degree, 0..=4));
 
             ui.horizontal(|ui| {
                 ui.label("Quality:");

@@ -33,7 +33,7 @@ pub struct LoadInitArgs {
 
 impl Default for LoadInitArgs {
     fn default() -> Self {
-        Self { sh_degree: 2 }
+        Self { sh_degree: 3 }
     }
 }
 
@@ -90,7 +90,7 @@ pub(crate) fn stream_fut_parallel<T: Send + 'static>(
             .get()
     };
 
-    log::info!("Loading steam with {parallel} threads");
+    log::info!("Loading stream with {parallel} threads");
 
     let mut futures = futures;
     fn_stream(|emitter| async move {

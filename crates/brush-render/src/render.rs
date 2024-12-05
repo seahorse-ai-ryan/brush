@@ -154,6 +154,8 @@ pub(crate) fn render_forward(
         create_tensor::<1, WgpuRuntime>([num_points], device, client, DType::U32);
     let num_tiles = InnerWgpu::int_zeros([num_points].into(), device);
 
+    let radii = InnerWgpu::float_zeros([num_points].into(), device);
+
     let (global_from_compact_gid, num_visible) = {
         let global_from_presort_gid = InnerWgpu::int_zeros([num_points].into(), device);
         let depths = create_tensor([num_points], device, client, DType::F32);
@@ -172,7 +174,8 @@ pub(crate) fn render_forward(
                     raw_opacities.clone().handle.binding(),
                     global_from_presort_gid.clone().handle.binding(),
                     depths.clone().handle.binding(),
-                    num_tiles_scatter.clone().handle.binding()
+                    num_tiles_scatter.clone().handle.binding(),
+                    radii.clone().handle.binding(),
                 ],
             );
         });
@@ -354,6 +357,7 @@ pub(crate) fn render_forward(
             final_index,
             compact_gid_from_isect,
             global_from_compact_gid,
+            radii,
         },
     )
 }
@@ -384,7 +388,7 @@ pub(crate) fn render_backward(
 
     let client = &means.client;
 
-    let (v_xys_local, v_xys_global, v_conics, v_coeffs, v_raw_opac) = {
+    let (v_xys_local, v_conics, v_coeffs, v_raw_opac) = {
         let tile_bounds = uvec2(
             img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),
             img_size.y.div_ceil(shaders::helpers::TILE_WIDTH),
@@ -430,7 +434,6 @@ pub(crate) fn render_backward(
 
         let num_vis_wg = create_dispatch_buffer(num_visible.clone(), GatherGrads::WORKGROUP_SIZE);
 
-        let v_xys_global = InnerWgpu::float_zeros([num_points, 2].into(), device);
         unsafe {
             client.execute_unchecked(
                 GatherGrads::task(),
@@ -441,15 +444,13 @@ pub(crate) fn render_backward(
                     raw_opac.clone().handle.binding(),
                     means.clone().handle.binding(),
                     v_colors.clone().handle.binding(),
-                    v_xys_local.clone().handle.binding(),
                     v_coeffs.handle.clone().binding(),
                     v_opacities.handle.clone().binding(),
-                    v_xys_global.handle.clone().binding(),
                 ],
             );
         }
 
-        (v_xys_local, v_xys_global, v_conics, v_coeffs, v_opacities)
+        (v_xys_local, v_conics, v_coeffs, v_opacities)
     };
 
     // Create tensors to hold gradients.
@@ -485,7 +486,7 @@ pub(crate) fn render_backward(
         v_scales,
         v_coeffs,
         v_raw_opac,
-        v_xy: v_xys_global,
+        v_xy: v_xys_local,
     }
 }
 
@@ -592,7 +593,7 @@ mod tests {
 
         let rec = if USE_RERUN {
             rerun::RecordingStreamBuilder::new("render test")
-                .connect()
+                .connect_tcp()
                 .ok()
         } else {
             None
@@ -688,9 +689,16 @@ mod tests {
                 .mean()
                 .backward();
 
+            // XY gradients are also in compact format.
+            let v_xys = splats.xys_dummy.grad(&grads).context("no xys grad")?;
+            let v_xys = v_xys.slice([0..num_visible]);
+
             let v_xys_ref =
                 safetensor_to_burn::<DiffBack, 2>(tensors.tensor("v_xy")?, &device).inner();
-            let v_xys = splats.xys_dummy.grad(&grads).context("no xys grad")?;
+            let v_xys_ref = v_xys_ref
+                .select(0, gs_ids.inner().clone())
+                .slice([0..num_visible]);
+
             assert!(v_xys.all_close(v_xys_ref, Some(1e-5), Some(1e-9)));
 
             let v_opacities_ref =
