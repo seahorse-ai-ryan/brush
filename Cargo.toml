@@ -70,12 +70,12 @@ burn = { git = "https://github.com/tracel-ai/burn", features = [
     'wgpu',
     'autodiff',
     'template',
-] }
-burn-jit = { git = "https://github.com/tracel-ai/burn" }
+], rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
+burn-jit = { git = "https://github.com/tracel-ai/burn", rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
 burn-wgpu = { git = "https://github.com/tracel-ai/burn", features = [
     "exclusive-memory-only",
-] }
-burn-fusion = { git = "https://github.com/tracel-ai/burn" }
+], rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
+burn-fusion = { git = "https://github.com/tracel-ai/burn", rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
 
 egui = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
 
