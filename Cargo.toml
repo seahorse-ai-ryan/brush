@@ -145,4 +145,7 @@ debug = true
 # However, this leads to problems in the current burn versions as it uses panics for
 # controls flow
 # panic = "abort"
-lto = "thin"
+
+# Lto helps a tiny bit on wasm, but doesn't seem worth it generally, as it makes
+# linking much much slower.
+# lto = "thin"
