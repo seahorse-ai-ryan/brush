@@ -2,7 +2,7 @@
 
 @group(0) @binding(0) var<storage, read> uniforms: helpers::RenderUniforms;
 @group(0) @binding(1) var<storage, read> compact_gid_from_isect: array<u32>;
-@group(0) @binding(2) var<storage, read> tile_bins: array<vec2u>;
+@group(0) @binding(2) var<storage, read> tile_offsets: array<u32>;
 @group(0) @binding(3) var<storage, read> projected_splats: array<helpers::ProjectedSplat>;
 
 #ifdef RASTER_U32
@@ -37,8 +37,8 @@ fn main(
     var done = !inside;
 
     // have all threads in tile process the same gaussians in batches
-    // first collect gaussians between range.x and range.y in batches
-    let range = tile_bins[tile_id];
+    // first collect gaussians between the bin counts.
+    let range = vec2u(tile_offsets[tile_id], tile_offsets[tile_id + 1]);
 
     let num_batches = helpers::ceil_div(range.y - range.x, helpers::TILE_SIZE);
     // current visibility left to render

@@ -25,8 +25,8 @@ const DENSE_MULT: f32 = 0.25;
 const LOW_RES: glam::UVec2 = glam::uvec2(512, 512);
 const HIGH_RES: glam::UVec2 = glam::uvec2(1024, 1024);
 
-const TARGET_SAMPLE_COUNT: u32 = 5;
-const INTERNAL_ITERS: u32 = 4;
+const TARGET_SAMPLE_COUNT: u32 = 100;
+const INTERNAL_ITERS: u32 = 10;
 
 fn generate_bench_data() -> anyhow::Result<()> {
     <DiffBack as burn::prelude::Backend>::seed(4);
@@ -195,7 +195,7 @@ fn bench_general(
     }
 }
 
-#[divan::bench_group(max_time = 20, sample_count = TARGET_SAMPLE_COUNT, sample_size = 1)]
+#[divan::bench_group(max_time = 1000, sample_count = TARGET_SAMPLE_COUNT, sample_size = 1)]
 mod fwd {
     use super::*;
 
