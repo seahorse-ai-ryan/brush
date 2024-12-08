@@ -10,7 +10,7 @@ use brush_rerun::BurnToRerun;
 use burn_wgpu::WgpuDevice;
 
 use brush_render::{gaussian_splats::Splats, AutodiffBackend, Backend};
-use brush_train::{image::tensor_into_image, scene::Scene};
+use brush_train::{image::tensor_into_image, scene::Scene, train::RefineStats};
 use brush_train::{ssim::Ssim, train::TrainStepStats};
 use burn::tensor::{activation::sigmoid, ElementConversion};
 use rerun::{Color, FillMode, RecordingStream};
@@ -310,26 +310,37 @@ impl VisualizeTools {
                 &rerun::Scalar::new(main_aux.read_num_visible().await as f64),
             )?;
 
-            if let Some(refine) = stats.refine {
-                rec.log(
-                    "refine/num_split",
-                    &rerun::Scalar::new(refine.num_split as f64),
-                )?;
-                rec.log(
-                    "refine/num_cloned",
-                    &rerun::Scalar::new(refine.num_cloned as f64),
-                )?;
-                rec.log(
-                    "refine/num_transparent_pruned",
-                    &rerun::Scalar::new(refine.num_transparent_pruned as f64),
-                )?;
-                rec.log(
-                    "refine/num_scale_pruned",
-                    &rerun::Scalar::new(refine.num_scale_pruned as f64),
-                )?;
-            }
             Ok(())
         });
+    }
+
+    pub fn log_refine_stats(self: Arc<Self>, iter: u32, refine: RefineStats) {
+        let Some(rec) = self.rec.clone() else {
+            return;
+        };
+
+        if !rec.is_enabled() {
+            return;
+        }
+
+        rec.set_time_sequence("iterations", iter);
+
+        let _ = rec.log(
+            "refine/num_split",
+            &rerun::Scalar::new(refine.num_split as f64),
+        );
+        let _ = rec.log(
+            "refine/num_cloned",
+            &rerun::Scalar::new(refine.num_cloned as f64),
+        );
+        let _ = rec.log(
+            "refine/num_transparent_pruned",
+            &rerun::Scalar::new(refine.num_transparent_pruned as f64),
+        );
+        let _ = rec.log(
+            "refine/num_scale_pruned",
+            &rerun::Scalar::new(refine.num_scale_pruned as f64),
+        );
     }
 }
 
@@ -406,7 +417,7 @@ impl ViewerPanel for RerunPanel {
                 // Log out train stats.
                 // HACK: Always log on a refine step, as they can happen off beat.
                 // Not sure how to best handle this properly.
-                if iter % self.log_train_stats_every == 0 || stats.refine.is_some() {
+                if iter % self.log_train_stats_every == 0 {
                     visualize.log_train_stats(*iter, *stats.clone());
                 }
             }

@@ -125,8 +125,6 @@ pub struct TrainStepStats<B: AutodiffBackend> {
     pub lr_scale: f64,
     pub lr_coeffs: f64,
     pub lr_opac: f64,
-
-    pub refine: Option<RefineStats>,
 }
 
 pub struct SplatTrainer<B: AutodiffBackend> {
@@ -229,11 +227,13 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
         );
     }
 
-    pub async fn step(
+    pub fn step(
         &mut self,
         batch: SceneBatch<B>,
         splats: Splats<B>,
     ) -> Result<(Splats<B>, TrainStepStats<B>), anyhow::Error> {
+        let _span = trace_span!("Train step").entered();
+
         assert!(
             batch.gt_views.len() == 1,
             "Bigger batches aren't yet supported"
@@ -388,19 +388,6 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
             splats
         });
 
-        let mut refine_stats = None;
-
-        let do_refine = self.iter < self.config.refine_stop_iter
-            && self.iter >= self.config.refine_start_iter
-            && self.iter % self.config.refine_every == 1;
-
-        if do_refine {
-            // If not refining, update splat to step with gradients applied.
-            let (refined_splats, refine) = self.refine_splats(splats, batch.scene_extent).await;
-            refine_stats = Some(refine);
-            splats = refined_splats;
-        }
-
         self.iter += 1;
 
         let stats = TrainStepStats {
@@ -414,10 +401,27 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
             lr_scale,
             lr_coeffs,
             lr_opac,
-            refine: refine_stats,
         };
 
         Ok((splats, stats))
+    }
+
+    pub async fn refine_if_needed(
+        &mut self,
+        splats: Splats<B>,
+        scene_extent: f32,
+    ) -> (Splats<B>, Option<RefineStats>) {
+        let do_refine = self.iter < self.config.refine_stop_iter
+            && self.iter >= self.config.refine_start_iter
+            && self.iter % self.config.refine_every == 1;
+
+        if do_refine {
+            // If not refining, update splat to step with gradients applied.
+            let (refined_splats, refine) = self.refine_splats(splats, scene_extent).await;
+            (refined_splats, Some(refine))
+        } else {
+            (splats, None)
+        }
     }
 
     async fn refine_splats(

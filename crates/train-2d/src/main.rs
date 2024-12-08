@@ -65,7 +65,11 @@ fn spawn_train_loop(
         };
 
         loop {
-            let (new_splats, _) = trainer.step(batch.clone(), splats).await.unwrap();
+            let (new_splats, _) = trainer.step(batch.clone(), splats).unwrap();
+            let (new_splats, _) = trainer
+                .refine_if_needed(new_splats, batch.scene_extent)
+                .await;
+
             splats = new_splats;
 
             ctx.request_repaint();

@@ -7,7 +7,7 @@ use async_fn_stream::try_fn_stream;
 use brush_dataset::{self, splat_import, Dataset, LoadDatasetArgs, LoadInitArgs};
 use brush_render::camera::Camera;
 use brush_render::gaussian_splats::Splats;
-use brush_train::train::TrainStepStats;
+use brush_train::train::{RefineStats, TrainStepStats};
 use brush_train::{eval::EvalStats, train::TrainConfig};
 use burn::backend::Autodiff;
 use burn_wgpu::{Wgpu, WgpuDevice};
@@ -93,6 +93,11 @@ pub(crate) enum ProcessMessage {
         stats: Box<TrainStepStats<Autodiff<Backend>>>,
         iter: u32,
         timestamp: Instant,
+    },
+    /// Some number of training steps are done.
+    RefineStep {
+        stats: Box<RefineStats>,
+        iter: u32,
     },
     /// Eval was run successfully with these results.
     EvalResult {

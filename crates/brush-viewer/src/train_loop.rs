@@ -15,7 +15,6 @@ use tokio::{
     sync::mpsc::{error::TryRecvError, Receiver},
 };
 use tokio_stream::{Stream, StreamExt};
-use tracing::{trace_span, Instrument};
 use web_time::Instant;
 
 use crate::viewer::ProcessMessage;
@@ -147,15 +146,12 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
                 }
                 // By default, continue training.
                 None => {
-                    let batch = dataloader
-                        .next_batch()
-                        .instrument(trace_span!("Get batch"))
-                        .await;
+                    let batch = dataloader.next_batch().await;
+                    let extent = batch.scene_extent;
 
-                    let (new_splats, stats) = trainer
-                        .step(batch, splats)
-                        .instrument(trace_span!("Train step"))
-                        .await?;
+                    let (new_splats, stats) = trainer.step(batch, splats)?;
+                    let (new_splats, refine) = trainer.refine_if_needed(new_splats, extent).await;
+
                     splats = new_splats;
 
                     if trainer.iter % UPDATE_EVERY == 0 {
@@ -165,6 +161,15 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
                                 stats: Box::new(stats),
                                 iter: trainer.iter,
                                 timestamp: Instant::now(),
+                            })
+                            .await;
+                    }
+
+                    if let Some(refine) = refine {
+                        emitter
+                            .emit(ProcessMessage::RefineStep {
+                                stats: Box::new(refine),
+                                iter: trainer.iter,
                             })
                             .await;
                     }
