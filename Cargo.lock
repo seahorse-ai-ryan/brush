@@ -870,8 +870,11 @@ name = "brush-train"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "brush-kernel",
  "brush-render",
  "burn",
+ "burn-fusion",
+ "cubecl",
  "glam",
  "hashbrown 0.15.2",
  "image",

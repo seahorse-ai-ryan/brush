@@ -6,3 +6,4 @@ pub mod image;
 pub mod scene;
 
 mod stats;
+mod stats_kernel;

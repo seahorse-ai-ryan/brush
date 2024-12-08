@@ -1,13 +1,21 @@
-use brush_render::gaussian_splats::Splats;
+use brush_kernel::create_dispatch_buffer;
 use brush_render::RenderAux;
+use burn::backend::wgpu::JitBackend;
 use burn::backend::{Autodiff, Wgpu};
 use burn::prelude::*;
-use burn::tensor::{Tensor, TensorMetadata, TensorPrimitive};
+use burn::tensor::TensorMetadata;
+use burn_fusion::client::FusionClient;
+use cubecl::wgpu::WgpuRuntime;
+use cubecl::CubeDim;
 use tracing::trace_span;
 
-type B = Autodiff<Wgpu>;
+use crate::stats_kernel::stats_gather_kernel;
 
-pub(crate) struct RefineRecord<B: Backend> {
+type B = Autodiff<Wgpu>;
+type BInner = Wgpu;
+type InnerWgpu = JitBackend<WgpuRuntime, f32, i32, u32>;
+
+pub(crate) struct RefineRecord {
     // Helper tensors for accumulating the viewspace_xy gradients and the number
     // of observations per gaussian. Used in pruning and densification.
     grad_2d_accum: Tensor<B, 1>,
@@ -15,8 +23,8 @@ pub(crate) struct RefineRecord<B: Backend> {
     max_radii: Tensor<B, 1>,
 }
 
-impl RefineRecord<B> {
-    pub(crate) fn new(num_points: usize, device: &<B as Backend>::Device) -> RefineRecord<B> {
+impl RefineRecord {
+    pub(crate) fn new(num_points: usize, device: &<B as Backend>::Device) -> RefineRecord {
         Self {
             grad_2d_accum: Tensor::zeros([num_points], device),
             xy_grad_counts: Tensor::zeros([num_points], device),
@@ -24,40 +32,49 @@ impl RefineRecord<B> {
         }
     }
 
-    pub(crate) fn gather_stats(
-        &mut self,
-        splats: &Splats<B>,
-        xys_grad: Tensor<B, 2>,
-        aux: RenderAux<B>,
-        device: &<B as Backend>::Device,
-    ) {
+    pub(crate) fn gather_stats(&mut self, xys_grad: Tensor<BInner, 2>, aux: RenderAux<B>) {
         let _span = trace_span!("Gather stats", sync_burn = true);
 
-        let gs_ids = Tensor::from_primitive(aux.global_from_compact_gid);
-        let radii = Tensor::from_primitive(TensorPrimitive::Float(aux.radii));
-
         let [h, w] = aux.final_index.shape().dims();
+        let client = aux.final_index.client.clone();
 
-        let scale =
-            Tensor::<B, 1>::from_floats([w as f32 / 2.0, h as f32 / 2.0], device).reshape([1, 2]);
-        let xys_grad = xys_grad * scale;
-        let xys_grad_norm = xys_grad.powi_scalar(2).sum_dim(1).squeeze(1).sqrt();
+        let compact_gid = client.resolve_tensor_int::<InnerWgpu>(aux.global_from_compact_gid);
+        let num_visible = client.resolve_tensor_int::<InnerWgpu>(aux.num_visible);
+        let radii = client.resolve_tensor_float::<InnerWgpu>(aux.radii.into_primitive());
+        let xys_grad = client.resolve_tensor_float::<InnerWgpu>(xys_grad.into_primitive().tensor());
 
-        let num_vis = Tensor::from_primitive(aux.num_visible.clone());
-        let valid = Tensor::arange(0..splats.num_splats() as i64, device).lower(num_vis);
+        let inner_client = compact_gid.client.clone();
 
-        self.grad_2d_accum =
-            self.grad_2d_accum
-                .clone()
-                .select_assign(0, gs_ids.clone(), xys_grad_norm);
+        let grad_2d_accum = client.resolve_tensor_float::<InnerWgpu>(
+            self.grad_2d_accum.clone().inner().into_primitive().tensor(),
+        );
+        let grad_counts = client
+            .resolve_tensor_int::<InnerWgpu>(self.xy_grad_counts.clone().inner().into_primitive());
+        let max_radii = client.resolve_tensor_float::<InnerWgpu>(
+            self.max_radii.clone().inner().into_primitive().tensor(),
+        );
 
-        self.xy_grad_counts =
-            self.xy_grad_counts
-                .clone()
-                .select_assign(0, gs_ids.clone(), valid.int());
-
-        let radii_norm = radii / (w.max(h) as f32);
-        self.max_radii = self.max_radii.clone().max_pair(radii_norm);
+        const WG_SIZE: u32 = 256;
+        // Execute lazily the kernel with the launch information and the given buffers. For
+        // simplicity, no vectorization is performed
+        stats_gather_kernel::launch::<WgpuRuntime>(
+            &inner_client,
+            cubecl::CubeCount::Dynamic(
+                create_dispatch_buffer(num_visible.clone(), [WG_SIZE, 1, 1])
+                    .handle
+                    .binding(),
+            ),
+            CubeDim::new(WG_SIZE, 1, 1),
+            compact_gid.as_tensor_arg::<u32>(1),
+            num_visible.as_tensor_arg::<u32>(1),
+            radii.as_tensor_arg::<f32>(1),
+            xys_grad.as_tensor_arg::<f32>(2),
+            grad_2d_accum.as_tensor_arg::<f32>(1),
+            grad_counts.as_tensor_arg::<u32>(1),
+            max_radii.as_tensor_arg::<f32>(1),
+            w as u32,
+            h as u32,
+        );
     }
 
     pub(crate) fn average_grad_2d(&self) -> Tensor<B, 1> {

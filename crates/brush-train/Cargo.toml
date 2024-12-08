@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 brush-render.path = "../brush-render"
+brush-kernel.path = "../brush-kernel"
 
 anyhow.workspace = true
 image.workspace = true
@@ -17,3 +18,5 @@ log.workspace = true
 hashbrown.workspace = true
 
 burn.workspace = true
+burn-fusion.workspace = true
+cubecl.workspace = true

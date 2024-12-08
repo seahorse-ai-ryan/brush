@@ -137,7 +137,7 @@ pub struct SplatTrainer {
     sched_mean: ExponentialLrScheduler,
     optim: OptimizerType<B>,
     ssim: Ssim<B>,
-    refine_record: RefineRecord<B>,
+    refine_record: RefineRecord,
 }
 
 fn quaternion_vec_multiply<B: Backend>(
@@ -295,17 +295,13 @@ impl SplatTrainer {
             // TODO: Burn really should implement +=
             if iter > self.config.refine_start_iter {
                 // Get the xy gradient norm from the dummy tensor.
-                let xys_grad = Tensor::from_inner(
-                    splats
-                        .xys_dummy
-                        .grad_remove(&mut grads)
-                        .expect("XY gradients need to be calculated."),
-                );
+                let xys_grad = splats
+                    .xys_dummy
+                    .grad_remove(&mut grads)
+                    .expect("XY gradients need to be calculated.");
 
-                let device = xys_grad.device();
                 let aux = auxes[0].clone();
-                self.refine_record
-                    .gather_stats(&splats, xys_grad, aux, &device);
+                self.refine_record.gather_stats(xys_grad, aux);
             }
         });
 
