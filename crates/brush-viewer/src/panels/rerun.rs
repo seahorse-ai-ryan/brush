@@ -421,6 +421,13 @@ impl ViewerPanel for RerunPanel {
                     visualize.log_train_stats(*iter, *stats.clone());
                 }
             }
+            ProcessMessage::RefineStep { stats, iter } => {
+                let Some(visualize) = self.visualize.clone() else {
+                    return;
+                };
+
+                visualize.log_refine_stats(*iter, *stats.clone());
+            }
             ProcessMessage::EvalResult { iter, eval } => {
                 let Some(visualize) = self.visualize.clone() else {
                     return;

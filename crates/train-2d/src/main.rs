@@ -27,7 +27,7 @@ type Backend = Wgpu;
 
 struct TrainStep {
     splats: Splats<Backend>,
-    step: u32,
+    iter: u32,
 }
 
 fn spawn_train_loop(
@@ -64,20 +64,24 @@ fn spawn_train_loop(
             scene_extent: 1.0,
         };
 
+        let mut iter = 0;
+
         loop {
-            let (new_splats, _) = trainer.step(batch.clone(), splats).unwrap();
+            let (new_splats, _) = trainer.step(iter, batch.clone(), splats).unwrap();
             let (new_splats, _) = trainer
-                .refine_if_needed(new_splats, batch.scene_extent)
+                .refine_if_needed(iter, new_splats, batch.scene_extent)
                 .await;
 
             splats = new_splats;
+
+            iter += 1;
 
             ctx.request_repaint();
 
             if sender
                 .send(TrainStep {
                     splats: splats.valid(),
-                    step: trainer.iter,
+                    iter,
                 })
                 .await
                 .is_err()
@@ -187,7 +191,7 @@ impl eframe::App for App {
             });
 
             ui.label(format!("Splats: {}", msg.splats.num_splats()));
-            ui.label(format!("Step: {}", msg.step));
+            ui.label(format!("Step: {}", msg.iter));
         });
     }
 }

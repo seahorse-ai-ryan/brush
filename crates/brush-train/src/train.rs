@@ -1,16 +1,18 @@
 use anyhow::Result;
 use brush_render::gaussian_splats::{inverse_sigmoid, Splats};
 use brush_render::{AutodiffBackend, Backend, RenderAux};
+use burn::backend::wgpu::WgpuDevice;
+use burn::backend::{Autodiff, Wgpu};
 use burn::lr_scheduler::exponential::{ExponentialLrScheduler, ExponentialLrSchedulerConfig};
 use burn::lr_scheduler::LrScheduler;
 use burn::module::{Param, ParamId};
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::record::AdaptorRecord;
-use burn::optim::{Adam, AdamState};
-use burn::tensor::{Bool, Distribution, Int, TensorPrimitive};
+use burn::optim::{Adam, AdamState, Optimizer};
+use burn::tensor::{Bool, Distribution};
 use burn::{
     config::Config,
-    optim::{AdamConfig, GradientsParams, Optimizer},
+    optim::{AdamConfig, GradientsParams},
     tensor::Tensor,
 };
 use hashbrown::HashMap;
@@ -18,6 +20,7 @@ use tracing::trace_span;
 
 use crate::scene::SceneView;
 use crate::ssim::Ssim;
+use crate::stats::RefineRecord;
 
 type OptimizerType<B> = OptimizerAdaptor<Adam, Splats<B>, B>;
 
@@ -89,6 +92,8 @@ pub struct TrainConfig {
     seed: u64,
 }
 
+type B = Autodiff<Wgpu>;
+
 impl Default for TrainConfig {
     fn default() -> Self {
         let decay_steps = 30000;
@@ -127,21 +132,12 @@ pub struct TrainStepStats<B: AutodiffBackend> {
     pub lr_opac: f64,
 }
 
-pub struct SplatTrainer<B: AutodiffBackend> {
-    pub iter: u32,
-
+pub struct SplatTrainer {
     config: TrainConfig,
-
     sched_mean: ExponentialLrScheduler,
     optim: OptimizerType<B>,
-
-    // Helper tensors for accumulating the viewspace_xy gradients and the number
-    // of observations per gaussian. Used in pruning and densification.
-    grad_2d_accum: Tensor<B, 1>,
-    xy_grad_counts: Tensor<B, 1, Int>,
-    max_radii: Tensor<B, 1>,
-
     ssim: Ssim<B>,
+    refine_record: RefineRecord<B>,
 }
 
 fn quaternion_vec_multiply<B: Backend>(
@@ -191,27 +187,18 @@ fn quaternion_vec_multiply<B: Backend>(
     Tensor::cat(vec![x, y, z], 1)
 }
 
-impl<B: AutodiffBackend> SplatTrainer<B> {
-    pub fn new(num_points: usize, config: &TrainConfig, device: &B::Device) -> Self {
+impl SplatTrainer {
+    pub fn new(num_points: usize, config: &TrainConfig, device: &WgpuDevice) -> Self {
         let opt_config = AdamConfig::new().with_epsilon(1e-15);
         let ssim = Ssim::new(config.ssim_window_size, 3, device);
 
         Self {
             config: config.clone(),
-            iter: 0,
             sched_mean: config.lr_mean.init().expect("Lr schedule must be valid."),
             optim: opt_config.init::<B, Splats<B>>(),
-            grad_2d_accum: Tensor::zeros([num_points], device),
-            xy_grad_counts: Tensor::zeros([num_points], device),
-            max_radii: Tensor::zeros([num_points], device),
+            refine_record: RefineRecord::new(num_points, device),
             ssim,
         }
-    }
-
-    fn reset_stats(&mut self, num_points: usize, device: &B::Device) {
-        self.grad_2d_accum = Tensor::zeros([num_points], device);
-        self.xy_grad_counts = Tensor::zeros([num_points], device);
-        self.max_radii = Tensor::zeros([num_points], device);
     }
 
     pub(crate) fn reset_opacity(
@@ -229,6 +216,7 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
 
     pub fn step(
         &mut self,
+        iter: u32,
         batch: SceneBatch<B>,
         splats: Splats<B>,
     ) -> Result<(Splats<B>, TrainStepStats<B>), anyhow::Error> {
@@ -305,7 +293,7 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
 
         trace_span!("Housekeeping", sync_burn = true).in_scope(|| {
             // TODO: Burn really should implement +=
-            if self.iter > self.config.refine_start_iter {
+            if iter > self.config.refine_start_iter {
                 // Get the xy gradient norm from the dummy tensor.
                 let xys_grad = Tensor::from_inner(
                     splats
@@ -314,33 +302,10 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
                         .expect("XY gradients need to be calculated."),
                 );
 
+                let device = xys_grad.device();
                 let aux = auxes[0].clone();
-                let gs_ids = Tensor::from_primitive(aux.global_from_compact_gid);
-                let radii = Tensor::from_primitive(TensorPrimitive::Float(aux.radii));
-
-                let [_, h, w, _] = pred_images.dims();
-                let device = batch.gt_images.device();
-                let xys_grad = xys_grad
-                    * Tensor::<_, 1>::from_floats([w as f32 / 2.0, h as f32 / 2.0], &device)
-                        .reshape([1, 2]);
-
-                let xys_grad_norm = xys_grad.powi_scalar(2).sum_dim(1).squeeze(1).sqrt();
-
-                let num_vis = Tensor::from_primitive(aux.num_visible.clone());
-                let valid = Tensor::arange(0..splats.num_splats() as i64, &device).lower(num_vis);
-
-                self.grad_2d_accum =
-                    self.grad_2d_accum
-                        .clone()
-                        .select_assign(0, gs_ids.clone(), xys_grad_norm);
-
-                self.xy_grad_counts =
-                    self.xy_grad_counts
-                        .clone()
-                        .select_assign(0, gs_ids.clone(), valid.int());
-
-                let radii_norm = radii / (w.max(h) as f32);
-                self.max_radii = self.max_radii.clone().max_pair(radii_norm);
+                self.refine_record
+                    .gather_stats(&splats, xys_grad, aux, &device);
             }
         });
 
@@ -388,8 +353,6 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
             splats
         });
 
-        self.iter += 1;
-
         let stats = TrainStepStats {
             pred_images,
             gt_images: batch.gt_images,
@@ -408,16 +371,17 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
 
     pub async fn refine_if_needed(
         &mut self,
+        iter: u32,
         splats: Splats<B>,
         scene_extent: f32,
     ) -> (Splats<B>, Option<RefineStats>) {
-        let do_refine = self.iter < self.config.refine_stop_iter
-            && self.iter >= self.config.refine_start_iter
-            && self.iter % self.config.refine_every == 1;
+        let do_refine = iter < self.config.refine_stop_iter
+            && iter >= self.config.refine_start_iter
+            && iter % self.config.refine_every == 1;
 
         if do_refine {
             // If not refining, update splat to step with gradients applied.
-            let (refined_splats, refine) = self.refine_splats(splats, scene_extent).await;
+            let (refined_splats, refine) = self.refine_splats(iter, splats, scene_extent).await;
             (refined_splats, Some(refine))
         } else {
             (splats, None)
@@ -426,6 +390,7 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
 
     async fn refine_splats(
         &mut self,
+        iter: u32,
         splats: Splats<B>,
         scene_extent: f32,
     ) -> (Splats<B>, RefineStats) {
@@ -436,9 +401,9 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
         let device = splats.means.device();
 
         // Otherwise, do refinement, but do the split/clone on gaussians with no grads applied.
-        let grads = self.grad_2d_accum.clone() / self.xy_grad_counts.clone().clamp_min(1).float();
+        let avg_grad = self.refine_record.average_grad_2d();
 
-        let is_grad_high = grads.greater_equal_elem(self.config.densify_grad_thresh);
+        let is_grad_high = avg_grad.greater_equal_elem(self.config.densify_grad_thresh);
         let split_clone_size_mask = splats
             .scales()
             .max_dim(1)
@@ -478,7 +443,8 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
                 .squeeze(1);
 
         let radii_grow = self
-            .max_radii
+            .refine_record
+            .max_radii()
             .clone()
             .greater_elem(self.config.densify_radius_threshold);
         let split_mask = Tensor::stack::<2>(vec![split_mask, radii_grow], 1)
@@ -549,13 +515,13 @@ impl<B: AutodiffBackend> SplatTrainer<B> {
             );
         }
 
-        let refine_step = self.iter / self.config.refine_every;
+        let refine_step = iter / self.config.refine_every;
         if refine_step % self.config.reset_alpha_every_refine == 0 {
             self.reset_opacity(&mut splats, &mut record);
         }
 
         // Stats don't line up anymore so have to reset them.
-        self.reset_stats(splats.num_splats(), &device);
+        self.refine_record = RefineRecord::new(splats.num_splats(), &device);
         self.optim = self.optim.clone().load_record(record);
 
         let stats = RefineStats {

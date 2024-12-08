@@ -107,6 +107,8 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
 
         let mut is_paused = false;
 
+        let mut iter = 0;
+
         loop {
             let message = if is_paused {
                 // When paused, wait for a message async and handle it. The "default" train iteration
@@ -137,10 +139,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
                         .await;
 
                         emitter
-                            .emit(ProcessMessage::EvalResult {
-                                iter: trainer.iter,
-                                eval,
-                            })
+                            .emit(ProcessMessage::EvalResult { iter, eval })
                             .await;
                     }
                 }
@@ -149,17 +148,20 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
                     let batch = dataloader.next_batch().await;
                     let extent = batch.scene_extent;
 
-                    let (new_splats, stats) = trainer.step(batch, splats)?;
-                    let (new_splats, refine) = trainer.refine_if_needed(new_splats, extent).await;
+                    let (new_splats, stats) = trainer.step(iter, batch, splats)?;
+                    let (new_splats, refine) =
+                        trainer.refine_if_needed(iter, new_splats, extent).await;
+
+                    iter += 1;
 
                     splats = new_splats;
 
-                    if trainer.iter % UPDATE_EVERY == 0 {
+                    if iter % UPDATE_EVERY == 0 {
                         emitter
                             .emit(ProcessMessage::TrainStep {
                                 splats: Box::new(splats.valid()),
                                 stats: Box::new(stats),
-                                iter: trainer.iter,
+                                iter,
                                 timestamp: Instant::now(),
                             })
                             .await;
@@ -169,7 +171,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
                         emitter
                             .emit(ProcessMessage::RefineStep {
                                 stats: Box::new(refine),
-                                iter: trainer.iter,
+                                iter,
                             })
                             .await;
                     }
@@ -180,7 +182,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
             // and on web where this isn't cached causes a real slowdown. Autotuning takes forever as the GPU is
             // busy with our work. This is only needed on wasm - on native autotuning is
             // synchronous anyway.
-            if cfg!(target_family = "wasm") && trainer.iter < 5 {
+            if cfg!(target_family = "wasm") && iter < 5 {
                 // Wait for them all to be done.
                 let client = WgpuRuntime::client(&device);
                 client.sync().await;

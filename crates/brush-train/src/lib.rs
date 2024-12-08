@@ -4,3 +4,5 @@ pub mod train;
 
 pub mod image;
 pub mod scene;
+
+mod stats;
