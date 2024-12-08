@@ -22,6 +22,7 @@ use ::tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver};
 use ::tokio::{io::AsyncRead, io::BufReader, sync::mpsc::channel};
 use std::collections::HashMap;
 use tokio::task;
+use wgpu::Features;
 
 use tokio_stream::{Stream, StreamExt};
 use web_time::Instant;
@@ -426,6 +427,13 @@ impl Viewer {
             state.adapter.clone(),
             state.device.clone(),
             state.queue.clone(),
+        );
+
+        brush_render::render::set_hard_floats_available(
+            state
+                .adapter
+                .features()
+                .contains(Features::SHADER_FLT32_ATOMIC),
         );
 
         if cfg!(feature = "tracing") {

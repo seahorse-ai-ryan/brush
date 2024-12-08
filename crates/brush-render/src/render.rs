@@ -353,6 +353,21 @@ pub(crate) fn render_forward(
     )
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// TODO: Properly register hardware atomic floats as a cube feature when
+// https://github.com/gfx-rs/wgpu/pull/6234 lands.
+static HARD_FLOATS_AVAILABLE: AtomicBool = AtomicBool::new(false);
+
+// Functions to read and write the flag
+pub fn set_hard_floats_available(available: bool) {
+    HARD_FLOATS_AVAILABLE.store(available, Ordering::SeqCst);
+}
+
+pub fn has_hard_floats() -> bool {
+    HARD_FLOATS_AVAILABLE.load(Ordering::SeqCst)
+}
+
 pub(crate) fn render_backward(
     means: JitTensor<WgpuRuntime>,
     quats: JitTensor<WgpuRuntime>,
@@ -392,11 +407,7 @@ pub(crate) fn render_backward(
         let v_conics = InnerWgpu::float_zeros([num_points, 3].into(), device);
         let v_colors = InnerWgpu::float_zeros([num_points, 4].into(), device);
 
-        // TODO: Properly register hardware atomic floats as a cube feature when
-        // https://github.com/gfx-rs/wgpu/pull/6234 lands.
-        //
-        // On mac, this is needed as our wgpu version doesn't support CAS on metal yet...
-        let hard_floats = cfg!(target_os = "macos");
+        let hard_floats = has_hard_floats();
 
         tracing::trace_span!("RasterizeBackwards", sync_burn = true).in_scope(|| unsafe {
             client.execute_unchecked(
