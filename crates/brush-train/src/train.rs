@@ -40,7 +40,7 @@ pub struct TrainConfig {
 
     // Gaussians bigger than this size in screenspace radius are split.
     // Set to 1.0 to disable.
-    #[config(default = 1.0)]
+    #[config(default = 0.1)]
     densify_radius_threshold: f32,
 
     // below this size, gaussians are *duplicated*, otherwise split.
