@@ -206,10 +206,12 @@ fn main(
             local_batch[local_idx] = projected_splats[load_compact_gid];
         }
 
-        // wait for all threads to have collected the gaussians.
-        workgroupBarrier();
-
         for (var tb = 0u; tb < remaining; tb += microbatch_size) {
+            if local_idx == 0 {
+                atomicStore(&grad_count, 0);
+            }
+            workgroupBarrier();
+
             for(var tt = 0u; tt < microbatch_size; tt++) {
                 let t = tb + tt;
 
@@ -297,7 +299,6 @@ fn main(
                 write_grads_atomic(gather_grads[local_idx], gather_grad_id[local_idx]);
             }
             workgroupBarrier();
-            atomicStore(&grad_count, 0);
         }
     }
 }
