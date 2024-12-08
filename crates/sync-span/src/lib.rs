@@ -1,29 +1,27 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use burn::prelude::Backend;
 use tracing::{info_span, Subscriber};
 use tracing_subscriber::{
     layer::{Context, Layer},
     registry::LookupSpan,
 };
 
-use burn_wgpu::{Wgpu, WgpuDevice};
-
 // Global flag to enable/disable sync
 static SYNC_ENABLED: AtomicBool = AtomicBool::new(false);
 
 // Tracing layer for sync events
-#[derive(Default)]
-pub struct SyncLayer {
-    device: WgpuDevice,
+pub struct SyncLayer<B: Backend> {
+    device: B::Device,
 }
 
-impl SyncLayer {
-    pub fn new(device: WgpuDevice) -> Self {
+impl<B: Backend> SyncLayer<B> {
+    pub fn new(device: B::Device) -> Self {
         Self { device }
     }
 }
 
-impl<S> Layer<S> for SyncLayer
+impl<B: Backend, S> Layer<S> for SyncLayer<B>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
@@ -33,8 +31,8 @@ where
 
             if metadata.is_span() && metadata.fields().field("sync_burn").is_some() {
                 let _span = info_span!("GPU Wait", name = metadata.name()).entered();
-
-                <Wgpu as burn::prelude::Backend>::sync(&self.device);
+                // TODO: Need something that works on wasm.
+                B::sync(&self.device);
             }
         }
     }

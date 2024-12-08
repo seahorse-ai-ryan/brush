@@ -34,6 +34,8 @@ humantime.workspace = true
 log.workspace = true
 
 rrfd.path = "../rrfd"
+sync-span.path = "../sync-span"
+tracing-subscriber.workspace = true
 
 zip.workspace = true
 async-fn-stream.workspace = true
@@ -49,12 +51,14 @@ urlencoding.workspace = true
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rerun.workspace = true
 brush-rerun.path = "../brush-rerun"
+tracing-tracy.workspace = true
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 tracing-wasm.workspace = true
 web-sys.workspace = true
 
 [features]
+tracy = []
 tracing = []
 
 [package.metadata.wasm-pack.profile.release.wasm-bindgen]

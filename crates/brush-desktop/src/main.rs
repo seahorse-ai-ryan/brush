@@ -11,22 +11,6 @@ fn main() {
     // Unused.
     let (_, rec) = ::tokio::sync::mpsc::unbounded_channel();
 
-    cfg_if::cfg_if! {
-        if #[cfg(target_family = "wasm")] {
-            use tracing_subscriber::layer::SubscriberExt;
-
-            let subscriber = tracing_subscriber::registry().with(tracing_wasm::WASMLayer::new(Default::default()));
-            tracing::subscriber::set_global_default(subscriber)
-                .expect("Failed to set tracing subscriber");
-        } else if #[cfg(feature = "tracy")] {
-            use tracing_subscriber::layer::SubscriberExt;
-            let subscriber = tracing_subscriber::registry()
-                .with(tracing_tracy::TracyLayer::default());
-            tracing::subscriber::set_global_default(subscriber)
-                .expect("Failed to set tracing subscriber");
-        }
-    }
-
     #[cfg(not(target_family = "wasm"))]
     {
         let runtime = tokio::runtime::Builder::new_multi_thread()
