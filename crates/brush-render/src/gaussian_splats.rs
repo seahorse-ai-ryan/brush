@@ -1,6 +1,9 @@
 use crate::{
-    bounding_box::BoundingBox, camera::Camera, render::sh_coeffs_for_degree,
-    safetensor_utils::safetensor_to_burn, Backend,
+    bounding_box::BoundingBox,
+    camera::Camera,
+    render::{sh_coeffs_for_degree, sh_degree_from_coeffs},
+    safetensor_utils::safetensor_to_burn,
+    Backend,
 };
 use burn::{
     config::Config,
@@ -250,5 +253,10 @@ impl<B: Backend> Splats<B> {
             safetensor_to_burn::<B, 3>(tensors.tensor("coeffs")?, device),
             safetensor_to_burn::<B, 1>(tensors.tensor("opacities")?, device),
         ))
+    }
+
+    pub fn sh_degree(&self) -> u32 {
+        let [_, coeffs, _] = self.sh_coeffs.dims();
+        sh_degree_from_coeffs(coeffs as u32)
     }
 }

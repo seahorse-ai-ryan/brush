@@ -1,5 +1,6 @@
 use anyhow::Result;
 use brush_render::gaussian_splats::{inverse_sigmoid, Splats};
+use brush_render::render::sh_coeffs_for_degree;
 use brush_render::{AutodiffBackend, Backend, RenderAux};
 use burn::backend::wgpu::WgpuDevice;
 use burn::backend::{Autodiff, Wgpu};
@@ -8,21 +9,16 @@ use burn::lr_scheduler::LrScheduler;
 use burn::module::{Param, ParamId};
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::record::AdaptorRecord;
-use burn::optim::{Adam, AdamState, Optimizer};
+use burn::optim::Optimizer;
 use burn::tensor::{Bool, Distribution};
-use burn::{
-    config::Config,
-    optim::{AdamConfig, GradientsParams},
-    tensor::Tensor,
-};
+use burn::{config::Config, optim::GradientsParams, tensor::Tensor};
 use hashbrown::HashMap;
 use tracing::trace_span;
 
+use crate::adam_scaled::{AdamScaled, AdamScaledConfig, AdamState};
 use crate::scene::SceneView;
 use crate::ssim::Ssim;
 use crate::stats::RefineRecord;
-
-type OptimizerType<B> = OptimizerAdaptor<Adam, Splats<B>, B>;
 
 #[derive(Config)]
 pub struct TrainConfig {
@@ -77,7 +73,7 @@ pub struct TrainConfig {
 
     // How much to divide the learning rate by for higher SH orders.
     #[config(default = 20.0)]
-    lr_coeffs_sh_scale: f64,
+    lr_coeffs_sh_scale: f32,
 
     #[config(default = 5e-2)]
     lr_opac: f64,
@@ -132,10 +128,12 @@ pub struct TrainStepStats<B: AutodiffBackend> {
     pub lr_opac: f64,
 }
 
+type OptimizerType = OptimizerAdaptor<AdamScaled, Splats<B>, B>;
+
 pub struct SplatTrainer {
     config: TrainConfig,
     sched_mean: ExponentialLrScheduler,
-    optim: OptimizerType<B>,
+    optim: OptimizerType,
     ssim: Ssim<B>,
     refine_record: RefineRecord,
 }
@@ -188,15 +186,15 @@ fn quaternion_vec_multiply<B: Backend>(
 }
 
 impl SplatTrainer {
-    pub fn new(num_points: usize, config: &TrainConfig, device: &WgpuDevice) -> Self {
-        let opt_config = AdamConfig::new().with_epsilon(1e-15);
+    pub fn new(splats: &Splats<B>, config: &TrainConfig, device: &WgpuDevice) -> Self {
+        let optim = AdamScaledConfig::new().with_epsilon(1e-15).init();
         let ssim = Ssim::new(config.ssim_window_size, 3, device);
 
         Self {
             config: config.clone(),
             sched_mean: config.lr_mean.init().expect("Lr schedule must be valid."),
-            optim: opt_config.init::<B, Splats<B>>(),
-            refine_record: RefineRecord::new(num_points, device),
+            optim,
+            refine_record: RefineRecord::new(splats.num_splats(), device),
             ssim,
         }
     }
@@ -204,7 +202,7 @@ impl SplatTrainer {
     pub(crate) fn reset_opacity(
         &self,
         splats: &mut Splats<B>,
-        record: &mut HashMap<ParamId, AdaptorRecord<Adam, B>>,
+        record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
     ) {
         map_param(
             &mut splats.raw_opacity,
@@ -306,44 +304,58 @@ impl SplatTrainer {
         });
 
         splats = trace_span!("Optimizer step", sync_burn = true).in_scope(|| {
-            let grad_means = GradientsParams::from_params(&mut grads, &splats, &[splats.means.id]);
-            splats = self.optim.step(lr_mean, splats, grad_means);
+            splats = trace_span!("Mean step", sync_burn = true).in_scope(|| {
+                let grad_means =
+                    GradientsParams::from_params(&mut grads, &splats, &[splats.means.id]);
+                self.optim.step(lr_mean, splats, grad_means)
+            });
 
-            let grad_opac =
-                GradientsParams::from_params(&mut grads, &splats, &[splats.raw_opacity.id]);
-            splats = self.optim.step(lr_opac, splats, grad_opac);
+            splats = trace_span!("Opacity step", sync_burn = true).in_scope(|| {
+                let grad_opac =
+                    GradientsParams::from_params(&mut grads, &splats, &[splats.raw_opacity.id]);
+                self.optim.step(lr_opac, splats, grad_opac)
+            });
 
-            let old_coeffs = splats.sh_coeffs.val();
-            let grad_coeff =
-                GradientsParams::from_params(&mut grads, &splats, &[splats.sh_coeffs.id]);
-            splats = self.optim.step(lr_coeffs, splats, grad_coeff);
-            let num_splats = splats.num_splats();
-            let sh_num = splats.sh_coeffs.dims()[1];
+            splats = trace_span!("SH Coeffs step", sync_burn = true).in_scope(|| {
+                let grad_coeff =
+                    GradientsParams::from_params(&mut grads, &splats, &[splats.sh_coeffs.id]);
 
-            // HACK: Want a lower learning rate for higher SH order.
-            // This works as long as the update rule is linear.
-            // (Adam Update rule is theta_{t + 1} = theta_{t} - lr * step)
-            if sh_num > 1 {
-                Splats::map_param(&mut splats.sh_coeffs, |coeffs| {
-                    let lerp_alpha = 1.0 / self.config.lr_coeffs_sh_scale;
-                    let scaled_coeffs =
-                        old_coeffs.clone() * (1.0 - lerp_alpha) + coeffs.clone() * lerp_alpha;
+                let coeff_count = sh_coeffs_for_degree(splats.sh_degree()) as i32;
+                let sh_size = coeff_count * 3;
+                let mut sh_lr_scales = vec![1.0];
+                for _ in 1..sh_size {
+                    sh_lr_scales.push(1.0 / self.config.lr_coeffs_sh_scale);
+                }
+                let sh_lr_scales =
+                    Tensor::<_, 1>::from_floats(sh_lr_scales.as_slice(), &splats.means.device())
+                        .reshape([1, coeff_count, 1]);
 
-                    let base = coeffs.slice([0..num_splats, 0..1]);
-                    let scaled = scaled_coeffs.slice([0..num_splats, 1..sh_num]);
+                let mut record = self.optim.to_record();
+                let mut param_record = record.get_mut(&splats.sh_coeffs.id);
+                if let Some(param) = param_record.as_mut() {
+                    let mut state = param.clone().into_state();
+                    state.scaling = Some(sh_lr_scales);
+                    record.insert(splats.sh_coeffs.id, AdaptorRecord::from_state(state));
+                    self.optim = self.optim.clone().load_record(record);
+                }
 
-                    Tensor::cat(vec![base, scaled], 1)
-                });
-            }
+                self.optim.step(lr_coeffs, splats, grad_coeff)
+            });
 
-            let grad_rot = GradientsParams::from_params(&mut grads, &splats, &[splats.rotation.id]);
-            splats = self.optim.step(lr_rotation, splats, grad_rot);
+            splats = trace_span!("Rotation step", sync_burn = true).in_scope(|| {
+                let grad_rot =
+                    GradientsParams::from_params(&mut grads, &splats, &[splats.rotation.id]);
+                let mut splats = self.optim.step(lr_rotation, splats, grad_rot);
+                splats.norm_rotations();
 
-            let grad_scale =
-                GradientsParams::from_params(&mut grads, &splats, &[splats.log_scales.id]);
-            splats = self.optim.step(lr_scale, splats, grad_scale);
+                splats
+            });
 
-            splats.norm_rotations();
+            splats = trace_span!("Scale step", sync_burn = true).in_scope(|| {
+                let grad_scale =
+                    GradientsParams::from_params(&mut grads, &splats, &[splats.log_scales.id]);
+                self.optim.step(lr_scale, splats, grad_scale)
+            });
 
             // Make sure rotations are still valid after optimization step.
             splats
@@ -533,7 +545,7 @@ impl SplatTrainer {
 
 fn map_param<B: AutodiffBackend, const D: usize>(
     param: &mut Param<Tensor<B, D>>,
-    record: &mut HashMap<ParamId, AdaptorRecord<Adam, B>>,
+    record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
     map_param: impl Fn(Tensor<B, D>) -> Tensor<B, D>,
     map_opt: impl Fn(Tensor<B::InnerBackend, D>) -> Tensor<B::InnerBackend, D>,
 ) {
@@ -550,7 +562,7 @@ fn map_param<B: AutodiffBackend, const D: usize>(
 //   mask: bool[n]. If True, prune this Gaussian.
 pub async fn prune_points<B: AutodiffBackend>(
     splats: &mut Splats<B>,
-    record: &mut HashMap<ParamId, AdaptorRecord<Adam, B>>,
+    record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
     prune: Tensor<B, 1, Bool>,
 ) {
     assert!(prune.dims()[0] == splats.num_splats());
@@ -602,7 +614,7 @@ pub async fn prune_points<B: AutodiffBackend>(
 
 pub fn concat_splats<B: AutodiffBackend>(
     splats: &mut Splats<B>,
-    record: &mut HashMap<ParamId, AdaptorRecord<Adam, B>>,
+    record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
     means: Tensor<B, 2>,
     rotations: Tensor<B, 2>,
     sh_coeffs: Tensor<B, 3>,

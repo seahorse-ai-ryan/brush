@@ -103,7 +103,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
         let eval_scene = dataset.eval.clone();
 
         let mut dataloader = SceneLoader::new(&train_scene, batch_size, seed, &device);
-        let mut trainer = SplatTrainer::new(splats.num_splats(), &config, &device);
+        let mut trainer = SplatTrainer::new(&splats, &config, &device);
 
         let mut is_paused = false;
 

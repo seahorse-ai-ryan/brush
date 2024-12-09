@@ -875,6 +875,7 @@ dependencies = [
  "burn",
  "burn-fusion",
  "cubecl",
+ "derive-new 0.7.0",
  "glam",
  "hashbrown 0.15.2",
  "image",
