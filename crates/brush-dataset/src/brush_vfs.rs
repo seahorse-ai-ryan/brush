@@ -12,7 +12,10 @@ use std::{
 };
 
 use anyhow::Context;
-use tokio::{io::AsyncRead, io::AsyncReadExt, sync::Mutex};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt},
+    sync::Mutex,
+};
 
 use zip::{
     result::{ZipError, ZipResult},
@@ -88,14 +91,34 @@ impl BrushVfs {
         BrushVfs::Manual(paths)
     }
 
-    #[cfg(not(target_family = "wasm"))]
     pub async fn from_directory(dir: &Path) -> anyhow::Result<Self> {
-        let mut read = ::tokio::fs::read_dir(dir).await?;
-        let mut paths = vec![];
-        while let Some(entry) = read.next_entry().await? {
-            paths.push(entry.path());
+        #[cfg(not(target_family = "wasm"))]
+        {
+            async fn walk_dir(dir: impl AsRef<Path>) -> std::io::Result<Vec<PathBuf>> {
+                let mut paths = Vec::new();
+                let mut stack = vec![PathBuf::from(dir.as_ref())];
+                while let Some(path) = stack.pop() {
+                    let mut read_dir = tokio::fs::read_dir(&path).await?;
+
+                    while let Some(entry) = read_dir.next_entry().await? {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            stack.push(path.clone());
+                        }
+                        paths.push(path);
+                    }
+                }
+                Ok(paths)
+            }
+
+            Ok(BrushVfs::Directory(dir.to_path_buf(), walk_dir(dir).await?))
         }
-        Ok(BrushVfs::Directory(dir.to_path_buf(), paths))
+
+        #[cfg(target_family = "wasm")]
+        {
+            let _ = dir;
+            unimplemented!("No reading on wasm");
+        }
     }
 
     pub fn file_names(&self) -> impl Iterator<Item = &Path> + '_ {
@@ -123,8 +146,9 @@ impl BrushVfs {
             }
             BrushVfs::Manual(map) => map.open(path).await,
             #[cfg(not(target_family = "wasm"))]
-            BrushVfs::Directory(path_buf, _) => {
-                let file = tokio::fs::File::open(path_buf).await?;
+            BrushVfs::Directory(_, _) => {
+                let file = tokio::fs::File::open(path).await?;
+                let file = tokio::io::BufReader::new(file);
                 Ok(Box::new(file))
             }
         }

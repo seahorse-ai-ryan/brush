@@ -1,4 +1,4 @@
-use crate::{viewer::ViewerContext, ViewerPanel};
+use crate::{data_source::DataSource, viewer::ViewerContext, ViewerPanel};
 use brush_dataset::{LoadDatasetArgs, LoadInitArgs};
 use brush_train::train::TrainConfig;
 use egui::Slider;
@@ -41,6 +41,7 @@ impl ViewerPanel for LoadDataPanel {
             ui.label("Select a .ply to visualize, or a .zip with training data.");
 
             let file = ui.button("Load file").clicked();
+            let dir = ui.button("Load directory").clicked();
 
             ui.add_space(10.0);
             ui.text_edit_singleline(&mut self.url);
@@ -49,7 +50,7 @@ impl ViewerPanel for LoadDataPanel {
 
             ui.add_space(10.0);
 
-            if file || url {
+            if file || dir || url {
                 let mut config = TrainConfig::default();
                 if matches!(self.quality, Quality::Low) {
                     config = config
@@ -60,9 +61,11 @@ impl ViewerPanel for LoadDataPanel {
                 }
 
                 let source = if file {
-                    crate::viewer::DataSource::PickFile
+                    DataSource::PickFile
+                } else if dir {
+                    DataSource::PickDirectory
                 } else {
-                    crate::viewer::DataSource::Url(self.url.to_string())
+                    DataSource::Url(self.url.to_string())
                 };
                 context.start_data_load(
                     source,

@@ -16,15 +16,12 @@ use burn_wgpu::{Wgpu, WgpuDevice};
 use eframe::egui;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3, Vec3A};
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_util::bytes::Bytes;
-use tokio_util::io::StreamReader;
 use tokio_with_wasm::alias as tokio;
 
-use ::tokio::io::AsyncReadExt;
+use ::tokio::io::{AsyncRead, AsyncReadExt};
 use ::tokio::sync::mpsc::error::TrySendError;
 use ::tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver};
-use ::tokio::{io::AsyncRead, io::BufReader, sync::mpsc::channel};
+use ::tokio::{io::BufReader, sync::mpsc::channel};
 use std::collections::HashMap;
 use tokio::task;
 use wgpu::Features;
@@ -34,6 +31,7 @@ use web_time::Instant;
 
 type Backend = Wgpu;
 
+use crate::data_source::DataSource;
 use crate::{
     orbit_controls::OrbitControls,
     panels::{DatasetPanel, LoadDataPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel},
@@ -135,6 +133,16 @@ pub(crate) struct ViewerContext {
     rec_process_msg: Option<Receiver<ProcessMessage>>,
 }
 
+async fn read_at_most<R: AsyncRead + Unpin>(
+    reader: &mut R,
+    limit: usize,
+) -> std::io::Result<Vec<u8>> {
+    let mut buffer = vec![0; limit];
+    let bytes_read = reader.read(&mut buffer).await?;
+    buffer.truncate(bytes_read);
+    Ok(buffer)
+}
+
 fn process_loop(
     source: DataSource,
     device: WgpuDevice,
@@ -150,11 +158,10 @@ fn process_loop(
         // and add them at the start again.
         let data = source.into_reader()?;
         let mut data = BufReader::new(data);
-        let mut peek = [0; 128];
-        data.read_exact(&mut peek).await?;
-        let reader = std::io::Cursor::new(peek).chain(data);
+        let peek = read_at_most(&mut data, 64).await?;
+        let reader = std::io::Cursor::new(peek.clone()).chain(data);
 
-        let mut vfs = if peek.starts_with("ply".as_bytes()) {
+        let mut vfs = if peek.as_slice().starts_with("ply".as_bytes()) {
             let mut path_reader = PathReader::default();
             path_reader.add(Path::new("input.ply"), reader);
             BrushVfs::from_paths(path_reader)
@@ -162,6 +169,10 @@ fn process_loop(
             BrushVfs::from_zip_reader(reader).await?
         } else if peek.starts_with("<!DOCTYPE html>".as_bytes()) {
             anyhow::bail!("Failed to download data (are you trying to download from Google Drive? You might have to use the proxy.")
+        } else if let Some(path_bytes) = peek.strip_prefix("BRUSH_PATH".as_bytes()) {
+            let string = String::from_utf8(path_bytes.to_vec())?;
+            let path = Path::new(&string);
+            BrushVfs::from_directory(path).await?
         } else {
             anyhow::bail!("only zip and ply files are supported.");
         };
@@ -233,62 +244,6 @@ fn process_loop(
     });
 
     Box::pin(stream)
-}
-
-#[derive(Debug)]
-pub enum DataSource {
-    PickFile,
-    Url(String),
-}
-
-type DataRead = Pin<Box<dyn AsyncRead + Send>>;
-
-impl DataSource {
-    fn into_reader(self) -> anyhow::Result<impl AsyncRead + Send> {
-        let (send, rec) = ::tokio::sync::mpsc::channel(16);
-
-        // Spawn the data reading.
-        tokio::spawn(async move {
-            let stream = try_fn_stream(|emitter| async move {
-                match self {
-                    DataSource::PickFile => {
-                        let picked = rrfd::pick_file()
-                            .await
-                            .map_err(|_| std::io::ErrorKind::NotFound)?;
-                        let data = picked.read().await;
-                        emitter.emit(Bytes::from_owner(data)).await;
-                    }
-                    DataSource::Url(url) => {
-                        let mut url = url.to_owned();
-                        if !url.starts_with("http://") && !url.starts_with("https://") {
-                            url = format!("https://{}", url);
-                        }
-                        let mut response = reqwest::get(url)
-                            .await
-                            .map_err(|_| std::io::ErrorKind::InvalidInput)?
-                            .bytes_stream();
-
-                        while let Some(bytes) = response.next().await {
-                            let bytes = bytes.map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
-                            emitter.emit(bytes).await;
-                        }
-                    }
-                };
-                anyhow::Result::<(), std::io::Error>::Ok(())
-            });
-
-            let mut stream = std::pin::pin!(stream);
-
-            while let Some(data) = stream.next().await {
-                if send.send(data).await.is_err() {
-                    break;
-                }
-            }
-        });
-
-        let reader = StreamReader::new(ReceiverStream::new(rec));
-        Ok(reader)
-    }
 }
 
 struct CameraSettings {

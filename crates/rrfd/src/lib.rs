@@ -4,6 +4,7 @@ pub mod android;
 #[allow(unused)]
 use anyhow::Context;
 use anyhow::Result;
+use std::path::PathBuf;
 
 pub enum FileHandle {
     #[cfg(not(target_os = "android"))]
@@ -56,6 +57,23 @@ pub async fn pick_file() -> Result<FileHandle> {
     #[cfg(target_os = "android")]
     {
         android::pick_file().await.map(FileHandle::Android)
+    }
+}
+
+pub async fn pick_directory() -> Result<PathBuf> {
+    #[cfg(all(not(target_os = "android"), not(target_family = "wasm")))]
+    {
+        let dir = rfd::AsyncFileDialog::new()
+            .pick_folder()
+            .await
+            .context("No folder selected")?;
+
+        Ok(dir.path().to_path_buf())
+    }
+
+    #[cfg(any(target_os = "android", target_family = "wasm"))]
+    {
+        unimplemented!("No folder picking on Android yet.")
     }
 }
 

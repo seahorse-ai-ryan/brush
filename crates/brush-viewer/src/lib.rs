@@ -7,10 +7,11 @@ use viewer::{ProcessMessage, ViewerContext};
 
 mod orbit_controls;
 
+pub mod data_source;
+pub mod viewer;
+
 mod panels;
 mod train_loop;
-
-pub mod viewer;
 
 trait ViewerPanel {
     fn title(&self) -> String;
