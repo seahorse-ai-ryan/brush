@@ -1,7 +1,7 @@
 use async_fn_stream::try_fn_stream;
 
 use brush_dataset::{
-    scene_loader::SceneLoader, zip::DatasetZip, Dataset, LoadDatasetArgs, LoadInitArgs,
+    brush_vfs::BrushVfs, scene_loader::SceneLoader, Dataset, LoadDatasetArgs, LoadInitArgs,
 };
 use brush_render::gaussian_splats::{RandomSplatsConfig, Splats};
 use brush_train::train::{SplatTrainer, TrainConfig};
@@ -9,11 +9,7 @@ use burn::module::AutodiffModule;
 use burn_jit::cubecl::Runtime;
 use burn_wgpu::{Wgpu, WgpuDevice, WgpuRuntime};
 use rand::SeedableRng;
-use tokio::io::AsyncReadExt;
-use tokio::{
-    io::AsyncRead,
-    sync::mpsc::{error::TryRecvError, Receiver},
-};
+use tokio::sync::mpsc::{error::TryRecvError, Receiver};
 use tokio_stream::{Stream, StreamExt};
 use web_time::Instant;
 
@@ -27,8 +23,8 @@ pub enum TrainMessage {
     Eval { view_count: Option<usize> },
 }
 
-pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
-    mut data: T,
+pub(crate) fn train_loop(
+    vfs: BrushVfs,
     device: WgpuDevice,
     mut receiver: Receiver<TrainMessage>,
     load_data_args: LoadDatasetArgs,
@@ -36,11 +32,6 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
     config: TrainConfig,
 ) -> impl Stream<Item = anyhow::Result<ProcessMessage>> {
     try_fn_stream(|emitter| async move {
-        let mut bytes = vec![];
-        data.read_to_end(&mut bytes).await?;
-        // TODO: async zip ideally.
-        let zip_data = DatasetZip::from_data(bytes)?;
-
         let batch_size = 1;
 
         // Maybe good if the seed would be configurable.
@@ -53,7 +44,7 @@ pub(crate) fn train_loop<T: AsyncRead + Unpin + 'static>(
 
         let mut dataset = Dataset::empty();
         let (mut splat_stream, mut data_stream) =
-            brush_dataset::load_dataset(zip_data.clone(), &load_data_args, &device)?;
+            brush_dataset::load_dataset(vfs.clone(), &load_data_args, &device).await?;
 
         // Read initial splats if any.
         while let Some(message) = splat_stream.next().await {
