@@ -18,8 +18,8 @@ use brush_kernel::create_uniform_buffer;
 use brush_kernel::{calc_cube_count, CubeCount};
 use brush_prefix_sum::prefix_sum;
 use brush_sort::radix_argsort;
-use burn::tensor::ops::IntTensorOps;
 use burn::tensor::DType;
+use burn::{prelude::Backend, tensor::ops::IntTensorOps};
 use burn_jit::JitBackend;
 use burn_wgpu::JitTensor;
 use burn_wgpu::WgpuRuntime;
@@ -72,6 +72,13 @@ pub(crate) fn max_intersections(img_size: glam::UVec2, num_splats: u32) -> u32 {
 
     // clamp to max nr. of dispatches.
     max.min(256 * 65535)
+}
+
+fn copy_tensor(
+    tensor: <InnerWgpu as Backend>::IntTensorPrimitive,
+) -> <InnerWgpu as Backend>::IntTensorPrimitive {
+    // Just an operation to force a new output.
+    InnerWgpu::int_add_scalar(tensor, 0)
 }
 
 pub(crate) fn render_forward(
@@ -176,10 +183,10 @@ pub(crate) fn render_forward(
 
         // Get just the number of visible splats from the uniforms buffer.
         let num_vis_field_offset = offset_of!(shaders::helpers::RenderUniforms, num_visible) / 4;
-        let num_visible = InnerWgpu::int_slice(
+        let num_visible = copy_tensor(InnerWgpu::int_slice(
             uniforms_buffer.clone(),
             &[num_vis_field_offset..num_vis_field_offset + 1],
-        );
+        ));
 
         let (_, global_from_compact_gid) = tracing::trace_span!("DepthSort", sync_burn = true)
             .in_scope(|| {
@@ -199,7 +206,7 @@ pub(crate) fn render_forward(
 
     let max_intersects = max_intersections(img_size, num_points as u32);
     // 1 extra length to make this an exclusive sum.
-    let num_tiles = InnerWgpu::int_zeros([num_points + 1].into(), device);
+    let tiles_hit_per_splat = InnerWgpu::int_zeros([num_points + 1].into(), device);
     let isect_info =
         create_tensor::<2, WgpuRuntime>([max_intersects as usize, 2], device, client, DType::I32);
 
@@ -216,23 +223,18 @@ pub(crate) fn render_forward(
                 raw_opacities.handle.binding(),
                 global_from_compact_gid.handle.clone().binding(),
                 projected_splats.handle.clone().binding(),
-                num_tiles.handle.clone().binding(),
+                tiles_hit_per_splat.handle.clone().binding(),
                 isect_info.handle.clone().binding(),
             ],
         );
     });
 
-    let cum_tiles_hit = tracing::trace_span!("PrefixSum", sync_burn = true).in_scope(|| {
-        // TODO: Only need to do this up to num_visible gaussians really.
-        prefix_sum(num_tiles)
-    });
-
     let num_intersections_offset =
         offset_of!(shaders::helpers::RenderUniforms, num_intersections) / 4;
-    let num_intersections = InnerWgpu::int_slice(
+    let num_intersections = copy_tensor(InnerWgpu::int_slice(
         uniforms_buffer.clone(),
         &[num_intersections_offset..num_intersections_offset + 1],
-    );
+    ));
 
     let intersect_wg_buf = create_dispatch_buffer(
         num_intersections.clone(),
@@ -252,6 +254,11 @@ pub(crate) fn render_forward(
             [(tile_bounds.y * tile_bounds.x) as usize + 1].into(),
             device,
         );
+
+        let cum_tiles_hit = tracing::trace_span!("PrefixSum", sync_burn = true).in_scope(|| {
+            // TODO: Only need to do this up to num_visible gaussians really.
+            prefix_sum(tiles_hit_per_splat)
+        });
 
         tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(|| unsafe {
             client.execute_unchecked(
