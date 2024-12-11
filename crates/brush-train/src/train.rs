@@ -249,9 +249,11 @@ impl SplatTrainer {
 
             let _span = trace_span!("Calculate losses", sync_burn = true).entered();
 
+            // Convert to srgb space.
             let pred_rgb = pred_images
                 .clone()
-                .slice([0..batch_size, 0..img_h, 0..img_w, 0..3]);
+                .slice([0..batch_size, 0..img_h, 0..img_w, 0..3])
+                .clamp_min(0.0);
 
             // This is wrong if the batch has mixed transparent and non-transparent images,
             // but that's ok for now.
@@ -323,7 +325,7 @@ impl SplatTrainer {
                     GradientsParams::from_params(&mut grads, &splats, &[splats.sh_coeffs.id]);
 
                 let coeff_count = sh_coeffs_for_degree(splats.sh_degree()) as i32;
-                let sh_size = coeff_count * 3;
+                let sh_size = coeff_count;
                 let mut sh_lr_scales = vec![1.0];
                 for _ in 1..sh_size {
                     sh_lr_scales.push(1.0 / self.config.lr_coeffs_sh_scale);
@@ -426,31 +428,46 @@ impl SplatTrainer {
         let mut append_opac = vec![];
         let mut append_scales = vec![];
 
-        let clone_inds =
+        let clone_mask =
             Tensor::stack::<2>(vec![is_grad_high.clone(), split_clone_size_mask.clone()], 1)
                 .all_dim(1)
-                .squeeze::<1>(1)
-                .argwhere_async()
-                .await;
+                .squeeze::<1>(1);
+
+        let clone_inds = clone_mask.clone().argwhere_async().await;
 
         // Clone splats
         let clone_count = clone_inds.dims()[0];
         if clone_count > 0 {
             let clone_inds = clone_inds.squeeze(1);
+            let cur_means = splats.means.val().select(0, clone_inds.clone());
             let cur_rots = splats.rotation.val().select(0, clone_inds.clone());
             let cur_scale = splats.log_scales.val().select(0, clone_inds.clone());
-            append_means.push(splats.means.val().select(0, clone_inds.clone()));
+
+            let cur_coeff = splats.sh_coeffs.val().select(0, clone_inds.clone());
+            let cur_raw_opac = splats.raw_opacity.val().select(0, clone_inds.clone());
+
+            // let alpha = sigmoid(cur_raw_opac);
+            // let new_alpha = -(-alpha + 1.0).sqrt() + 1.0;
+            // let new_raw_opacity = inverse_sigmoid_tensor(new_alpha);
+            let samples = quaternion_vec_multiply(
+                cur_rots.clone(),
+                Tensor::random([clone_count, 3], Distribution::Normal(0.0, 1.0), &device),
+            ) * cur_scale.clone().exp();
+
+            append_means.push(cur_means + samples);
             append_rots.push(cur_rots);
-            append_coeffs.push(splats.sh_coeffs.val().select(0, clone_inds.clone()));
-            append_opac.push(splats.raw_opacity.val().select(0, clone_inds.clone()));
             append_scales.push(cur_scale);
+            append_coeffs.push(cur_coeff);
+            append_opac.push(cur_raw_opac);
         }
 
         // Split splats.
-        let split_mask =
-            Tensor::stack::<2>(vec![is_grad_high, split_clone_size_mask.bool_not()], 1)
-                .all_dim(1)
-                .squeeze(1);
+        let split_mask = Tensor::stack::<2>(
+            vec![is_grad_high.clone(), split_clone_size_mask.bool_not()],
+            1,
+        )
+        .all_dim(1)
+        .squeeze::<1>(1);
 
         let radii_grow = self
             .refine_record
@@ -459,36 +476,40 @@ impl SplatTrainer {
             .greater_elem(self.config.densify_radius_threshold);
         let split_mask = Tensor::stack::<2>(vec![split_mask, radii_grow], 1)
             .any_dim(1)
-            .squeeze(1);
+            .squeeze::<1>(1);
 
         let split_inds = split_mask.clone().argwhere_async().await;
-        let split_count = split_inds.dims()[0];
 
+        let split_count = split_inds.dims()[0];
         if split_count > 0 {
             let split_inds = split_inds.squeeze(1);
 
-            for _ in 0..2 {
-                // Some parts can be straightforwardly copied to the new splats.
-                let cur_means = splats.means.val().select(0, split_inds.clone());
-                let cur_coeff = splats.sh_coeffs.val().select(0, split_inds.clone());
-                let cur_raw_opac = splats.raw_opacity.val().select(0, split_inds.clone());
-                let cur_rots = splats.rotation.val().select(0, split_inds.clone());
-                let cur_scale = splats.log_scales.val().select(0, split_inds.clone());
+            // Some parts can be straightforwardly copied to the new splats.
+            let cur_means = splats.means.val().select(0, split_inds.clone());
+            let cur_coeff = splats.sh_coeffs.val().select(0, split_inds.clone());
+            let cur_raw_opac = splats.raw_opacity.val().select(0, split_inds.clone());
+            let cur_rots = splats.rotation.val().select(0, split_inds.clone());
+            let cur_scale = splats.log_scales.val().select(0, split_inds.clone());
 
-                let samples = quaternion_vec_multiply(
-                    cur_rots.clone(),
-                    Tensor::random([split_count, 3], Distribution::Normal(0.0, 1.0), &device),
-                ) * cur_scale.clone().exp();
+            let samples = quaternion_vec_multiply(
+                cur_rots.clone(),
+                Tensor::random([split_count, 3], Distribution::Normal(0.0, 1.0), &device),
+            ) * cur_scale.clone().exp();
 
-                append_means.push(cur_means.clone() + samples);
-                append_rots.push(cur_rots.clone());
-                append_scales.push(cur_scale - 1.6f32.ln());
-                append_coeffs.push(cur_coeff.clone());
-                append_opac.push(cur_raw_opac.clone());
-            }
+            append_means.push(cur_means.clone() + samples.clone());
+            append_rots.push(cur_rots.clone());
+            append_scales.push(cur_scale.clone() - 1.6f32.ln());
+            append_coeffs.push(cur_coeff.clone());
+            append_opac.push(cur_raw_opac.clone());
+
+            append_means.push(cur_means - samples.clone());
+            append_rots.push(cur_rots);
+            append_scales.push(cur_scale - 1.6f32.ln());
+            append_coeffs.push(cur_coeff);
+            append_opac.push(cur_raw_opac);
         }
 
-        prune_points(&mut splats, &mut record, split_mask).await;
+        prune_points(&mut splats, &mut record, split_mask.clone()).await;
 
         // Do some more processing. Important to do this last as otherwise you might mess up the correspondence
         // of gradient <-> splat.
