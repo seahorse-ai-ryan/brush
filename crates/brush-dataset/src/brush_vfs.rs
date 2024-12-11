@@ -95,8 +95,11 @@ impl BrushVfs {
         #[cfg(not(target_family = "wasm"))]
         {
             async fn walk_dir(dir: impl AsRef<Path>) -> std::io::Result<Vec<PathBuf>> {
+                let dir = PathBuf::from(dir.as_ref());
+
                 let mut paths = Vec::new();
-                let mut stack = vec![PathBuf::from(dir.as_ref())];
+                let mut stack = vec![dir.clone()];
+
                 while let Some(path) = stack.pop() {
                     let mut read_dir = tokio::fs::read_dir(&path).await?;
 
@@ -105,7 +108,7 @@ impl BrushVfs {
                         if path.is_dir() {
                             stack.push(path.clone());
                         }
-                        paths.push(path);
+                        paths.push(path.strip_prefix(dir.clone()).unwrap().to_path_buf());
                     }
                 }
                 Ok(paths)
@@ -146,8 +149,9 @@ impl BrushVfs {
             }
             BrushVfs::Manual(map) => map.open(path).await,
             #[cfg(not(target_family = "wasm"))]
-            BrushVfs::Directory(_, _) => {
-                let file = tokio::fs::File::open(path).await?;
+            BrushVfs::Directory(dir, _) => {
+                let total_path = dir.join(path);
+                let file = tokio::fs::File::open(total_path).await?;
                 let file = tokio::io::BufReader::new(file);
                 Ok(Box::new(file))
             }
