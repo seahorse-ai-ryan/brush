@@ -665,10 +665,10 @@ mod tests {
                     "img/dif",
                     &(img_ref.clone() - out.clone()).into_rerun().await,
                 )?;
-                // rec.log(
-                //     "images/tile depth",
-                //     &aux.read_tile_depth().into_rerun().await,
-                // )?;
+                rec.log(
+                    "images/tile depth",
+                    &aux.read_tile_depth().into_rerun().await,
+                )?;
             }
 
             // Check if images match.
@@ -679,21 +679,24 @@ mod tests {
                 Tensor::from_primitive(TensorPrimitive::Float(aux.projected_splats.clone()));
 
             let gs_ids =
-                Tensor::<DiffBack, 1, Int>::from_primitive(aux.global_from_compact_gid.clone());
+                Tensor::<DiffBack, 1, Int>::from_primitive(aux.global_from_compact_gid.clone())
+                    .slice([0..num_visible]);
 
             let xys: Tensor<DiffBack, 2, Float> =
                 projected_splats.clone().slice([0..num_visible, 0..2]);
             let xys_ref = safetensor_to_burn::<DiffBack, 2>(tensors.tensor("xys")?, &device);
-            let xys_ref = xys_ref.select(0, gs_ids.clone()).slice([0..num_visible]);
+            let xys_ref = xys_ref.select(0, gs_ids.clone());
 
             assert!(xys.all_close(xys_ref, Some(1e-1), Some(1e-6)));
 
             let conics: Tensor<DiffBack, 2, Float> =
                 projected_splats.clone().slice([0..num_visible, 2..5]);
             let conics_ref = safetensor_to_burn::<DiffBack, 2>(tensors.tensor("conics")?, &device);
-            let conics_ref = conics_ref.select(0, gs_ids.clone()).slice([0..num_visible]);
+            let conics_ref = conics_ref.select(0, gs_ids.clone());
 
             assert!(conics.all_close(conics_ref, Some(1e-3), Some(1e-6)));
+
+            aux.resolve_bwd_data().await;
 
             let grads = (out.clone() - crab_tens.clone())
                 .powi_scalar(2.0)
@@ -702,14 +705,9 @@ mod tests {
 
             // XY gradients are also in compact format.
             let v_xys = splats.xys_dummy.grad(&grads).context("no xys grad")?;
-            let v_xys = v_xys.slice([0..num_visible]);
-
             let v_xys_ref =
                 safetensor_to_burn::<DiffBack, 2>(tensors.tensor("v_xy")?, &device).inner();
-            let v_xys_ref = v_xys_ref
-                .select(0, gs_ids.inner().clone())
-                .slice([0..num_visible]);
-
+            let v_xys_ref = v_xys_ref.select(0, gs_ids.inner().clone());
             assert!(v_xys.all_close(v_xys_ref, Some(1e-5), Some(1e-9)));
 
             let v_opacities_ref =
