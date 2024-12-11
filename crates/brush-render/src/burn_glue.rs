@@ -63,12 +63,12 @@ impl Backend for InnerWgpu {
             state.out_img,
             v_output,
             state.aux.projected_splats,
-            state.aux.num_visible,
             state.aux.uniforms_buffer,
             state.aux.compact_gid_from_isect,
             state.aux.global_from_compact_gid,
             state.aux.tile_offsets,
             state.aux.final_index,
+            state.rx.borrow().num_visible(),
             state.sh_degree,
         )
     }
@@ -171,6 +171,8 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
             render_u32_buffer,
         );
 
+        let (send, rx) = tokio::sync::watch::channel(crate::BwdAux::default());
+
         let auxc = aux.clone();
         let wrapped_aux = RenderAux::<Self> {
             projected_splats: <Self as AutodiffBackend>::from_inner(aux.projected_splats),
@@ -182,6 +184,7 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
             compact_gid_from_isect: aux.compact_gid_from_isect,
             global_from_compact_gid: aux.global_from_compact_gid,
             uniforms_buffer: aux.uniforms_buffer,
+            sender: Some(send),
         };
 
         match prep_nodes {
@@ -198,6 +201,7 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
                     ),
                     aux: auxc,
                     out_img: out_img.clone(),
+                    rx,
                 };
 
                 let finish = prep.finish(state, out_img);
@@ -304,6 +308,7 @@ impl Backend for Fusion<InnerWgpu> {
                 .tensor_uninitialized(vec![max_intersects as usize], DType::I32),
             global_from_compact_gid: client.tensor_uninitialized(vec![num_points], DType::I32),
             radii: client.tensor_uninitialized(vec![num_points], DType::F32),
+            sender: None,
         };
 
         let desc = CustomOpDescription::new(
@@ -347,31 +352,35 @@ impl Backend for Fusion<InnerWgpu> {
     ) -> SplatGrads<Self> {
         struct CustomOp {
             desc: CustomOpDescription,
-            sh_degree: u32,
+            state: GaussianBackwardState<Fusion<InnerWgpu>>,
         }
 
         impl Operation<FusionJitRuntime<WgpuRuntime, u32>> for CustomOp {
             fn execute(self: Box<Self>, h: &mut HandleContainer<JitFusionHandle<WgpuRuntime>>) {
-                let (
-                    [v_output, means, log_scales, quats, raw_opac, out_img, projected_splats, num_visible, uniforms_buffer, compact_gid_from_isect, global_from_compact_gid, tile_offsets, final_index],
-                    [v_means, v_quats, v_scales, v_coeffs, v_raw_opac, v_xy],
-                ) = self.desc.consume();
+                let ([v_output], [v_means, v_quats, v_scales, v_coeffs, v_raw_opac, v_xy]) =
+                    self.desc.consume();
+
+                let state = self.state;
 
                 let grads = render_backward(
-                    h.get_float_tensor::<InnerWgpu>(&means),
-                    h.get_float_tensor::<InnerWgpu>(&quats),
-                    h.get_float_tensor::<InnerWgpu>(&log_scales),
-                    h.get_float_tensor::<InnerWgpu>(&raw_opac),
-                    h.get_float_tensor::<InnerWgpu>(&out_img),
+                    h.get_float_tensor::<InnerWgpu>(&state.means.into_description()),
+                    h.get_float_tensor::<InnerWgpu>(&state.quats.into_description()),
+                    h.get_float_tensor::<InnerWgpu>(&state.log_scales.into_description()),
+                    h.get_float_tensor::<InnerWgpu>(&state.raw_opac.into_description()),
+                    h.get_float_tensor::<InnerWgpu>(&state.out_img.into_description()),
                     h.get_float_tensor::<InnerWgpu>(&v_output),
-                    h.get_float_tensor::<InnerWgpu>(&projected_splats),
-                    h.get_int_tensor::<InnerWgpu>(&num_visible),
-                    h.get_int_tensor::<InnerWgpu>(&uniforms_buffer),
-                    h.get_int_tensor::<InnerWgpu>(&compact_gid_from_isect),
-                    h.get_int_tensor::<InnerWgpu>(&global_from_compact_gid),
-                    h.get_int_tensor::<InnerWgpu>(&tile_offsets),
-                    h.get_int_tensor::<InnerWgpu>(&final_index),
-                    self.sh_degree,
+                    h.get_float_tensor::<InnerWgpu>(&state.aux.projected_splats.into_description()),
+                    h.get_int_tensor::<InnerWgpu>(&state.aux.uniforms_buffer.into_description()),
+                    h.get_int_tensor::<InnerWgpu>(
+                        &state.aux.compact_gid_from_isect.into_description(),
+                    ),
+                    h.get_int_tensor::<InnerWgpu>(
+                        &state.aux.global_from_compact_gid.into_description(),
+                    ),
+                    h.get_int_tensor::<InnerWgpu>(&state.aux.tile_offsets.into_description()),
+                    h.get_int_tensor::<InnerWgpu>(&state.aux.final_index.into_description()),
+                    state.rx.borrow().num_visible(),
+                    state.sh_degree,
                 );
 
                 // // Register output.
@@ -401,21 +410,7 @@ impl Backend for Fusion<InnerWgpu> {
 
         let desc = CustomOpDescription::new(
             "render_splat_bwd",
-            &[
-                v_output.into_description(),
-                state.means.into_description(),
-                state.log_scales.into_description(),
-                state.quats.into_description(),
-                state.raw_opac.into_description(),
-                state.out_img.into_description(),
-                state.aux.projected_splats.into_description(),
-                state.aux.num_visible.into_description(),
-                state.aux.uniforms_buffer.into_description(),
-                state.aux.compact_gid_from_isect.into_description(),
-                state.aux.global_from_compact_gid.into_description(),
-                state.aux.tile_offsets.into_description(),
-                state.aux.final_index.into_description(),
-            ],
+            &[v_output.into_description()],
             &[
                 grads.v_means.to_description_out(),
                 grads.v_quats.to_description_out(),
@@ -427,7 +422,7 @@ impl Backend for Fusion<InnerWgpu> {
         );
 
         let op = CustomOp {
-            sh_degree: state.sh_degree,
+            state,
             desc: desc.clone(),
         };
 

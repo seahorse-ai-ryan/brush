@@ -11,6 +11,7 @@ use burn_wgpu::{Wgpu, WgpuDevice, WgpuRuntime};
 use rand::SeedableRng;
 use tokio::sync::mpsc::{error::TryRecvError, Receiver};
 use tokio_stream::{Stream, StreamExt};
+use tracing::Instrument;
 use web_time::Instant;
 
 use crate::viewer::ProcessMessage;
@@ -143,7 +144,10 @@ pub(crate) fn train_loop(
                     let batch = dataloader.next_batch().await;
                     let extent = batch.scene_extent;
 
-                    let (new_splats, stats) = trainer.step(iter, batch, splats)?;
+                    let (new_splats, stats) = trainer
+                        .step(iter, batch, splats)
+                        .instrument(tracing::info_span!("Train step"))
+                        .await?;
                     let (new_splats, refine) =
                         trainer.refine_if_needed(iter, new_splats, extent).await;
 

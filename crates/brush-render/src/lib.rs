@@ -6,6 +6,7 @@ use burn_jit::JitBackend;
 use burn_wgpu::WgpuRuntime;
 use camera::Camera;
 use shaders::helpers::TILE_WIDTH;
+use tokio::sync::watch::{Receiver, Sender};
 
 mod burn_glue;
 mod dim_check;
@@ -17,6 +18,28 @@ pub mod bounding_box;
 pub mod camera;
 pub mod gaussian_splats;
 pub mod render;
+
+#[derive(Default, Debug, Clone)]
+enum BwdAux {
+    #[default]
+    NotResolved,
+    Info {
+        num_visible: u32,
+    },
+}
+
+impl BwdAux {
+    fn new(num_visible: u32) -> Self {
+        BwdAux::Info { num_visible }
+    }
+
+    fn num_visible(&self) -> u32 {
+        match self {
+            BwdAux::NotResolved => panic!("Bwd state must be resolved before calling num_visible"),
+            BwdAux::Info { num_visible } => *num_visible,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct RenderAux<B: Backend> {
@@ -30,6 +53,7 @@ pub struct RenderAux<B: Backend> {
     pub compact_gid_from_isect: B::IntTensorPrimitive,
     pub global_from_compact_gid: B::IntTensorPrimitive,
     pub radii: B::FloatTensorPrimitive,
+    sender: Option<Sender<BwdAux>>,
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +77,14 @@ impl<B: Backend> RenderAux<B> {
             .elem()
     }
 
+    pub async fn resolve_bwd_data(&self) {
+        if let Some(send) = self.sender.clone() {
+            if !send.is_closed() {
+                let _ = send.send(BwdAux::new(self.read_num_visible().await));
+            }
+        }
+    }
+
     pub fn read_tile_depth(&self) -> Tensor<B, 2, Int> {
         let bins = Tensor::<B, 1, Int>::from_primitive(self.tile_offsets.clone());
 
@@ -70,6 +102,7 @@ impl<B: Backend> RenderAux<B> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct SplatGrads<B: Backend> {
     v_means: B::FloatTensorPrimitive,
     v_quats: B::FloatTensorPrimitive,
@@ -86,8 +119,9 @@ pub struct GaussianBackwardState<B: Backend> {
     quats: B::FloatTensorPrimitive,
     raw_opac: B::FloatTensorPrimitive,
     out_img: B::FloatTensorPrimitive,
-    sh_degree: u32,
     aux: RenderAux<B>,
+    sh_degree: u32,
+    rx: Receiver<BwdAux>,
 }
 
 // Custom operations in Burn work by extending the backend with an extra func.
@@ -101,7 +135,7 @@ pub trait Backend: burn::tensor::backend::Backend {
     /// This function can optionally render a "u32" buffer, which is a packed RGBA (8 bits per channel)
     /// buffer. This is useful when the results need to be displayed immediatly.
     fn render_splats(
-        cam: &Camera,
+        camera: &Camera,
         img_size: glam::UVec2,
         means: Self::FloatTensorPrimitive,
         xy_grad_dummy: Self::FloatTensorPrimitive,

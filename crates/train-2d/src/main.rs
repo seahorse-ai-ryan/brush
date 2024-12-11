@@ -67,7 +67,7 @@ fn spawn_train_loop(
         let mut iter = 0;
 
         loop {
-            let (new_splats, _) = trainer.step(iter, batch.clone(), splats).unwrap();
+            let (new_splats, _) = trainer.step(iter, batch.clone(), splats).await.unwrap();
             let (new_splats, _) = trainer
                 .refine_if_needed(iter, new_splats, batch.scene_extent)
                 .await;

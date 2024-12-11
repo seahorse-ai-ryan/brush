@@ -212,14 +212,12 @@ impl SplatTrainer {
         );
     }
 
-    pub fn step(
+    pub async fn step(
         &mut self,
         iter: u32,
         batch: SceneBatch<B>,
         splats: Splats<B>,
     ) -> Result<(Splats<B>, TrainStepStats<B>), anyhow::Error> {
-        let _span = trace_span!("Train step").entered();
-
         assert!(
             batch.gt_views.len() == 1,
             "Bigger batches aren't yet supported"
@@ -241,6 +239,10 @@ impl SplatTrainer {
 
                 renders.push(pred_image);
                 auxes.push(aux);
+            }
+
+            for aux in auxes.iter() {
+                aux.resolve_bwd_data().await;
             }
 
             let pred_images = Tensor::stack(renders, 0);

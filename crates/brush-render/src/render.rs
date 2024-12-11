@@ -1,4 +1,4 @@
-use super::{shaders, RenderAux};
+use super::shaders;
 
 use std::mem::{offset_of, size_of};
 
@@ -9,7 +9,7 @@ use crate::{
         GatherGrads, MapGaussiansToIntersect, ProjectBackwards, ProjectSplats, ProjectVisible,
         Rasterize, RasterizeBackwards,
     },
-    SplatGrads,
+    RenderAux, SplatGrads,
 };
 
 use brush_kernel::create_dispatch_buffer;
@@ -356,6 +356,7 @@ pub(crate) fn render_forward(
             compact_gid_from_isect,
             global_from_compact_gid,
             radii,
+            sender: None,
         },
     )
 }
@@ -384,13 +385,13 @@ pub(crate) fn render_backward(
     v_output: JitTensor<WgpuRuntime>,
 
     projected_splats: JitTensor<WgpuRuntime>,
-    num_visible: JitTensor<WgpuRuntime>,
     uniforms_buffer: JitTensor<WgpuRuntime>,
     compact_gid_from_isect: JitTensor<WgpuRuntime>,
     global_from_compact_gid: JitTensor<WgpuRuntime>,
     tile_offsets: JitTensor<WgpuRuntime>,
     final_index: JitTensor<WgpuRuntime>,
 
+    num_visible: u32,
     sh_degree: u32,
 ) -> SplatGrads<InnerWgpu> {
     let device = &out_img.device;
@@ -410,9 +411,9 @@ pub(crate) fn render_backward(
         let invocations = tile_bounds.x * tile_bounds.y;
 
         // These gradients are atomically added to so important to zero them.
-        let v_xys_local = InnerWgpu::float_zeros([num_points, 2].into(), device);
-        let v_conics = InnerWgpu::float_zeros([num_points, 3].into(), device);
-        let v_colors = InnerWgpu::float_zeros([num_points, 4].into(), device);
+        let v_xys_local = InnerWgpu::float_zeros([num_visible as usize, 2].into(), device);
+        let v_conics = InnerWgpu::float_zeros([num_visible as usize, 3].into(), device);
+        let v_colors = InnerWgpu::float_zeros([num_visible as usize, 4].into(), device);
 
         let hard_floats = has_hard_floats();
 
@@ -435,8 +436,10 @@ pub(crate) fn render_backward(
             );
         });
 
-        let v_coeffs_shape = [num_points, sh_coeffs_for_degree(sh_degree) as usize, 3];
-        let v_coeffs = InnerWgpu::float_zeros(v_coeffs_shape.into(), device);
+        let v_coeffs = InnerWgpu::float_zeros(
+            [num_points, sh_coeffs_for_degree(sh_degree) as usize, 3].into(),
+            device,
+        );
         let v_opacities = InnerWgpu::float_zeros([num_points].into(), device);
 
         let _span = tracing::trace_span!("GatherGrads", sync_burn = true).entered();
@@ -444,11 +447,7 @@ pub(crate) fn render_backward(
         unsafe {
             client.execute_unchecked(
                 GatherGrads::task(),
-                CubeCount::Dynamic(
-                    create_dispatch_buffer(num_visible.clone(), GatherGrads::WORKGROUP_SIZE)
-                        .handle
-                        .binding(),
-                ),
+                calc_cube_count([num_visible], GatherGrads::WORKGROUP_SIZE),
                 vec![
                     uniforms_buffer.clone().handle.binding(),
                     global_from_compact_gid.clone().handle.binding(),
