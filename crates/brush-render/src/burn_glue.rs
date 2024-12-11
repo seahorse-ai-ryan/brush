@@ -23,11 +23,11 @@ use crate::{
         calc_tile_bounds, max_intersections, render_backward, render_forward, sh_coeffs_for_degree,
         sh_degree_from_coeffs,
     },
-    shaders, Backend, GaussianBackwardState, InnerWgpu, RenderAux, SplatGrads,
+    shaders, BBase, Backend, GaussianBackwardState, RenderAux, SplatGrads,
 };
 
 // Implement forward functions for the inner wgpu backend.
-impl Backend for InnerWgpu {
+impl Backend for BBase {
     fn render_splats(
         camera: &Camera,
         img_size: glam::UVec2,
@@ -55,20 +55,27 @@ impl Backend for InnerWgpu {
         state: GaussianBackwardState<Self>,
         v_output: Self::FloatTensorPrimitive,
     ) -> SplatGrads<Self> {
+        let bwd_state = state.rx.borrow().data().clone();
+        let max_intersects = state.compact_gid_from_isect.shape.dims[0] as u32;
+
+        if bwd_state.num_intersects > max_intersects {
+            panic!("Too many tile intersections. This can happen for scenes with a lot of large gaussians");
+        }
+
         render_backward(
+            v_output,
             state.means,
             state.quats,
             state.log_scales,
             state.raw_opac,
             state.out_img,
-            v_output,
-            state.aux.projected_splats,
-            state.aux.uniforms_buffer,
-            state.aux.compact_gid_from_isect,
-            state.aux.global_from_compact_gid,
-            state.aux.tile_offsets,
-            state.aux.final_index,
-            state.rx.borrow().num_visible(),
+            state.projected_splats,
+            state.uniforms_buffer,
+            state.compact_gid_from_isect,
+            state.global_from_compact_gid,
+            state.tile_offsets,
+            state.final_index,
+            bwd_state.num_visible,
             state.sh_degree,
         )
     }
@@ -173,17 +180,16 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
 
         let (send, rx) = tokio::sync::watch::channel(crate::BwdAux::default());
 
-        let auxc = aux.clone();
         let wrapped_aux = RenderAux::<Self> {
-            projected_splats: <Self as AutodiffBackend>::from_inner(aux.projected_splats),
+            projected_splats: <Self as AutodiffBackend>::from_inner(aux.projected_splats.clone()),
             radii: <Self as AutodiffBackend>::from_inner(aux.radii),
-            num_intersections: aux.num_intersections,
-            num_visible: aux.num_visible,
-            final_index: aux.final_index,
-            tile_offsets: aux.tile_offsets,
-            compact_gid_from_isect: aux.compact_gid_from_isect,
-            global_from_compact_gid: aux.global_from_compact_gid,
-            uniforms_buffer: aux.uniforms_buffer,
+            num_intersections: aux.num_intersections.clone(),
+            num_visible: aux.num_visible.clone(),
+            final_index: aux.final_index.clone(),
+            tile_offsets: aux.tile_offsets.clone(),
+            compact_gid_from_isect: aux.compact_gid_from_isect.clone(),
+            global_from_compact_gid: aux.global_from_compact_gid.clone(),
+            uniforms_buffer: aux.uniforms_buffer.clone(),
             sender: Some(send),
         };
 
@@ -199,9 +205,14 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
                         Tensor::<Self, 3>::from_primitive(TensorPrimitive::Float(sh_coeffs)).dims()
                             [1] as u32,
                     ),
-                    aux: auxc,
                     out_img: out_img.clone(),
                     rx,
+                    projected_splats: aux.projected_splats,
+                    uniforms_buffer: aux.uniforms_buffer,
+                    final_index: aux.final_index,
+                    tile_offsets: aux.tile_offsets,
+                    compact_gid_from_isect: aux.compact_gid_from_isect,
+                    global_from_compact_gid: aux.global_from_compact_gid,
                 };
 
                 let finish = prep.finish(state, out_img);
@@ -217,12 +228,12 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
     }
 }
 
-impl Backend for Fusion<InnerWgpu> {
+impl Backend for Fusion<BBase> {
     fn render_splats(
         cam: &Camera,
         img_size: glam::UVec2,
         means: Self::FloatTensorPrimitive,
-        _xy_grad_dummy: Self::FloatTensorPrimitive,
+        xy_grad_dummy: Self::FloatTensorPrimitive,
         log_scales: Self::FloatTensorPrimitive,
         quats: Self::FloatTensorPrimitive,
         sh_coeffs: Self::FloatTensorPrimitive,
@@ -239,38 +250,39 @@ impl Backend for Fusion<InnerWgpu> {
         impl Operation<FusionJitRuntime<WgpuRuntime, u32>> for CustomOp {
             fn execute(self: Box<Self>, h: &mut HandleContainer<JitFusionHandle<WgpuRuntime>>) {
                 let (
-                    [means, log_scales, quats, sh_coeffs, raw_opacity],
+                    [means, xy_dummy, log_scales, quats, sh_coeffs, raw_opacity],
                     [projected_splats, uniforms_buffer, num_intersections, num_visible, final_index, tile_offsets, compact_gid_from_isect, global_from_compact_gid, radii, out_img],
                 ) = self.desc.consume();
 
-                let (img, aux) = render_forward(
+                let (img, aux) = BBase::render_splats(
                     &self.cam,
                     self.img_size,
-                    h.get_float_tensor::<InnerWgpu>(&means),
-                    h.get_float_tensor::<InnerWgpu>(&log_scales),
-                    h.get_float_tensor::<InnerWgpu>(&quats),
-                    h.get_float_tensor::<InnerWgpu>(&sh_coeffs),
-                    h.get_float_tensor::<InnerWgpu>(&raw_opacity),
+                    h.get_float_tensor::<BBase>(&means),
+                    h.get_float_tensor::<BBase>(&xy_dummy),
+                    h.get_float_tensor::<BBase>(&log_scales),
+                    h.get_float_tensor::<BBase>(&quats),
+                    h.get_float_tensor::<BBase>(&sh_coeffs),
+                    h.get_float_tensor::<BBase>(&raw_opacity),
                     self.render_u32_buffer,
                 );
 
                 // Register output.
-                h.register_float_tensor::<InnerWgpu>(&out_img.id, img);
-                h.register_float_tensor::<InnerWgpu>(&projected_splats.id, aux.projected_splats);
-                h.register_int_tensor::<InnerWgpu>(&uniforms_buffer.id, aux.uniforms_buffer);
-                h.register_int_tensor::<InnerWgpu>(&num_intersections.id, aux.num_intersections);
-                h.register_int_tensor::<InnerWgpu>(&num_visible.id, aux.num_visible);
-                h.register_int_tensor::<InnerWgpu>(&final_index.id, aux.final_index);
-                h.register_int_tensor::<InnerWgpu>(&tile_offsets.id, aux.tile_offsets);
-                h.register_int_tensor::<InnerWgpu>(
+                h.register_float_tensor::<BBase>(&out_img.id, img);
+                h.register_float_tensor::<BBase>(&projected_splats.id, aux.projected_splats);
+                h.register_int_tensor::<BBase>(&uniforms_buffer.id, aux.uniforms_buffer);
+                h.register_int_tensor::<BBase>(&num_intersections.id, aux.num_intersections);
+                h.register_int_tensor::<BBase>(&num_visible.id, aux.num_visible);
+                h.register_int_tensor::<BBase>(&final_index.id, aux.final_index);
+                h.register_int_tensor::<BBase>(&tile_offsets.id, aux.tile_offsets);
+                h.register_int_tensor::<BBase>(
                     &compact_gid_from_isect.id,
                     aux.compact_gid_from_isect,
                 );
-                h.register_int_tensor::<InnerWgpu>(
+                h.register_int_tensor::<BBase>(
                     &global_from_compact_gid.id,
                     aux.global_from_compact_gid,
                 );
-                h.register_float_tensor::<InnerWgpu>(&radii.id, aux.radii);
+                h.register_float_tensor::<BBase>(&radii.id, aux.radii);
             }
         }
 
@@ -315,6 +327,7 @@ impl Backend for Fusion<InnerWgpu> {
             "render_splats",
             &[
                 means.into_description(),
+                xy_grad_dummy.into_description(),
                 log_scales.into_description(),
                 quats.into_description(),
                 sh_coeffs.into_description(),
@@ -352,7 +365,7 @@ impl Backend for Fusion<InnerWgpu> {
     ) -> SplatGrads<Self> {
         struct CustomOp {
             desc: CustomOpDescription,
-            state: GaussianBackwardState<Fusion<InnerWgpu>>,
+            state: GaussianBackwardState<Fusion<BBase>>,
         }
 
         impl Operation<FusionJitRuntime<WgpuRuntime, u32>> for CustomOp {
@@ -362,34 +375,36 @@ impl Backend for Fusion<InnerWgpu> {
 
                 let state = self.state;
 
-                let grads = render_backward(
-                    h.get_float_tensor::<InnerWgpu>(&state.means.into_description()),
-                    h.get_float_tensor::<InnerWgpu>(&state.quats.into_description()),
-                    h.get_float_tensor::<InnerWgpu>(&state.log_scales.into_description()),
-                    h.get_float_tensor::<InnerWgpu>(&state.raw_opac.into_description()),
-                    h.get_float_tensor::<InnerWgpu>(&state.out_img.into_description()),
-                    h.get_float_tensor::<InnerWgpu>(&v_output),
-                    h.get_float_tensor::<InnerWgpu>(&state.aux.projected_splats.into_description()),
-                    h.get_int_tensor::<InnerWgpu>(&state.aux.uniforms_buffer.into_description()),
-                    h.get_int_tensor::<InnerWgpu>(
-                        &state.aux.compact_gid_from_isect.into_description(),
-                    ),
-                    h.get_int_tensor::<InnerWgpu>(
-                        &state.aux.global_from_compact_gid.into_description(),
-                    ),
-                    h.get_int_tensor::<InnerWgpu>(&state.aux.tile_offsets.into_description()),
-                    h.get_int_tensor::<InnerWgpu>(&state.aux.final_index.into_description()),
-                    state.rx.borrow().num_visible(),
-                    state.sh_degree,
-                );
+                let inner_state = GaussianBackwardState {
+                    means: h.get_float_tensor::<BBase>(&state.means.into_description()),
+                    log_scales: h.get_float_tensor::<BBase>(&state.log_scales.into_description()),
+                    quats: h.get_float_tensor::<BBase>(&state.quats.into_description()),
+                    raw_opac: h.get_float_tensor::<BBase>(&state.raw_opac.into_description()),
+                    out_img: h.get_float_tensor::<BBase>(&state.out_img.into_description()),
+                    projected_splats: h
+                        .get_float_tensor::<BBase>(&state.projected_splats.into_description()),
+                    uniforms_buffer: h
+                        .get_int_tensor::<BBase>(&state.uniforms_buffer.into_description()),
+                    final_index: h.get_int_tensor::<BBase>(&state.final_index.into_description()),
+                    tile_offsets: h.get_int_tensor::<BBase>(&state.tile_offsets.into_description()),
+                    compact_gid_from_isect: h
+                        .get_int_tensor::<BBase>(&state.compact_gid_from_isect.into_description()),
+                    global_from_compact_gid: h
+                        .get_int_tensor::<BBase>(&state.global_from_compact_gid.into_description()),
+                    sh_degree: state.sh_degree,
+                    rx: state.rx,
+                };
+
+                let grads =
+                    BBase::render_splats_bwd(inner_state, h.get_float_tensor::<BBase>(&v_output));
 
                 // // Register output.
-                h.register_float_tensor::<InnerWgpu>(&v_means.id, grads.v_means);
-                h.register_float_tensor::<InnerWgpu>(&v_quats.id, grads.v_quats);
-                h.register_float_tensor::<InnerWgpu>(&v_scales.id, grads.v_scales);
-                h.register_float_tensor::<InnerWgpu>(&v_coeffs.id, grads.v_coeffs);
-                h.register_float_tensor::<InnerWgpu>(&v_raw_opac.id, grads.v_raw_opac);
-                h.register_float_tensor::<InnerWgpu>(&v_xy.id, grads.v_xy);
+                h.register_float_tensor::<BBase>(&v_means.id, grads.v_means);
+                h.register_float_tensor::<BBase>(&v_quats.id, grads.v_quats);
+                h.register_float_tensor::<BBase>(&v_scales.id, grads.v_scales);
+                h.register_float_tensor::<BBase>(&v_coeffs.id, grads.v_coeffs);
+                h.register_float_tensor::<BBase>(&v_raw_opac.id, grads.v_raw_opac);
+                h.register_float_tensor::<BBase>(&v_xy.id, grads.v_xy);
             }
         }
 

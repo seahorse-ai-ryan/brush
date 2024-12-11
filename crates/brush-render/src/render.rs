@@ -71,7 +71,7 @@ pub(crate) fn max_intersections(img_size: glam::UVec2, num_splats: u32) -> u32 {
     let max = num_splats.saturating_mul(num_tiles);
 
     // clamp to max nr. of dispatches.
-    max.min(256 * 65535)
+    max.min(shaders::map_gaussian_to_intersects::WORKGROUP_SIZE[0] * 65535)
 }
 
 fn copy_tensor(
@@ -377,12 +377,13 @@ pub fn has_hard_floats() -> bool {
 }
 
 pub(crate) fn render_backward(
+    v_output: JitTensor<WgpuRuntime>,
+
     means: JitTensor<WgpuRuntime>,
     quats: JitTensor<WgpuRuntime>,
     log_scales: JitTensor<WgpuRuntime>,
     raw_opac: JitTensor<WgpuRuntime>,
     out_img: JitTensor<WgpuRuntime>,
-    v_output: JitTensor<WgpuRuntime>,
 
     projected_splats: JitTensor<WgpuRuntime>,
     uniforms_buffer: JitTensor<WgpuRuntime>,

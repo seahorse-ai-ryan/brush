@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::single_range_in_vec_init)]
 use burn::prelude::Tensor;
-use burn::tensor::{ElementConversion, Int, TensorMetadata};
+use burn::tensor::{ElementConversion, Int, TensorMetadata, Transaction};
 use burn_jit::JitBackend;
 use burn_wgpu::WgpuRuntime;
 use camera::Camera;
@@ -20,24 +20,30 @@ pub mod gaussian_splats;
 pub mod render;
 
 #[derive(Default, Debug, Clone)]
-enum BwdAux {
-    #[default]
-    NotResolved,
-    Info {
-        num_visible: u32,
-    },
+struct BwdAuxData {
+    num_visible: u32,
+    num_intersects: u32,
+}
+
+#[derive(Default, Debug, Clone)]
+struct BwdAux {
+    data: Option<BwdAuxData>,
 }
 
 impl BwdAux {
-    fn new(num_visible: u32) -> Self {
-        BwdAux::Info { num_visible }
+    fn new(num_visible: u32, num_intersects: u32) -> Self {
+        BwdAux {
+            data: Some(BwdAuxData {
+                num_visible,
+                num_intersects,
+            }),
+        }
     }
 
-    fn num_visible(&self) -> u32 {
-        match self {
-            BwdAux::NotResolved => panic!("Bwd state must be resolved before calling num_visible"),
-            BwdAux::Info { num_visible } => *num_visible,
-        }
+    fn data(&self) -> &BwdAuxData {
+        self.data
+            .as_ref()
+            .expect("Bwd state must be resolved before calling num_visible")
     }
 }
 
@@ -80,7 +86,19 @@ impl<B: Backend> RenderAux<B> {
     pub async fn resolve_bwd_data(&self) {
         if let Some(send) = self.sender.clone() {
             if !send.is_closed() {
-                let _ = send.send(BwdAux::new(self.read_num_visible().await));
+                let data = Transaction::default()
+                    .register(Tensor::<B, 1, Int>::from_primitive(
+                        self.num_visible.clone(),
+                    ))
+                    .register(Tensor::<B, 1, Int>::from_primitive(
+                        self.num_intersections.clone(),
+                    ))
+                    .execute_async()
+                    .await;
+
+                let num_visible: i32 = data[0].to_vec().unwrap()[0];
+                let num_intersections: i32 = data[1].to_vec().unwrap()[0];
+                let _ = send.send(BwdAux::new(num_visible as u32, num_intersections as u32));
             }
         }
     }
@@ -115,11 +133,19 @@ pub struct SplatGrads<B: Backend> {
 #[derive(Debug, Clone)]
 pub struct GaussianBackwardState<B: Backend> {
     means: B::FloatTensorPrimitive,
-    log_scales: B::FloatTensorPrimitive,
     quats: B::FloatTensorPrimitive,
+    log_scales: B::FloatTensorPrimitive,
     raw_opac: B::FloatTensorPrimitive,
+
     out_img: B::FloatTensorPrimitive,
-    aux: RenderAux<B>,
+
+    projected_splats: B::FloatTensorPrimitive,
+    uniforms_buffer: B::IntTensorPrimitive,
+    compact_gid_from_isect: B::IntTensorPrimitive,
+    global_from_compact_gid: B::IntTensorPrimitive,
+    tile_offsets: B::IntTensorPrimitive,
+    final_index: B::IntTensorPrimitive,
+
     sh_degree: u32,
     rx: Receiver<BwdAux>,
 }
@@ -163,4 +189,4 @@ pub trait AutodiffBackend:
 {
 }
 
-type InnerWgpu = JitBackend<WgpuRuntime, f32, i32, u32>;
+type BBase = JitBackend<WgpuRuntime, f32, i32, u32>;
