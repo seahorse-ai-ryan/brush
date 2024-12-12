@@ -181,7 +181,6 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
     // set up a reader, in this case a file.
     let mut reader = BufReader::new(reader);
 
-    let update_every = 25000;
     let _span = trace_span!("Read splats").entered();
 
     try_fn_stream(|emitter| async move {
@@ -252,6 +251,8 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                 if ["x", "y", "z"].into_iter().any(|p| !properties.contains(p)) {
                     Err(anyhow::anyhow!("Invalid splat ply. Missing properties!"))?
                 }
+
+                let update_every = element.count.div_ceil(25);
 
                 for i in 0..element.count {
                     // Ocassionally yield.
