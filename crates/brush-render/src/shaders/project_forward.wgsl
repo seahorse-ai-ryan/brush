@@ -38,7 +38,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
 
     let scale = exp(helpers::as_vec(log_scales[global_gid]));
     let quat = quats[global_gid];
-    let opac = helpers::sigmoid(raw_opacities[global_gid]);
+    let raw_opac = raw_opacities[global_gid];
+
+    // inv_sigmoid(1.0 / 255.0);
+    if raw_opac <= -5.537 {
+        return;
+    }
+
+    let opac = helpers::sigmoid(raw_opac);
 
     let cov3d = helpers::calc_cov3d(scale, quat);
     let cov2d = helpers::calc_cov2d(cov3d, mean_c, uniforms.focal, uniforms.img_size, uniforms.pixel_center, viewmat);
