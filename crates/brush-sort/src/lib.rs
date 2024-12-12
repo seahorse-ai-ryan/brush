@@ -37,6 +37,8 @@ pub fn radix_argsort(
     sorting_bits: u32,
 ) -> (JitTensor<WgpuRuntime>, JitTensor<WgpuRuntime>) {
     assert_eq!(input_keys.shape.dims[0], input_values.shape.dims[0]);
+    assert_eq!(n_sort.shape.dims[0], 1);
+
     assert!(sorting_bits <= 32);
 
     let _span = tracing::trace_span!("Radix sort").entered();
