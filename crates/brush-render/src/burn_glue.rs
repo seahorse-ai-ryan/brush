@@ -59,7 +59,7 @@ impl Backend for BBase {
         let max_intersects = state.compact_gid_from_isect.shape.dims[0] as u32;
 
         if bwd_state.num_intersects > max_intersects {
-            panic!("Too many tile intersections. This can happen for scenes with a lot of large gaussians");
+            panic!("Too many tile intersections. This can happen for scenes with a lot of large gaussians ({} > {})", bwd_state.num_intersects, max_intersects);
         }
 
         render_backward(
