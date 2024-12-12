@@ -9,7 +9,7 @@ use burn::module::AutodiffModule;
 use burn_jit::cubecl::Runtime;
 use burn_wgpu::{Wgpu, WgpuDevice, WgpuRuntime};
 use rand::SeedableRng;
-use tokio::sync::mpsc::{error::TryRecvError, Receiver};
+use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver};
 use tokio_stream::{Stream, StreamExt};
 use tracing::Instrument;
 use web_time::Instant;
@@ -27,7 +27,7 @@ pub enum TrainMessage {
 pub(crate) fn train_loop(
     vfs: BrushVfs,
     device: WgpuDevice,
-    mut receiver: Receiver<TrainMessage>,
+    mut receiver: UnboundedReceiver<TrainMessage>,
     load_data_args: LoadDatasetArgs,
     load_init_args: LoadInitArgs,
     config: TrainConfig,

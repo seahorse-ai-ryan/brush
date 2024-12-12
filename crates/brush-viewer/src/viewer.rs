@@ -16,11 +16,12 @@ use burn_wgpu::{Wgpu, WgpuDevice};
 use eframe::egui;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3, Vec3A};
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio_with_wasm::alias as tokio;
 
 use ::tokio::io::{AsyncRead, AsyncReadExt};
-use ::tokio::sync::mpsc::error::TrySendError;
-use ::tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver};
+use ::tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use ::tokio::{io::BufReader, sync::mpsc::channel};
 use std::collections::HashMap;
 use tokio::task;
@@ -128,8 +129,8 @@ pub(crate) struct ViewerContext {
     ctx: egui::Context,
 
     rec_ui_control_msg: UnboundedReceiver<UiControlMessage>,
+    send_train_msg: Option<UnboundedSender<TrainMessage>>,
 
-    send_train_msg: Option<Sender<TrainMessage>>,
     rec_process_msg: Option<Receiver<ProcessMessage>>,
 }
 
@@ -146,7 +147,7 @@ async fn read_at_most<R: AsyncRead + Unpin>(
 fn process_loop(
     source: DataSource,
     device: WgpuDevice,
-    train_receiver: Receiver<TrainMessage>,
+    train_receiver: UnboundedReceiver<TrainMessage>,
     load_data_args: LoadDatasetArgs,
     load_init_args: LoadInitArgs,
     train_config: TrainConfig,
@@ -344,11 +345,10 @@ impl ViewerContext {
         let device = self.device.clone();
         log::info!("Start data load {source:?}");
 
-        // create a channel for the train loop.
-        let (train_sender, train_receiver) = channel(32);
-
         // Create a small channel. We don't want 10 updated splats to be stuck in the queue eating up memory!
         // Bigger channels could mean the train loop spends less time waiting for the UI though.
+        // create a channel for the train loop.
+        let (train_sender, train_receiver) = unbounded_channel();
         let (sender, receiver) = channel(1);
 
         self.rec_process_msg = Some(receiver);
@@ -380,9 +380,29 @@ impl ViewerContext {
                 // This only really matters in the browser.
                 tokio::task::yield_now().await;
 
-                // If channel is closed, bail.
-                if sender.send(m).await.is_err() {
-                    break;
+                match m {
+                    // Messages that have to be received.
+                    ProcessMessage::NewSource
+                    | ProcessMessage::StartLoading { .. }
+                    | ProcessMessage::Error(_)
+                    | ProcessMessage::ViewSplats { .. }
+                    | ProcessMessage::Dataset { .. }
+                    | ProcessMessage::DoneLoading { .. }
+                    | ProcessMessage::RefineStep { .. }
+                    | ProcessMessage::EvalResult { .. } => {
+                        // If channel is closed, bail.
+                        if sender.send(m).await.is_err() {
+                            break;
+                        }
+                    }
+
+                    // Messages that can be missed.
+                    ProcessMessage::TrainStep { .. } => {
+                        // If channel is closed, bail.
+                        if let Err(TrySendError::Closed(_)) = sender.try_send(m) {
+                            break;
+                        }
+                    }
                 }
             }
         };
@@ -392,13 +412,7 @@ impl ViewerContext {
 
     pub fn send_train_message(&self, message: TrainMessage) {
         if let Some(sender) = self.send_train_msg.as_ref() {
-            match sender.try_send(message) {
-                Ok(_) => {}
-                Err(TrySendError::Closed(_)) => {}
-                Err(TrySendError::Full(_)) => {
-                    unreachable!("Should use an unbounded channel for train messages.")
-                }
-            }
+            let _ = sender.send(message);
         }
     }
 
