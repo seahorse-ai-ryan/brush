@@ -25,8 +25,8 @@ const DENSE_MULT: f32 = 0.25;
 const LOW_RES: glam::UVec2 = glam::uvec2(512, 512);
 const HIGH_RES: glam::UVec2 = glam::uvec2(1024, 1024);
 
-const TARGET_SAMPLE_COUNT: u32 = 100;
-const INTERNAL_ITERS: u32 = 10;
+const TARGET_SAMPLE_COUNT: u32 = 50;
+const INTERNAL_ITERS: u32 = 5;
 
 fn generate_bench_data() -> anyhow::Result<()> {
     <DiffBack as burn::prelude::Backend>::seed(4);
@@ -171,11 +171,15 @@ fn bench_general(
         fov_y,
         glam::vec2(0.5, 0.5),
     );
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
 
     if grad {
         bencher.bench_local(move || {
             for _ in 0..INTERNAL_ITERS {
                 let out = splats.render(&camera, resolution, false);
+                rt.block_on(out.1.resolve_bwd_data());
                 let _ = out.0.mean().backward();
             }
             // Wait for GPU work.
