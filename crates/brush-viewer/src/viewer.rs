@@ -16,15 +16,15 @@ use burn_wgpu::{Wgpu, WgpuDevice};
 use eframe::egui;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3, Vec3A};
-use tokio::sync::mpsc::error::TrySendError;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
-use tokio_with_wasm::alias as tokio;
 
 use ::tokio::io::{AsyncRead, AsyncReadExt};
+use ::tokio::sync::mpsc::error::TrySendError;
+use ::tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use ::tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use ::tokio::{io::BufReader, sync::mpsc::channel};
 use std::collections::HashMap;
 use tokio::task;
+use tokio_with_wasm::alias as tokio;
 use wgpu::Features;
 
 use tokio_stream::{Stream, StreamExt};

@@ -265,8 +265,7 @@ impl SplatTrainer {
 
             let loss = (pred_compare - batch.gt_images.clone()).abs().mean();
 
-            // Disabled on WASM for now. On WebGPU + Metal this unfortunately has glitches.
-            let loss = if self.config.ssim_weight > 0.0 && !cfg!(target_family = "wasm") {
+            let loss = if self.config.ssim_weight > 0.0 {
                 let gt_rgb =
                     batch
                         .gt_images
