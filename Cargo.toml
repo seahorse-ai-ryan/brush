@@ -70,14 +70,14 @@ burn = { git = "https://github.com/tracel-ai/burn", features = [
     'wgpu',
     'autodiff',
     'template',
-], rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
-burn-jit = { git = "https://github.com/tracel-ai/burn", rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
+] }
+burn-jit = { git = "https://github.com/tracel-ai/burn" }
 burn-wgpu = { git = "https://github.com/tracel-ai/burn", features = [
     "exclusive-memory-only",
-], rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
-burn-fusion = { git = "https://github.com/tracel-ai/burn", rev = "42e7c1f225a7c3e2be502e437fc417c5f61f2589" }
+] }
+burn-fusion = { git = "https://github.com/tracel-ai/burn" }
 
-cubecl = { git = "https://github.com/tracel-ai/cubecl", rev = "2c09d4dd1ecb9f474e524dc47b05599edb7049e7" }
+cubecl = { git = "https://github.com/tracel-ai/cubecl", rev = "1c4e0036c043422773fd6824c2a888160fca8e5e" }
 
 egui = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
 
@@ -132,7 +132,7 @@ emath = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02b
 ecolor = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
 
 [profile.dev]
-opt-level = 0
+opt-level = 1
 debug = true
 
 # Optimize dependencies even in debug builds (does not affect workspace packages):
