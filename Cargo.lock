@@ -764,6 +764,7 @@ dependencies = [
 name = "brush-desktop"
 version = "0.1.0"
 dependencies = [
+ "brush-render",
  "brush-ui",
  "brush-viewer",
  "cfg-if",

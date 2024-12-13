@@ -14,6 +14,7 @@ path = "src/main.rs"
 egui.workspace = true
 eframe.workspace = true
 brush-viewer.path = "../brush-viewer"
+brush-render.path = "../brush-render"
 brush-ui.path = "../brush-ui"
 log.workspace = true
 tokio_with_wasm = { workspace = true, features = ["rt"] }
@@ -40,3 +41,4 @@ wasm-logger.workspace = true
 [features]
 tracy = ["brush-viewer/tracy", "tracing"]
 tracing = ["brush-viewer/tracing"]
+debug_validation = ["brush-render/debug_validation"]

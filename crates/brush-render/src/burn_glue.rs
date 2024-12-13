@@ -9,6 +9,7 @@ use burn::{
     },
     tensor::{
         backend::AutodiffBackend,
+        ops::FloatTensor,
         repr::{CustomOpDescription, HandleContainer, OperationDescription},
         DType, Tensor, TensorPrimitive,
     },
@@ -23,7 +24,7 @@ use crate::{
         calc_tile_bounds, max_intersections, render_backward, render_forward, sh_coeffs_for_degree,
         sh_degree_from_coeffs,
     },
-    shaders, BBase, Backend, GaussianBackwardState, RenderAux, SplatGrads,
+    shaders, BBase, Backend, GaussianBackwardState, RenderAuxPrimitive, SplatGrads,
 };
 
 // Implement forward functions for the inner wgpu backend.
@@ -31,14 +32,14 @@ impl Backend for BBase {
     fn render_splats(
         camera: &Camera,
         img_size: glam::UVec2,
-        means: Self::FloatTensorPrimitive,
-        _xy_dummy: Self::FloatTensorPrimitive,
-        log_scales: Self::FloatTensorPrimitive,
-        quats: Self::FloatTensorPrimitive,
-        sh_coeffs: Self::FloatTensorPrimitive,
-        raw_opacity: Self::FloatTensorPrimitive,
+        means: FloatTensor<Self>,
+        _xy_dummy: FloatTensor<Self>,
+        log_scales: FloatTensor<Self>,
+        quats: FloatTensor<Self>,
+        sh_coeffs: FloatTensor<Self>,
+        raw_opacity: FloatTensor<Self>,
         render_u32_buffer: bool,
-    ) -> (Self::FloatTensorPrimitive, RenderAux<Self>) {
+    ) -> (FloatTensor<Self>, RenderAuxPrimitive<Self>) {
         render_forward(
             camera,
             img_size,
@@ -53,7 +54,7 @@ impl Backend for BBase {
 
     fn render_splats_bwd(
         state: GaussianBackwardState<Self>,
-        v_output: Self::FloatTensorPrimitive,
+        v_output: FloatTensor<Self>,
     ) -> SplatGrads<Self> {
         let bwd_state = state.rx.borrow().data().clone();
         let max_intersects = state.compact_gid_from_isect.shape.dims[0] as u32;
@@ -141,14 +142,14 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
     fn render_splats(
         camera: &Camera,
         img_size: glam::UVec2,
-        means: Self::FloatTensorPrimitive,
-        xy_dummy: Self::FloatTensorPrimitive,
-        log_scales: Self::FloatTensorPrimitive,
-        quats: Self::FloatTensorPrimitive,
-        sh_coeffs: Self::FloatTensorPrimitive,
-        raw_opacity: Self::FloatTensorPrimitive,
+        means: FloatTensor<Self>,
+        xy_dummy: FloatTensor<Self>,
+        log_scales: FloatTensor<Self>,
+        quats: FloatTensor<Self>,
+        sh_coeffs: FloatTensor<Self>,
+        raw_opacity: FloatTensor<Self>,
         render_u32_buffer: bool,
-    ) -> (Self::FloatTensorPrimitive, RenderAux<Self>) {
+    ) -> (FloatTensor<Self>, RenderAuxPrimitive<Self>) {
         // Get backend tensors & dequantize if needed. Could try and support quantized inputs
         // in the future.
 
@@ -180,7 +181,7 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
 
         let (send, rx) = tokio::sync::watch::channel(crate::BwdAux::default());
 
-        let wrapped_aux = RenderAux::<Self> {
+        let wrapped_aux = RenderAuxPrimitive::<Self> {
             projected_splats: <Self as AutodiffBackend>::from_inner(aux.projected_splats.clone()),
             radii: <Self as AutodiffBackend>::from_inner(aux.radii),
             num_intersections: aux.num_intersections.clone(),
@@ -232,14 +233,14 @@ impl Backend for Fusion<BBase> {
     fn render_splats(
         cam: &Camera,
         img_size: glam::UVec2,
-        means: Self::FloatTensorPrimitive,
-        xy_grad_dummy: Self::FloatTensorPrimitive,
-        log_scales: Self::FloatTensorPrimitive,
-        quats: Self::FloatTensorPrimitive,
-        sh_coeffs: Self::FloatTensorPrimitive,
-        raw_opacity: Self::FloatTensorPrimitive,
+        means: FloatTensor<Self>,
+        xy_grad_dummy: FloatTensor<Self>,
+        log_scales: FloatTensor<Self>,
+        quats: FloatTensor<Self>,
+        sh_coeffs: FloatTensor<Self>,
+        raw_opacity: FloatTensor<Self>,
         render_u32_buffer: bool,
-    ) -> (Self::FloatTensorPrimitive, RenderAux<Self>) {
+    ) -> (FloatTensor<Self>, RenderAuxPrimitive<Self>) {
         struct CustomOp {
             cam: Camera,
             img_size: glam::UVec2,
@@ -305,7 +306,7 @@ impl Backend for Fusion<BBase> {
             DType::F32,
         );
 
-        let aux = RenderAux::<Self> {
+        let aux = RenderAuxPrimitive::<Self> {
             projected_splats: client.tensor_uninitialized(vec![num_points, proj_size], DType::F32),
             uniforms_buffer: client.tensor_uninitialized(vec![uniforms_size], DType::I32),
             num_intersections: client.tensor_uninitialized(vec![1], DType::I32),
@@ -361,7 +362,7 @@ impl Backend for Fusion<BBase> {
 
     fn render_splats_bwd(
         state: GaussianBackwardState<Self>,
-        v_output: Self::FloatTensorPrimitive,
+        v_output: FloatTensor<Self>,
     ) -> SplatGrads<Self> {
         struct CustomOp {
             desc: CustomOpDescription,

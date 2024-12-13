@@ -9,8 +9,9 @@
     @group(0) @binding(4) var<storage, read_write> out_img: array<u32>;
 #else
     @group(0) @binding(4) var<storage, read_write> out_img: array<vec4f>;
-    @group(0) @binding(5) var<storage, read_write> final_index : array<u32>;
 #endif
+
+@group(0) @binding(5) var<storage, read_write> final_index : array<u32>;
 
 var<workgroup> local_batch: array<helpers::ProjectedSplat, helpers::TILE_SIZE>;
 
@@ -95,7 +96,7 @@ fn main(
                 T = next_T;
 
                 let isect_id = batch_start + t;
-                final_idx = isect_id;
+                final_idx = isect_id + 1u;
             }
         }
     }
@@ -107,6 +108,7 @@ fn main(
             let colors_u = vec4u(clamp(final_color * 255.0, vec4f(0.0), vec4f(255.0)));
             let packed: u32 = colors_u.x | (colors_u.y << 8u) | (colors_u.z << 16u) | (colors_u.w << 24u);
             out_img[pix_id] = packed;
+            final_index[pix_id] = final_idx;
         #else
             out_img[pix_id] = final_color;
             final_index[pix_id] = final_idx;

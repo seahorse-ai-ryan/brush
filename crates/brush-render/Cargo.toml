@@ -30,6 +30,9 @@ kiddo.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 rand.workspace = true
 
+[features]
+debug_validation = []
+
 [build-dependencies]
 brush-wgsl.path = "../brush-wgsl"
 miette.workspace = true

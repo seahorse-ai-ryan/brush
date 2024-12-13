@@ -3,7 +3,7 @@ use crate::{
     camera::Camera,
     render::{sh_coeffs_for_degree, sh_degree_from_coeffs},
     safetensor_utils::safetensor_to_burn,
-    Backend,
+    Backend, RenderAux,
 };
 use burn::{
     config::Config,
@@ -211,7 +211,7 @@ impl<B: Backend> Splats<B> {
         camera: &Camera,
         img_size: glam::UVec2,
         render_u32_buffer: bool,
-    ) -> (Tensor<B, 3>, crate::RenderAux<B>) {
+    ) -> (Tensor<B, 3>, RenderAux<B>) {
         let (img, aux) = B::render_splats(
             camera,
             img_size,
@@ -224,7 +224,13 @@ impl<B: Backend> Splats<B> {
             render_u32_buffer,
         );
 
-        (Tensor::from_primitive(TensorPrimitive::Float(img)), aux)
+        let img = Tensor::from_primitive(TensorPrimitive::Float(img));
+
+        let wrapped_aux = aux.into_wrapped();
+        if cfg!(feature = "debug_validation") {
+            wrapped_aux.clone().debug_assert_valid();
+        }
+        (img, wrapped_aux)
     }
 
     pub fn opacity(&self) -> Tensor<B, 1> {

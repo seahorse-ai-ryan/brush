@@ -218,7 +218,7 @@ impl VisualizeTools {
                 // TODO: Whats a good place for this? Maybe in eval views?
                 rec.log(
                     format!("world/eval/view_{i}/tile_depth"),
-                    &samp.aux.read_tile_depth().into_rerun().await,
+                    &samp.aux.calc_tile_depth().into_rerun().await,
                 )?;
             }
 
@@ -299,15 +299,21 @@ impl VisualizeTools {
 
             // Not sure what's best here, atm let's just log the first batch render only.
             // Maybe could do an average instead?
-            let main_aux = &stats.auxes[0];
+            let main_aux = stats.auxes[0].clone();
 
             rec.log(
                 "splats/num_intersects",
-                &rerun::Scalar::new(main_aux.read_num_intersections().await as f64),
+                &rerun::Scalar::new(
+                    main_aux
+                        .num_intersections
+                        .into_scalar_async()
+                        .await
+                        .elem::<f64>(),
+                ),
             )?;
             rec.log(
                 "splats/splats_visible",
-                &rerun::Scalar::new(main_aux.read_num_visible().await as f64),
+                &rerun::Scalar::new(main_aux.num_visible.into_scalar_async().await.elem::<f64>()),
             )?;
 
             Ok(())

@@ -3,7 +3,6 @@ use brush_render::RenderAux;
 use burn::backend::wgpu::JitBackend;
 use burn::backend::{Autodiff, Wgpu};
 use burn::prelude::*;
-use burn::tensor::TensorMetadata;
 use burn_fusion::client::FusionClient;
 use cubecl::wgpu::WgpuRuntime;
 use cubecl::CubeDim;
@@ -36,11 +35,13 @@ impl RefineRecord {
         let _span = trace_span!("Gather stats", sync_burn = true);
 
         let [h, w] = aux.final_index.shape().dims();
-        let client = aux.final_index.client.clone();
+        let client = &self.xy_grad_counts.clone().into_primitive().client;
 
-        let compact_gid = client.resolve_tensor_int::<InnerWgpu>(aux.global_from_compact_gid);
-        let num_visible = client.resolve_tensor_int::<InnerWgpu>(aux.num_visible);
-        let radii = client.resolve_tensor_float::<InnerWgpu>(aux.radii.into_primitive());
+        let compact_gid =
+            client.resolve_tensor_int::<InnerWgpu>(aux.global_from_compact_gid.into_primitive());
+        let num_visible = client.resolve_tensor_int::<InnerWgpu>(aux.num_visible.into_primitive());
+        let radii =
+            client.resolve_tensor_float::<InnerWgpu>(aux.radii.inner().into_primitive().tensor());
         let xys_grad = client.resolve_tensor_float::<InnerWgpu>(xys_grad.into_primitive().tensor());
 
         let inner_client = compact_gid.client.clone();

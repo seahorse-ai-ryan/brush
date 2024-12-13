@@ -227,7 +227,7 @@ fn main(
 
                 var splat_active = false;
 
-                if inside && isect_id <= final_isect {
+                if inside && isect_id < final_isect {
                     let projected = local_batch[t];
 
                     let xy = vec2f(projected.xy_x, projected.xy_y);

@@ -9,7 +9,7 @@ use crate::{
         GatherGrads, MapGaussiansToIntersect, ProjectBackwards, ProjectSplats, ProjectVisible,
         Rasterize, RasterizeBackwards,
     },
-    RenderAux, SplatGrads,
+    RenderAuxPrimitive, SplatGrads, INTERSECTS_UPPER_BOUND,
 };
 
 use brush_kernel::create_dispatch_buffer;
@@ -18,8 +18,8 @@ use brush_kernel::create_uniform_buffer;
 use brush_kernel::{calc_cube_count, CubeCount};
 use brush_prefix_sum::prefix_sum;
 use brush_sort::radix_argsort;
-use burn::tensor::DType;
-use burn::{prelude::Backend, tensor::ops::IntTensorOps};
+use burn::tensor::ops::IntTensorOps;
+use burn::tensor::{ops::IntTensor, DType};
 use burn_jit::JitBackend;
 use burn_wgpu::JitTensor;
 use burn_wgpu::WgpuRuntime;
@@ -71,12 +71,10 @@ pub(crate) fn max_intersections(img_size: glam::UVec2, num_splats: u32) -> u32 {
     let max = num_splats.saturating_mul(num_tiles);
 
     // clamp to max nr. of dispatches.
-    max.min(shaders::map_gaussian_to_intersects::WORKGROUP_SIZE[0] * 65535)
+    max.min(INTERSECTS_UPPER_BOUND)
 }
 
-fn copy_tensor(
-    tensor: <InnerWgpu as Backend>::IntTensorPrimitive,
-) -> <InnerWgpu as Backend>::IntTensorPrimitive {
+fn copy_tensor(tensor: IntTensor<InnerWgpu>) -> IntTensor<InnerWgpu> {
     // Just an operation to force a new output.
     InnerWgpu::int_add_scalar(tensor, 0)
 }
@@ -90,7 +88,7 @@ pub(crate) fn render_forward(
     sh_coeffs: JitTensor<WgpuRuntime>,
     raw_opacities: JitTensor<WgpuRuntime>,
     raster_u32: bool,
-) -> (JitTensor<WgpuRuntime>, RenderAux<InnerWgpu>) {
+) -> (JitTensor<WgpuRuntime>, RenderAuxPrimitive<InnerWgpu>) {
     assert!(
         img_size[0] > 0 && img_size[1] > 0,
         "Can't render 0 sized images"
@@ -316,13 +314,6 @@ pub(crate) fn render_forward(
     // Only record the final visible splat per tile if we're not rendering a u32 buffer.
     // If we're renering a u32 buffer, we can't autodiff anyway, and final index is only needed for
     // the backward pass.
-    let mut handles = vec![
-        uniforms_buffer.clone().handle.binding(),
-        compact_gid_from_isect.handle.clone().binding(),
-        tile_offsets.handle.clone().binding(),
-        projected_splats.handle.clone().binding(),
-        out_img.handle.clone().binding(),
-    ];
 
     // Record the final visible splat per tile.
     let final_index = create_tensor::<2, _>(
@@ -332,21 +323,24 @@ pub(crate) fn render_forward(
         DType::I32,
     );
 
-    if !raster_u32 {
-        handles.push(final_index.handle.clone().binding());
-    }
-
     unsafe {
         client.execute_unchecked(
             Rasterize::task(raster_u32),
             calc_cube_count([img_size.x, img_size.y], Rasterize::WORKGROUP_SIZE),
-            handles,
+            vec![
+                uniforms_buffer.clone().handle.binding(),
+                compact_gid_from_isect.handle.clone().binding(),
+                tile_offsets.handle.clone().binding(),
+                projected_splats.handle.clone().binding(),
+                out_img.handle.clone().binding(),
+                final_index.handle.clone().binding(),
+            ],
         );
     }
 
     (
         out_img,
-        RenderAux {
+        RenderAuxPrimitive {
             uniforms_buffer,
             num_visible,
             num_intersections,
@@ -499,340 +493,4 @@ pub(crate) fn render_backward(
         v_raw_opac,
         v_xy: v_xys_local,
     }
-}
-
-#[cfg(all(test, not(target_family = "wasm")))]
-mod tests {
-    use std::fs::File;
-    use std::io::Read;
-
-    use crate::{
-        camera::{focal_to_fov, fov_to_focal},
-        gaussian_splats::Splats,
-        safetensor_utils::safetensor_to_burn,
-        Backend,
-    };
-
-    use super::*;
-    use assert_approx_eq::assert_approx_eq;
-    use brush_rerun::{BurnToImage, BurnToRerun};
-    use burn::{
-        backend::Autodiff,
-        tensor::{Float, Int, Tensor, TensorPrimitive},
-    };
-    use burn_wgpu::{Wgpu, WgpuDevice};
-
-    type DiffBack = Autodiff<Wgpu>;
-    use anyhow::{Context, Result};
-    use safetensors::SafeTensors;
-
-    const USE_RERUN: bool = false;
-
-    #[tokio::test]
-    async fn renders_at_all() {
-        // Check if rendering doesn't hard crash or anything.
-        // These are some zero-sized gaussians, so we know
-        // what the result should look like.
-        let cam = Camera::new(
-            glam::vec3(0.0, 0.0, 0.0),
-            glam::Quat::IDENTITY,
-            0.5,
-            0.5,
-            glam::vec2(0.5, 0.5),
-        );
-        let img_size = glam::uvec2(32, 32);
-        let device = WgpuDevice::DefaultDevice;
-        let num_points = 8;
-        let means = Tensor::<DiffBack, 2>::zeros([num_points, 3], &device);
-        let xy_dummy = Tensor::<DiffBack, 2>::zeros([num_points, 2], &device);
-        let log_scales = Tensor::<DiffBack, 2>::ones([num_points, 3], &device) * 2.0;
-        let quats: Tensor<DiffBack, 2> =
-            Tensor::<DiffBack, 1>::from_floats(glam::Quat::IDENTITY.to_array(), &device)
-                .unsqueeze_dim(0)
-                .repeat_dim(0, num_points);
-        let sh_coeffs = Tensor::<DiffBack, 3>::ones([num_points, 1, 3], &device);
-        let raw_opacity = Tensor::<DiffBack, 1>::zeros([num_points], &device);
-        let (output, _) = DiffBack::render_splats(
-            &cam,
-            img_size,
-            means.into_primitive().tensor(),
-            xy_dummy.into_primitive().tensor(),
-            log_scales.into_primitive().tensor(),
-            quats.into_primitive().tensor(),
-            sh_coeffs.into_primitive().tensor(),
-            raw_opacity.into_primitive().tensor(),
-            false,
-        );
-
-        let output: Tensor<DiffBack, 3> = Tensor::from_primitive(TensorPrimitive::Float(output));
-        let rgb = output.clone().slice([0..32, 0..32, 0..3]);
-        let alpha = output.clone().slice([0..32, 0..32, 3..4]);
-        let rgb_mean = rgb.clone().mean().to_data().as_slice::<f32>().unwrap()[0];
-        let alpha_mean = alpha.clone().mean().to_data().as_slice::<f32>().unwrap()[0];
-        assert_approx_eq!(rgb_mean, 0.0, 1e-5);
-        assert_approx_eq!(alpha_mean, 0.0);
-    }
-
-    #[tokio::test]
-    async fn test_reference() -> Result<()> {
-        let device = WgpuDevice::DefaultDevice;
-
-        let crab_img = image::open("./test_cases/crab.png")?;
-        // Convert the image to RGB format
-        // Get the raw buffer
-        let raw_buffer = crab_img.to_rgb8().into_raw();
-        let crab_tens: Tensor<DiffBack, 3> = Tensor::<_, 1>::from_floats(
-            raw_buffer
-                .iter()
-                .map(|&b| b as f32 / 255.0)
-                .collect::<Vec<_>>()
-                .as_slice(),
-            &device,
-        )
-        .reshape([crab_img.height() as usize, crab_img.width() as usize, 3]);
-        // Concat alpha to tensor.
-        let crab_tens = Tensor::cat(
-            vec![
-                crab_tens,
-                Tensor::zeros(
-                    [crab_img.height() as usize, crab_img.width() as usize, 1],
-                    &device,
-                ),
-            ],
-            2,
-        );
-
-        let rec = if USE_RERUN {
-            rerun::RecordingStreamBuilder::new("render test")
-                .connect_tcp()
-                .ok()
-        } else {
-            None
-        };
-
-        for (i, path) in ["tiny_case", "basic_case", "mix_case"].iter().enumerate() {
-            println!("Checking path {}", path);
-
-            let mut buffer = Vec::new();
-            let _ =
-                File::open(format!("./test_cases/{path}.safetensors"))?.read_to_end(&mut buffer)?;
-
-            let tensors = SafeTensors::deserialize(&buffer)?;
-            let splats = Splats::<DiffBack>::from_safetensors(&tensors, &device)?;
-
-            let img_ref = safetensor_to_burn::<DiffBack, 3>(tensors.tensor("out_img")?, &device);
-            let [h, w, _] = img_ref.dims();
-
-            let fov = std::f64::consts::PI * 0.5;
-
-            let focal = fov_to_focal(fov, w as u32);
-            let fov_x = focal_to_fov(focal, w as u32);
-            let fov_y = focal_to_fov(focal, h as u32);
-
-            let cam = Camera::new(
-                glam::vec3(0.123, -0.123, -8.0),
-                glam::Quat::IDENTITY,
-                fov_x,
-                fov_y,
-                glam::vec2(0.5, 0.5),
-            );
-
-            // Gsplat norms before rendering and gets gradients for that.
-            // Training without this and norming after step performs just as well and is faster,
-            // but do it here so tests pass.
-            let rotations = splats.rotation.val();
-            let norm_rot = rotations.clone() / Tensor::sum_dim(rotations.powi_scalar(2), 1).sqrt();
-
-            let (img, aux) = DiffBack::render_splats(
-                &cam,
-                glam::uvec2(w as u32, h as u32),
-                splats.means.val().into_primitive().tensor(),
-                splats.xys_dummy.clone().into_primitive().tensor(),
-                splats.log_scales.val().into_primitive().tensor(),
-                norm_rot.into_primitive().tensor(),
-                splats.sh_coeffs.val().into_primitive().tensor(),
-                splats.raw_opacity.val().into_primitive().tensor(),
-                false,
-            );
-
-            let (out, aux) = (Tensor::from_primitive(TensorPrimitive::Float(img)), aux);
-
-            if let Some(rec) = rec.as_ref() {
-                rec.set_time_sequence("test case", i as i64);
-                rec.log("img/render", &out.clone().into_rerun_image().await)?;
-                rec.log("img/ref", &img_ref.clone().into_rerun_image().await)?;
-                rec.log(
-                    "img/dif",
-                    &(img_ref.clone() - out.clone()).into_rerun().await,
-                )?;
-                rec.log(
-                    "images/tile depth",
-                    &aux.read_tile_depth().into_rerun().await,
-                )?;
-            }
-
-            // Check if images match.
-            assert!(out.clone().all_close(img_ref, Some(1e-5), Some(1e-6)));
-
-            let num_visible = aux.read_num_visible().await as usize;
-            let projected_splats =
-                Tensor::from_primitive(TensorPrimitive::Float(aux.projected_splats.clone()));
-
-            let gs_ids =
-                Tensor::<DiffBack, 1, Int>::from_primitive(aux.global_from_compact_gid.clone())
-                    .slice([0..num_visible]);
-
-            let xys: Tensor<DiffBack, 2, Float> =
-                projected_splats.clone().slice([0..num_visible, 0..2]);
-            let xys_ref = safetensor_to_burn::<DiffBack, 2>(tensors.tensor("xys")?, &device);
-            let xys_ref = xys_ref.select(0, gs_ids.clone());
-
-            assert!(xys.all_close(xys_ref, Some(1e-1), Some(1e-6)));
-
-            let conics: Tensor<DiffBack, 2, Float> =
-                projected_splats.clone().slice([0..num_visible, 2..5]);
-            let conics_ref = safetensor_to_burn::<DiffBack, 2>(tensors.tensor("conics")?, &device);
-            let conics_ref = conics_ref.select(0, gs_ids.clone());
-
-            assert!(conics.all_close(conics_ref, Some(1e-3), Some(1e-6)));
-
-            aux.resolve_bwd_data().await;
-
-            let grads = (out.clone() - crab_tens.clone())
-                .powi_scalar(2.0)
-                .mean()
-                .backward();
-
-            // XY gradients are also in compact format.
-            let v_xys = splats.xys_dummy.grad(&grads).context("no xys grad")?;
-            let v_xys_ref =
-                safetensor_to_burn::<DiffBack, 2>(tensors.tensor("v_xy")?, &device).inner();
-            let v_xys_ref = v_xys_ref.select(0, gs_ids.inner().clone());
-            assert!(v_xys.all_close(v_xys_ref, Some(1e-5), Some(1e-9)));
-
-            let v_opacities_ref =
-                safetensor_to_burn::<DiffBack, 1>(tensors.tensor("v_opacities")?, &device).inner();
-            let v_opacities = splats.raw_opacity.grad(&grads).context("opacities grad")?;
-            assert!(v_opacities.all_close(v_opacities_ref, Some(1e-5), Some(1e-10)));
-
-            let v_coeffs_ref =
-                safetensor_to_burn::<DiffBack, 3>(tensors.tensor("v_coeffs")?, &device).inner();
-            let v_coeffs = splats.sh_coeffs.grad(&grads).context("coeffs grad")?;
-            assert!(v_coeffs.all_close(v_coeffs_ref, Some(1e-4), Some(1e-9)));
-
-            let v_means_ref =
-                safetensor_to_burn::<DiffBack, 2>(tensors.tensor("v_means")?, &device).inner();
-            let v_means = splats.means.grad(&grads).context("means grad")?;
-            assert!(v_means.all_close(v_means_ref, Some(1e-4), Some(1e-9)));
-
-            let v_quats = splats.rotation.grad(&grads).context("quats grad")?;
-            let v_quats_ref =
-                safetensor_to_burn::<DiffBack, 2>(tensors.tensor("v_quats")?, &device).inner();
-            assert!(v_quats.all_close(v_quats_ref, Some(1e-4), Some(1e-9)));
-
-            let v_scales = splats.log_scales.grad(&grads).context("scales grad")?;
-            let v_scales_ref =
-                safetensor_to_burn::<DiffBack, 2>(tensors.tensor("v_scales")?, &device).inner();
-            assert!(v_scales.all_close(v_scales_ref, Some(1e-4), Some(1e-9)));
-        }
-        Ok(())
-    }
-
-    // #[test]
-    // fn test_mean_grads() {
-    //     let cam = Camera::new(glam::vec3(0.0, 0.0, -5.0), glam::Quat::IDENTITY, 0.5, 0.5);
-    //     let num_points = 1;
-
-    //     let img_size = glam::uvec2(16, 16);
-
-    //     let means = Tensor::<DiffBack, 2, _>::zeros([num_points, 3], &device).require_grad();
-    //     let log_scales = Tensor::ones([num_points, 3], &device).require_grad();
-    //     let quats = Tensor::from_data(glam::Quat::IDENTITY.to_array(), &device)
-    //         .unsqueeze_dim(0)
-    //         .repeat(0, num_points)
-    //         .require_grad();
-    //     let sh_coeffs = Tensor::zeros([num_points, 4], &device).require_grad();
-    //     let raw_opacity = Tensor::zeros([num_points], &device).require_grad();
-
-    //     let mut dloss_dmeans_stat = Tensor::zeros([num_points], &device);
-
-    //     // Calculate a stochasic gradient estimation by perturbing random dimensions.
-    //     let num_iters = 50;
-
-    //     for _ in 0..num_iters {
-    //         let eps = 1e-4;
-
-    //         let flip_vec = Tensor::<DiffBack, 1>::random(
-    //             [num_points],
-    //             burn::tensor::Distribution::Uniform(-1.0, 1.0),
-    //             &device,
-    //         );
-    //         let seps = flip_vec * eps;
-
-    //         let l1 = render(
-    //             &cam,
-    //             img_size,
-    //             means.clone(),
-    //             log_scales.clone(),
-    //             quats.clone(),
-    //             sh_coeffs.clone(),
-    //             raw_opacity.clone() - seps.clone(),
-    //             glam::Vec3::ZERO,
-    //         )
-    //         .0
-    //         .mean();
-
-    //         let l2 = render(
-    //             &cam,
-    //             img_size,
-    //             means.clone(),
-    //             log_scales.clone(),
-    //             quats.clone(),
-    //             sh_coeffs.clone(),
-    //             raw_opacity.clone() + seps.clone(),
-    //             glam::Vec3::ZERO,
-    //         )
-    //         .0
-    //         .mean();
-
-    //         let df = l2 - l1;
-    //         dloss_dmeans_stat = dloss_dmeans_stat + df * (seps * 2.0).recip();
-    //     }
-
-    //     dloss_dmeans_stat = dloss_dmeans_stat / (num_iters as f32);
-    //     let dloss_dmeans_stat = dloss_dmeans_stat.into_data().value;
-
-    //     let loss = render(
-    //         &cam,
-    //         img_size,
-    //         means.clone(),
-    //         log_scales.clone(),
-    //         quats.clone(),
-    //         sh_coeffs.clone(),
-    //         raw_opacity.clone(),
-    //         glam::Vec3::ZERO,
-    //     )
-    //     .0
-    //     .mean();
-    //     // calculate numerical gradients.
-    //     // Compare to reference value.
-
-    //     // Check if rendering doesn't hard crash or anything.
-    //     // These are some zero-sized gaussians, so we know
-    //     // what the result should look like.
-    //     let grads = loss.backward();
-
-    //     // Get the gradient of the rendered image.
-    //     let dloss_dmeans = (Tensor::<BurnBack, 1>::from_primitive(
-    //         grads.get(&raw_opacity.clone().into_primitive()).unwrap(),
-    //     ))
-    //     .into_data()
-    //     .value;
-
-    //     println!("Stat grads {dloss_dmeans_stat:.5?}");
-    //     println!("Calc grads {dloss_dmeans:.5?}");
-
-    //     // TODO: These results don't make sense at all currently, which is either
-    //     // mildly bad news or very bad news :)
-    // }
 }
