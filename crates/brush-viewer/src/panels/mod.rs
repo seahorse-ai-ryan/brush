@@ -18,4 +18,5 @@ pub(crate) use tracing_debug::*;
 mod rerun;
 
 #[cfg(not(target_family = "wasm"))]
+#[allow(unused)]
 pub(crate) use rerun::*;

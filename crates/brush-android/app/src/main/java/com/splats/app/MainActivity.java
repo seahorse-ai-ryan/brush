@@ -64,11 +64,15 @@ public class MainActivity extends GameActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Keep the screen on
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         // When true, the app will fit inside any system UI windows.
         // When false, we render behind any system UI windows.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         hideSystemUI();
         FilePicker.Register(this);
-        super.onCreate(savedInstanceState);
     }
 }

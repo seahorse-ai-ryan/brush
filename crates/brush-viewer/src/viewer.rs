@@ -566,7 +566,7 @@ impl Viewer {
                 ))),
             ];
 
-            #[cfg(not(target_family = "wasm"))]
+            #[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
             {
                 sides.push(
                     tiles.insert_pane(Box::new(crate::panels::RerunPanel::new(device.clone()))),

@@ -41,7 +41,9 @@ impl ViewerPanel for LoadDataPanel {
             ui.label("Select a .ply to visualize, or a .zip with training data.");
 
             let file = ui.button("Load file").clicked();
-            let dir = ui.button("Load directory").clicked();
+
+            let can_pick_dir = !cfg!(target_family = "wasm") && !cfg!(target_os = "android");
+            let dir = can_pick_dir && ui.button("Load directory").clicked();
 
             ui.add_space(10.0);
             ui.text_edit_singleline(&mut self.url);
