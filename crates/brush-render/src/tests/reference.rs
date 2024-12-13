@@ -82,19 +82,13 @@ async fn test_reference() -> Result<()> {
             glam::vec2(0.5, 0.5),
         );
 
-        // Gsplat norms before rendering and gets gradients for that.
-        // Training without this and norming after step performs just as well and is faster,
-        // but do it here so tests pass.
-        let rotations = splats.rotation.val();
-        let norm_rot = rotations.clone() / Tensor::sum_dim(rotations.powi_scalar(2), 1).sqrt();
-
         let (img, aux) = DiffBack::render_splats(
             &cam,
             glam::uvec2(w as u32, h as u32),
             splats.means.val().into_primitive().tensor(),
             splats.xys_dummy.clone().into_primitive().tensor(),
             splats.log_scales.val().into_primitive().tensor(),
-            norm_rot.into_primitive().tensor(),
+            splats.rotation.val().into_primitive().tensor(),
             splats.sh_coeffs.val().into_primitive().tensor(),
             splats.raw_opacity.val().into_primitive().tensor(),
             false,

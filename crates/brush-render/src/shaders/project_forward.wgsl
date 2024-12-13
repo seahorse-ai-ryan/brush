@@ -37,7 +37,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     }
 
     let scale = exp(helpers::as_vec(log_scales[global_gid]));
-    let quat = quats[global_gid];
+    let quat = normalize(quats[global_gid]);
     let raw_opac = raw_opacities[global_gid];
 
     // inv_sigmoid(1.0 / 255.0);

@@ -348,10 +348,7 @@ impl SplatTrainer {
             splats = trace_span!("Rotation step", sync_burn = true).in_scope(|| {
                 let grad_rot =
                     GradientsParams::from_params(&mut grads, &splats, &[splats.rotation.id]);
-                let mut splats = self.optim.step(lr_rotation, splats, grad_rot);
-                splats.norm_rotations();
-
-                splats
+                self.optim.step(lr_rotation, splats, grad_rot)
             });
 
             splats = trace_span!("Scale step", sync_burn = true).in_scope(|| {

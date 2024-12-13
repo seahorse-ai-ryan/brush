@@ -17,7 +17,22 @@
 @group(0) @binding(9) var<storage, read_write> v_quats: array<vec4f>;
 
 
-// TODO: Deal with unnomralized quats.
+fn normalize_vjp(quat: vec4f) -> mat4x4f {
+    let quat_sqr = quat * quat;
+    let quat_len_sqr = dot(quat, quat);
+    let quat_len = length(quat_len_sqr);
+
+    let cross_complex = -quat.xyz * quat.yzx;
+    let cross_scalar = -quat.xyz * quat.w;
+
+    return mat4x4<f32>(
+        vec4f(quat_len_sqr - quat_sqr.x, cross_complex.x, cross_complex.z, cross_scalar.x),
+        vec4f(cross_complex.x, quat_len_sqr - quat_sqr.y, cross_complex.y, cross_scalar.y),
+        vec4f(cross_complex.z, cross_complex.y, quat_len_sqr - quat_sqr.z, cross_scalar.z),
+        vec4f(cross_scalar.x, cross_scalar.y, cross_scalar.z, quat_len_sqr - quat_sqr.w),
+    ) * (1.0 / (quat_len * quat_len_sqr));
+}
+
 fn quat_to_mat_vjp(quat: vec4f, v_R: mat3x3f) -> vec4f {
     let w = quat.x;
     let x = quat.y;
@@ -26,30 +41,26 @@ fn quat_to_mat_vjp(quat: vec4f, v_R: mat3x3f) -> vec4f {
 
     return vec4f(
         // w element stored in x field
-        2.0f *
         (
             x * (v_R[1][2] - v_R[2][1]) + y * (v_R[2][0] - v_R[0][2]) +
             z * (v_R[0][1] - v_R[1][0])
         ),
         // x element in y field
-        2.0f *
         (
             -2.f * x * (v_R[1][1] + v_R[2][2]) + y * (v_R[0][1] + v_R[1][0]) +
             z * (v_R[0][2] + v_R[2][0]) + w * (v_R[1][2] - v_R[2][1])
         ),
         // y element in z field
-        2.0f *
         (
             x * (v_R[0][1] + v_R[1][0]) - 2.f * y * (v_R[0][0] + v_R[2][2]) +
             z * (v_R[1][2] + v_R[2][1]) + w * (v_R[2][0] - v_R[0][2])
         ),
         // z element in w field
-        2.0f *
         (
             x * (v_R[0][2] + v_R[2][0]) + y * (v_R[1][2] + v_R[2][1]) -
             2.f * z * (v_R[0][0] + v_R[1][1]) + w * (v_R[0][1] - v_R[1][0])
         )
-    );
+    ) * 2.0;
 }
 
 fn inverse_vjp(Minv: mat2x2f, v_Minv: mat2x2f) -> mat2x2f {
@@ -153,7 +164,8 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let global_gid = global_from_compact_gid[compact_gid];
     let mean = helpers::as_vec(means[global_gid]);
     let scale = exp(helpers::as_vec(log_scales[global_gid]));
-    let quat = quats[global_gid];
+    let quat_unorm = quats[global_gid];
+    let quat = normalize(quat_unorm);
 
     let v_conics = helpers::as_vec(v_conics[compact_gid]);
     let v_mean2d = v_xys[compact_gid];
@@ -224,7 +236,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let v_scale_exp = v_scale * scale;
 
     // grad for (quat, scale) from covar
-    let v_quat = quat_to_mat_vjp(quat, v_M * S);
+    let v_quat = normalize_vjp(quat_unorm) * quat_to_mat_vjp(quat, v_M * S);
 
     v_means[global_gid] = helpers::as_packed(v_mean);
     v_scales[global_gid] = helpers::as_packed(v_scale_exp);
