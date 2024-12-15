@@ -1,8 +1,8 @@
 #import helpers
 
 @group(0) @binding(0) var<storage, read> uniforms: helpers::RenderUniforms;
-@group(0) @binding(1) var<storage, read> compact_gid_from_isect: array<u32>;
-@group(0) @binding(2) var<storage, read> tile_offsets: array<u32>;
+@group(0) @binding(1) var<storage, read> compact_gid_from_isect: array<i32>;
+@group(0) @binding(2) var<storage, read> tile_offsets: array<i32>;
 @group(0) @binding(3) var<storage, read> projected_splats: array<helpers::ProjectedSplat>;
 
 #ifdef RASTER_U32
@@ -11,7 +11,7 @@
     @group(0) @binding(4) var<storage, read_write> out_img: array<vec4f>;
 #endif
 
-@group(0) @binding(5) var<storage, read_write> final_index : array<u32>;
+@group(0) @binding(5) var<storage, read_write> final_index : array<i32>;
 
 var<workgroup> local_batch: array<helpers::ProjectedSplat, helpers::TILE_SIZE>;
 
@@ -28,20 +28,20 @@ fn main(
     let img_size = uniforms.img_size;
 
     // Get index of tile being drawn.
-    let pix_id = global_id.x + global_id.y * img_size.x;
-    let tile_id = workgroup_id.x + workgroup_id.y * uniforms.tile_bounds.x;
+    let pix_id = i32(global_id.x) + i32(global_id.y) * img_size.x;
+    let tile_id = i32(workgroup_id.x) + i32(workgroup_id.y) * uniforms.tile_bounds.x;
     let pixel_coord = vec2f(global_id.xy) + 0.5;
 
     // return if out of bounds
     // keep not rasterizing threads around for reading data
-    let inside = global_id.x < img_size.x && global_id.y < img_size.y;
+    let inside = i32(global_id.x) < img_size.x && i32(global_id.y) < img_size.y;
     var done = !inside;
 
     // have all threads in tile process the same gaussians in batches
     // first collect gaussians between the bin counts.
-    let range = vec2u(tile_offsets[tile_id], tile_offsets[tile_id + 1]);
+    let range = vec2i(tile_offsets[tile_id], tile_offsets[tile_id + 1]);
 
-    let num_batches = helpers::ceil_div(range.y - range.x, helpers::TILE_SIZE);
+    let num_batches = helpers::ceil_div(range.y - range.x, i32(helpers::TILE_SIZE));
     // current visibility left to render
     var T = 1.0;
 
@@ -50,28 +50,28 @@ fn main(
     // collect and process batches of gaussians
     // each thread loads one gaussian at a time before rasterizing its
     // designated pixel
-    var t = 0u;
-    var final_idx = 0u;
+    var t = 0;
+    var final_idx = 0;
 
     // each thread loads one gaussian at a time before rasterizing its
     // designated pixel
-    for (var b = 0u; b < num_batches; b++) {
-        let batch_start = range.x + b * helpers::TILE_SIZE;
+    for (var b = 0; b < num_batches; b++) {
+        let batch_start = range.x + b * i32(helpers::TILE_SIZE);
 
         // Wait for all in flight threads.
         workgroupBarrier();
 
         // process gaussians in the current batch for this pixel
-        let remaining = min(helpers::TILE_SIZE, range.y - batch_start);
+        let remaining = min(i32(helpers::TILE_SIZE), range.y - batch_start);
 
-        if local_idx < remaining {
-            let load_isect_id = batch_start + local_idx;
+        if i32(local_idx) < remaining {
+            let load_isect_id = batch_start + i32(local_idx);
             local_batch[local_idx] = projected_splats[compact_gid_from_isect[load_isect_id]];
         }
         // Wait for all writes to complete.
         workgroupBarrier();
 
-        for (var t = 0u; t < remaining && !done; t++) {
+        for (var t = 0; t < remaining && !done; t++) {
             let projected = local_batch[t];
 
             let xy = vec2f(projected.xy_x, projected.xy_y);
@@ -96,7 +96,7 @@ fn main(
                 T = next_T;
 
                 let isect_id = batch_start + t;
-                final_idx = isect_id + 1u;
+                final_idx = isect_id + 1;
             }
         }
     }

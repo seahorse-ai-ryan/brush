@@ -3,8 +3,8 @@
 #import helpers;
 
 struct IsectInfo {
-    compact_gid: u32,
-    tile_id: u32,
+    compact_gid: i32,
+    tile_id: i32,
 }
 
 @group(0) @binding(0) var<storage, read_write> uniforms: helpers::RenderUniforms;
@@ -15,10 +15,10 @@ struct IsectInfo {
 @group(0) @binding(4) var<storage, read> coeffs: array<helpers::PackedVec3>;
 @group(0) @binding(5) var<storage, read> raw_opacities: array<f32>;
 
-@group(0) @binding(6) var<storage, read> global_from_compact_gid: array<u32>;
+@group(0) @binding(6) var<storage, read> global_from_compact_gid: array<i32>;
 
 @group(0) @binding(7) var<storage, read_write> projected: array<helpers::ProjectedSplat>;
-@group(0) @binding(8) var<storage, read_write> num_tiles: array<u32>;
+@group(0) @binding(8) var<storage, read_write> num_tiles: array<i32>;
 @group(0) @binding(9) var<storage, read_write> isect_info: array<IsectInfo>;
 
 struct ShCoeffs {
@@ -167,7 +167,7 @@ fn read_coeffs(base_id: ptr<function, u32>) -> vec3f {
 @compute
 @workgroup_size(helpers::MAIN_WG, 1, 1)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
-    let compact_gid = gid.x;
+    let compact_gid = i32(gid.x);
 
     if compact_gid >= uniforms.num_visible {
         return;
@@ -195,7 +195,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
 
     let sh_degree = uniforms.sh_degree;
     let num_coeffs = num_sh_coeffs(sh_degree);
-    var base_id = global_gid * num_coeffs;
+    var base_id = u32(global_gid) * num_coeffs;
 
     var sh = ShCoeffs();
     sh.b0_c0 = read_coeffs(&base_id);
@@ -253,14 +253,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let tile_min = tile_minmax.xy;
     let tile_max = tile_minmax.zw;
 
-    var num_tiles_hit = 0u;
+    var num_tiles_hit = 0;
 
     for (var ty = tile_min.y; ty < tile_max.y; ty++) {
         for (var tx = tile_min.x; tx < tile_max.x; tx++) {
-            if helpers::can_be_visible(vec2u(tx, ty), mean2d, conic, opac) {
+            if helpers::can_be_visible(vec2i(tx, ty), mean2d, conic, opac) {
                 // Add to the tile hit count.
-                num_tiles_hit += 1u;
-                let isect_id = atomicAdd(&uniforms.num_intersections, 1u);
+                num_tiles_hit += 1;
+                let isect_id = atomicAdd(&uniforms.num_intersections, 1);
 
                 let tile_id = tx + ty * uniforms.tile_bounds.x; // tile within image
                 isect_info[isect_id] = IsectInfo(compact_gid, tile_id);
@@ -268,5 +268,5 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
         }
     }
 
-    num_tiles[compact_gid + 1u] = num_tiles_hit;
+    num_tiles[compact_gid + 1] = num_tiles_hit;
 }

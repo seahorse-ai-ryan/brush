@@ -7,7 +7,7 @@
 @group(0) @binding(2) var<storage, read> log_scales: array<helpers::PackedVec3>;
 @group(0) @binding(3) var<storage, read> quats: array<vec4f>;
 
-@group(0) @binding(4) var<storage, read> global_from_compact_gid: array<u32>;
+@group(0) @binding(4) var<storage, read> global_from_compact_gid: array<i32>;
 
 @group(0) @binding(5) var<storage, read> v_xys: array<vec2f>;
 @group(0) @binding(6) var<storage, read> v_conics: array<helpers::PackedVec3>;
@@ -84,7 +84,7 @@ fn persp_proj_vjp(
     cov3d: mat3x3f,
     focal: vec2f,
     pixel_center: vec2f,
-    img_size: vec2u,
+    img_size: vec2i,
     // grad outputs
     v_cov2d: mat2x2f,
     v_mean2d: vec2f,
@@ -151,7 +151,7 @@ fn persp_proj_vjp(
 @compute
 @workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
-    let compact_gid = gid.x;
+    let compact_gid = i32(gid.x);
     if compact_gid >= uniforms.num_visible {
         return;
     }

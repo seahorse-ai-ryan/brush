@@ -197,9 +197,9 @@ pub fn create_dispatch_buffer<R: JitRuntime>(
     let client = thread_nums.client;
     let uniforms_buffer = create_uniform_buffer::<R, _>(
         wg::Uniforms {
-            wg_size_x: wg_size[0],
-            wg_size_y: wg_size[1],
-            wg_size_z: wg_size[2],
+            wg_size_x: wg_size[0] as i32,
+            wg_size_y: wg_size[1] as i32,
+            wg_size_z: wg_size[2] as i32,
         },
         &thread_nums.device,
         &client,

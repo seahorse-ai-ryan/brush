@@ -89,6 +89,7 @@ fn rust_type_name(ty: Handle<naga::Type>, ctx: &GlobalCtx) -> String {
         "vec4<f32>" => "[f32; 4]".to_owned(),
         "mat4x4<f32>" => "[[f32; 4]; 4]".to_owned(),
         "vec2<u32>" => "[u32; 2]".to_owned(),
+        "vec2<i32>" => "[i32; 2]".to_owned(),
         "vec3<u32>" => "[u32; 4]".to_owned(),
         "vec3<f32>" => "[f32; 4]".to_owned(),
         "vec4<u32>" => "[u32; 4]".to_owned(),
@@ -101,7 +102,7 @@ fn alignment_of(ty: Handle<Type>, ctx: &GlobalCtx) -> usize {
 
     match wgsl_name.as_str() {
         "i32" | "u32" | "f32" | "atomic<u32>" | "atomic<i32>" => 4,
-        "vec2<f32>" | "vec2<u32>" => 8,
+        "vec2<f32>" | "vec2<u32>" | "vec2<i32>" => 8,
         "vec3<f32>" | "vec4<f32>" | "mat4x4<f32>" | "vec4<u32>" => 16,
         _ => panic!("{}", wgsl_name),
     }

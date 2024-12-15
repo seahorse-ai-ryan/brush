@@ -1,7 +1,7 @@
 #import grads;
 
 @group(0) @binding(0) var<storage, read> uniforms: helpers::RenderUniforms;
-@group(0) @binding(1) var<storage, read> global_from_compact_gid: array<u32>;
+@group(0) @binding(1) var<storage, read> global_from_compact_gid: array<i32>;
 
 @group(0) @binding(2) var<storage, read> raw_opacities: array<f32>;
 @group(0) @binding(3) var<storage, read> means: array<helpers::PackedVec3>;
@@ -145,11 +145,11 @@ fn num_sh_coeffs(degree: u32) -> u32 {
     return (degree + 1) * (degree + 1);
 }
 
-fn write_coeffs(base_id: ptr<function, u32>, val: vec3f) {
+fn write_coeffs(base_id: ptr<function, i32>, val: vec3f) {
     v_coeffs[*base_id + 0] = val.x;
     v_coeffs[*base_id + 1] = val.y;
     v_coeffs[*base_id + 2] = val.z;
-    *base_id += 3u;
+    *base_id += 3;
 }
 
 fn sigmoid(x: f32) -> f32 {
@@ -163,7 +163,7 @@ fn v_sigmoid(x: f32) -> f32 {
 @compute
 @workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
-    let compact_gid = gid.x;
+    let compact_gid = i32(gid.x);
 
     if compact_gid >= uniforms.num_visible {
         return;
@@ -181,7 +181,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     let sh_degree = uniforms.sh_degree;
     let v_coeff = sh_coeffs_to_color_fast_vjp(sh_degree, viewdir, v_color.xyz);
     let num_coeffs = num_sh_coeffs(sh_degree);
-    var base_id = global_gid * num_coeffs * 3;
+    var base_id = global_gid * i32(num_coeffs) * 3;
 
     write_coeffs(&base_id, v_coeff.b0_c0);
     if sh_degree > 0 {

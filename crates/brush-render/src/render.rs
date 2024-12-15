@@ -25,7 +25,7 @@ use burn_wgpu::JitTensor;
 use burn_wgpu::WgpuRuntime;
 
 use burn::tensor::ops::FloatTensorOps;
-use glam::uvec2;
+use glam::{ivec2, uvec2};
 
 type InnerWgpu = JitBackend<WgpuRuntime, f32, i32, u32>;
 
@@ -111,9 +111,9 @@ pub(crate) fn render_forward(
         .check_dims(&raw_opacities, &["D".into()]);
 
     // Divide screen into tiles.
-    let tile_bounds = uvec2(
-        img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),
-        img_size.y.div_ceil(shaders::helpers::TILE_WIDTH),
+    let tile_bounds = ivec2(
+        img_size.x.div_ceil(shaders::helpers::TILE_WIDTH) as i32,
+        img_size.y.div_ceil(shaders::helpers::TILE_WIDTH) as i32,
     );
 
     // A note on some confusing naming that'll be used throughout this function:
@@ -138,7 +138,7 @@ pub(crate) fn render_forward(
             camera_position: [camera.position.x, camera.position.y, camera.position.z, 0.0],
             focal: camera.focal(img_size).into(),
             pixel_center: camera.center(img_size).into(),
-            img_size: img_size.into(),
+            img_size: ivec2(img_size.x as i32, img_size.y as i32).into(),
             tile_bounds: tile_bounds.into(),
             num_visible: 0,
             num_intersections: 0,

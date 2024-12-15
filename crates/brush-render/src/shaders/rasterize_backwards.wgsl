@@ -2,12 +2,12 @@
 
 @group(0) @binding(0) var<storage, read> uniforms: helpers::RenderUniforms;
 
-@group(0) @binding(1) var<storage, read> compact_gid_from_isect: array<u32>;
-@group(0) @binding(2) var<storage, read> tile_offsets: array<u32>;
+@group(0) @binding(1) var<storage, read> compact_gid_from_isect: array<i32>;
+@group(0) @binding(2) var<storage, read> tile_offsets: array<i32>;
 
 @group(0) @binding(3) var<storage, read> projected_splats: array<helpers::ProjectedSplat>;
 
-@group(0) @binding(4) var<storage, read> final_index: array<u32>;
+@group(0) @binding(4) var<storage, read> final_index: array<i32>;
 @group(0) @binding(5) var<storage, read> output: array<vec4f>;
 @group(0) @binding(6) var<storage, read> v_output: array<vec4f>;
 
@@ -26,7 +26,7 @@ const BATCH_SIZE = helpers::TILE_SIZE;
 
 // Gaussians gathered in batch.
 var<workgroup> local_batch: array<helpers::ProjectedSplat, BATCH_SIZE>;
-var<workgroup> local_id: array<u32, BATCH_SIZE>;
+var<workgroup> local_id: array<i32, BATCH_SIZE>;
 
 // This kernel use a new technique to reduce the overhead of atomic gradient accumulation, especially when
 // using software CAS loops this helps performance a lot. Originally, each thread calculated
@@ -37,13 +37,13 @@ var<workgroup> local_id: array<u32, BATCH_SIZE>;
 // Current queue of gradients to be flushed.
 var<workgroup> grad_count: atomic<i32>;
 var<workgroup> gather_grads: array<helpers::ProjectedSplat, BATCH_SIZE>;
-var<workgroup> gather_grad_id: array<u32, BATCH_SIZE>;
+var<workgroup> gather_grad_id: array<i32, BATCH_SIZE>;
 
 fn add_bitcast(cur: u32, add: f32) -> u32 {
     return bitcast<u32>(bitcast<f32>(cur) + add);
 }
 
-fn write_grads_atomic(grads: helpers::ProjectedSplat, id: u32) {
+fn write_grads_atomic(grads: helpers::ProjectedSplat, id: i32) {
 #ifdef HARD_FLOAT
     atomicAdd(&v_xy[id * 2 + 0], grads.xy_x);
     atomicAdd(&v_xy[id * 2 + 1], grads.xy_y);
@@ -148,9 +148,10 @@ fn main(
     let img_size = uniforms.img_size;
     let tile_bounds = uniforms.tile_bounds;
 
-    let tile_id = workgroup_id.x;
-    let tile_loc = vec2u(tile_id % tile_bounds.x, tile_id / tile_bounds.x);
-    let pixel_coordi = tile_loc * helpers::TILE_WIDTH + vec2u(local_idx % helpers::TILE_WIDTH, local_idx / helpers::TILE_WIDTH);
+    let tile_id = i32(workgroup_id.x);
+
+    let tile_loc = vec2i(tile_id % tile_bounds.x, tile_id / tile_bounds.x);
+    let pixel_coordi = tile_loc * i32(helpers::TILE_WIDTH) + vec2i(i32(local_idx % helpers::TILE_WIDTH), i32(local_idx / helpers::TILE_WIDTH));
     let pix_id = pixel_coordi.x + pixel_coordi.y * img_size.x;
     let pixel_coord = vec2f(pixel_coordi) + 0.5;
 
@@ -164,14 +165,14 @@ fn main(
     // Have all threads in tile process the same gaussians in batches
     // first collect gaussians between bin_start and bin_final in batches
     // which gaussians to look through in this tile
-    let range = vec2u(tile_offsets[tile_id], tile_offsets[tile_id + 1]);
+    let range = vec2i(tile_offsets[tile_id], tile_offsets[tile_id + 1]);
 
-    let num_batches = helpers::ceil_div(range.y - range.x, BATCH_SIZE);
+    let num_batches = helpers::ceil_div(range.y - range.x, i32(BATCH_SIZE));
 
     // current visibility left to render
     var T = T_final;
 
-    var final_isect = 0u;
+    var final_isect = 0;
     var buffer = vec3f(0.0);
 
     if inside {
@@ -187,39 +188,39 @@ fn main(
     // Make sure all groups start with empty gradient queue.
     atomicStore(&grad_count, 0);
 
-    let sg_per_tile = helpers::ceil_div(helpers::TILE_SIZE, subgroup_size);
-    let microbatch_size = helpers::TILE_SIZE / sg_per_tile;
+    let sg_per_tile = helpers::ceil_div(i32(helpers::TILE_SIZE), i32(subgroup_size));
+    let microbatch_size = i32(helpers::TILE_SIZE) / sg_per_tile;
 
-    for (var b = 0u; b < num_batches; b++) {
+    for (var b = 0; b < num_batches; b++) {
         // each thread fetch 1 gaussian from back to front
         // 0 index will be furthest back in batch
         // index of gaussian to load
-        let batch_end = range.y - b * BATCH_SIZE;
-        let remaining = min(BATCH_SIZE, batch_end - range.x);
+        let batch_end = range.y - b * i32(BATCH_SIZE);
+        let remaining = min(i32(BATCH_SIZE), batch_end - range.x);
 
         // Gather N gaussians.
-        var load_compact_gid = 0u;
-        if local_idx < remaining {
-            let load_isect_id = batch_end - 1u - local_idx;
+        var load_compact_gid = 0;
+        if i32(local_idx) < remaining {
+            let load_isect_id = batch_end - 1 - i32(local_idx);
             load_compact_gid = compact_gid_from_isect[load_isect_id];
             local_id[local_idx] = load_compact_gid;
             local_batch[local_idx] = projected_splats[load_compact_gid];
         }
 
-        for (var tb = 0u; tb < remaining; tb += microbatch_size) {
+        for (var tb = 0; tb < remaining; tb += microbatch_size) {
             if local_idx == 0 {
                 atomicStore(&grad_count, 0);
             }
             workgroupBarrier();
 
-            for(var tt = 0u; tt < microbatch_size; tt++) {
+            for(var tt = 0; tt < microbatch_size; tt++) {
                 let t = tb + tt;
 
                 if t >= remaining {
                     break;
                 }
 
-                let isect_id = batch_end - 1u - t;
+                let isect_id = batch_end - 1 - t;
 
                 var v_xy = vec2f(0.0);
                 var v_conic = vec3f(0.0);

@@ -70,7 +70,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     }
 
     // Now write all the data to the buffers.
-    let write_id = atomicAdd(&uniforms.num_visible, 1u);
+    let write_id = atomicAdd(&uniforms.num_visible, 1);
     global_from_compact_gid[write_id] = global_gid;
     depths[write_id] = mean_c.z;
 
