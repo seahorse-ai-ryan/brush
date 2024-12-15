@@ -9,7 +9,7 @@ fn float_from_u8(data: &[u8]) -> Vec<f32> {
 }
 
 pub(crate) fn safetensor_to_burn<B: Backend, const D: usize>(
-    t: TensorView,
+    t: &TensorView,
     device: &B::Device,
 ) -> Tensor<B, D, Float> {
     let data = TensorData::new::<f32, _>(float_from_u8(t.data()), t.shape());

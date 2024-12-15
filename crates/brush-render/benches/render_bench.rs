@@ -73,9 +73,9 @@ fn generate_bench_data() -> anyhow::Result<()> {
     let quats = Tensor::cat(
         vec![
             Tensor::sqrt(-u.clone() + 1.0) * Tensor::sin(v.clone()),
-            Tensor::sqrt(-u.clone() + 1.0) * Tensor::cos(v.clone()),
+            Tensor::sqrt(-u.clone() + 1.0) * Tensor::cos(v),
             Tensor::sqrt(u.clone()) * Tensor::sin(w.clone()),
-            Tensor::sqrt(u.clone()) * Tensor::cos(w.clone()),
+            Tensor::sqrt(u) * Tensor::cos(w),
         ],
         1,
     );
@@ -86,33 +86,24 @@ fn generate_bench_data() -> anyhow::Result<()> {
     );
 
     let bytes = means.to_data().bytes;
-    let means = safetensors::tensor::TensorView::new(
-        safetensors::Dtype::F32,
-        means.shape().dims.to_vec(),
-        &bytes,
-    )?;
+    let means =
+        safetensors::tensor::TensorView::new(safetensors::Dtype::F32, means.shape().dims, &bytes)?;
     let bytes = log_scales.to_data().bytes;
     let log_scales = safetensors::tensor::TensorView::new(
         safetensors::Dtype::F32,
-        log_scales.shape().dims.to_vec(),
+        log_scales.shape().dims,
         &bytes,
     )?;
     let bytes = quats.to_data().bytes;
-    let quats = safetensors::tensor::TensorView::new(
-        safetensors::Dtype::F32,
-        quats.shape().dims.to_vec(),
-        &bytes,
-    )?;
+    let quats =
+        safetensors::tensor::TensorView::new(safetensors::Dtype::F32, quats.shape().dims, &bytes)?;
     let bytes = coeffs.to_data().bytes;
-    let coeffs = safetensors::tensor::TensorView::new(
-        safetensors::Dtype::F32,
-        coeffs.shape().dims.to_vec(),
-        &bytes,
-    )?;
+    let coeffs =
+        safetensors::tensor::TensorView::new(safetensors::Dtype::F32, coeffs.shape().dims, &bytes)?;
     let bytes = opacities.to_data().bytes;
     let opacities = safetensors::tensor::TensorView::new(
         safetensors::Dtype::F32,
-        opacities.shape().dims.to_vec(),
+        opacities.shape().dims,
         &bytes,
     )?;
 
@@ -146,11 +137,12 @@ fn bench_general(
     let device = WgpuDevice::DefaultDevice;
     let mut buffer = Vec::new();
     let _ = File::open("./test_cases/bench_data.safetensors")
-        .unwrap()
+        .expect("Failed to open bench data")
         .read_to_end(&mut buffer)
-        .unwrap();
-    let tensors = SafeTensors::deserialize(&buffer).unwrap();
-    let splats = Splats::<DiffBack>::from_safetensors(&tensors, &device).unwrap();
+        .expect("Failed to read bench data");
+    let tensors = SafeTensors::deserialize(&buffer).expect("Failed to deserialize bench data");
+    let splats =
+        Splats::<DiffBack>::from_safetensors(&tensors, &device).expect("Failed to load bench data");
     let num_points = (splats.num_splats() as f32 * dens) as usize;
     let splats = Splats::from_tensor_data(
         (splats.means.val() * mean_mult).slice([0..num_points]),
@@ -173,7 +165,7 @@ fn bench_general(
     );
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
-        .unwrap();
+        .expect("Failed to build tokio runtime");
 
     if grad {
         bencher.bench_local(move || {
@@ -201,7 +193,7 @@ fn bench_general(
 
 #[divan::bench_group(max_time = 1000, sample_count = TARGET_SAMPLE_COUNT, sample_size = 1)]
 mod fwd {
-    use super::*;
+    use crate::{bench_general, BENCH_DENSITIES, DENSE_MULT, HIGH_RES, LOW_RES};
 
     #[divan::bench(args = BENCH_DENSITIES)]
     fn base(bencher: divan::Bencher, dens: f32) {
@@ -221,7 +213,7 @@ mod fwd {
 
 #[divan::bench_group(max_time = 20, sample_count = TARGET_SAMPLE_COUNT, sample_size = 1)]
 mod bwd {
-    use super::*;
+    use crate::{bench_general, BENCH_DENSITIES, DENSE_MULT, HIGH_RES, LOW_RES};
 
     #[divan::bench(args = BENCH_DENSITIES)]
     fn base(bencher: divan::Bencher, dens: f32) {

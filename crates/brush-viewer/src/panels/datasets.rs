@@ -41,7 +41,7 @@ impl ViewerPanel for DatasetPanel {
 
     fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
         match message {
-            ProcessMessage::NewSource => {
+            ProcessMessage::NewSource | ProcessMessage::DoneLoading { .. } => {
                 self.loading = false;
             }
             ProcessMessage::StartLoading { training } => {
@@ -53,9 +53,6 @@ impl ViewerPanel for DatasetPanel {
                     context.focus_view(&view.camera);
                 }
                 context.dataset = d.clone();
-            }
-            ProcessMessage::DoneLoading { training: _ } => {
-                self.loading = false;
             }
             _ => {}
         }

@@ -13,3 +13,6 @@ glam.workspace = true
 eframe.workspace = true
 egui.workspace = true
 wgpu.workspace = true
+
+[lints]
+workspace = true

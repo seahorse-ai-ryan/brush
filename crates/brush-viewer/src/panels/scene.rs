@@ -122,9 +122,9 @@ impl ScenePanel {
 
         let scrolled = ui.input(|r| {
             r.smooth_scroll_delta.y
-                + r.multi_touch()
-                    .map(|t| (t.zoom_delta - 1.0) * context.controls.radius() * 5.0)
-                    .unwrap_or(0.0)
+                + r.multi_touch().map_or(0.0, |t| {
+                    (t.zoom_delta - 1.0) * context.controls.radius() * 5.0
+                })
         });
 
         self.dirty |= context.controls.pan_orbit_camera(
@@ -147,7 +147,7 @@ impl ScenePanel {
         if ui.ctx().has_requested_repaint() && size.x > 0 && size.y > 0 && self.dirty {
             let _span = trace_span!("Render splats").entered();
             let (img, _) = splats.render(&context.camera, size, true);
-            self.backbuffer.update_texture(img, self.renderer.clone());
+            self.backbuffer.update_texture(img, &self.renderer);
             self.dirty = false;
             self.last_size = size;
         }
@@ -159,8 +159,7 @@ impl ScenePanel {
                     .train
                     .views
                     .first()
-                    .map(|view| view.image.color().has_alpha())
-                    .unwrap_or(false)
+                    .is_some_and(|view| view.image.color().has_alpha())
                 {
                     // if training views have alpha, show a background checker.
                     brush_ui::draw_checkerboard(ui, rect);
@@ -232,7 +231,7 @@ impl ViewerPanel for ScenePanel {
                 let splats = *splats.clone();
 
                 if self.live_update {
-                    self.view_splats = vec![splats.clone()];
+                    self.view_splats = vec![splats];
                 }
             }
             ProcessMessage::Error(e) => {
@@ -246,8 +245,7 @@ impl ViewerPanel for ScenePanel {
         let cur_time = Instant::now();
         let delta_time = self
             .last_draw
-            .map(|last| cur_time - last)
-            .unwrap_or(Duration::from_millis(10));
+            .map_or(Duration::from_millis(10), |last| cur_time - last);
 
         self.last_draw = Some(cur_time);
 

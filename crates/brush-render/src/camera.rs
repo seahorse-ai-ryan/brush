@@ -15,7 +15,7 @@ impl Camera {
         fov_y: f64,
         center_uv: glam::Vec2,
     ) -> Self {
-        Camera {
+        Self {
             fov_x,
             fov_y,
             center_uv,

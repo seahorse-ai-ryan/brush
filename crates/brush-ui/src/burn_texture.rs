@@ -11,7 +11,7 @@ use burn_fusion::client::FusionClient;
 use eframe::egui_wgpu::Renderer;
 use egui::epaint::mutex::RwLock as EguiRwLock;
 use egui::TextureId;
-use wgpu::{CommandEncoderDescriptor, ImageDataLayout};
+use wgpu::{CommandEncoderDescriptor, ImageDataLayout, TextureViewDescriptor};
 
 type InnerWgpu = JitBackend<WgpuRuntime, f32, i32, u32>;
 
@@ -33,7 +33,7 @@ fn copy_buffer_to_texture(
         img
     };
 
-    let prim = padded.clone().into_primitive().tensor();
+    let prim = padded.into_primitive().tensor();
 
     let client = &prim.client;
     client.flush();
@@ -106,7 +106,7 @@ impl BurnTexture {
     pub fn update_texture(
         &mut self,
         img: Tensor<Wgpu, 3>,
-        renderer: Arc<EguiRwLock<Renderer>>,
+        renderer: &EguiRwLock<Renderer>,
     ) -> TextureId {
         let mut encoder = self
             .device
@@ -131,14 +131,14 @@ impl BurnTexture {
 
                 renderer.write().update_egui_texture_from_wgpu_texture(
                     &self.device,
-                    &s.texture.create_view(&Default::default()),
+                    &s.texture.create_view(&TextureViewDescriptor::default()),
                     wgpu::FilterMode::Linear,
                     s.id,
                 );
             } else {
                 let id = renderer.write().register_native_texture(
                     &self.device,
-                    &texture.create_view(&Default::default()),
+                    &texture.create_view(&TextureViewDescriptor::default()),
                     wgpu::FilterMode::Linear,
                 );
 

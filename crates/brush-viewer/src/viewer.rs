@@ -162,15 +162,15 @@ fn process_loop(
         let peek = read_at_most(&mut data, 64).await?;
         let reader = std::io::Cursor::new(peek.clone()).chain(data);
 
-        let mut vfs = if peek.as_slice().starts_with("ply".as_bytes()) {
+        let mut vfs = if peek.as_slice().starts_with(b"ply") {
             let mut path_reader = PathReader::default();
             path_reader.add(Path::new("input.ply"), reader);
             BrushVfs::from_paths(path_reader)
-        } else if peek.starts_with("PK".as_bytes()) {
+        } else if peek.starts_with(b"PK") {
             BrushVfs::from_zip_reader(reader).await?
-        } else if peek.starts_with("<!DOCTYPE html>".as_bytes()) {
+        } else if peek.starts_with(b"<!DOCTYPE html>") {
             anyhow::bail!("Failed to download data (are you trying to download from Google Drive? You might have to use the proxy.")
-        } else if let Some(path_bytes) = peek.strip_prefix("BRUSH_PATH".as_bytes()) {
+        } else if let Some(path_bytes) = peek.strip_prefix(b"BRUSH_PATH") {
             let string = String::from_utf8(path_bytes.to_vec())?;
             let path = Path::new(&string);
             BrushVfs::from_directory(path).await?
@@ -421,7 +421,7 @@ impl ViewerContext {
             match m {
                 UiControlMessage::LoadData(url) => {
                     self.start_data_load(
-                        DataSource::Url(url.to_owned()),
+                        DataSource::Url(url.clone()),
                         LoadDatasetArgs::default(),
                         LoadInitArgs::default(),
                         TrainConfig::default(),
@@ -439,7 +439,10 @@ impl Viewer {
         controller: UnboundedReceiver<UiControlMessage>,
     ) -> Self {
         // For now just assume we're running on the default
-        let state = cc.wgpu_render_state.as_ref().unwrap();
+        let state = cc
+            .wgpu_render_state
+            .as_ref()
+            .expect("No wgpu renderer enabled in egui");
         let device = brush_ui::create_wgpu_device(
             state.adapter.clone(),
             state.device.clone(),
@@ -484,7 +487,7 @@ impl Viewer {
         #[cfg(target_family = "wasm")]
         let start_uri = start_uri.or(web_sys::window().and_then(|w| w.location().search().ok()));
 
-        let search_params = parse_search(&start_uri.unwrap_or("".to_owned()));
+        let search_params = parse_search(&start_uri.unwrap_or_default());
 
         let mut zen = false;
         if let Some(z) = search_params.get("zen") {
@@ -511,24 +514,20 @@ impl Viewer {
         let min_yaw = search_params
             .get("min_yaw")
             .and_then(|f| f.parse::<f32>().ok())
-            .map(|d| d.to_radians())
-            .unwrap_or(f32::MIN);
+            .map_or(f32::MIN, |d| d.to_radians());
         let max_yaw = search_params
             .get("max_yaw")
             .and_then(|f| f.parse::<f32>().ok())
-            .map(|d| d.to_radians())
-            .unwrap_or(f32::MAX);
+            .map_or(f32::MAX, |d| d.to_radians());
 
         let min_pitch = search_params
             .get("min_pitch")
             .and_then(|f| f.parse::<f32>().ok())
-            .map(|d| d.to_radians())
-            .unwrap_or(f32::MIN);
+            .map_or(f32::MIN, |d| d.to_radians());
         let max_pitch = search_params
             .get("max_pitch")
             .and_then(|f| f.parse::<f32>().ok())
-            .map(|d| d.to_radians())
-            .unwrap_or(f32::MAX);
+            .map_or(f32::MAX, |d| d.to_radians());
 
         let settings = CameraSettings {
             focal,
@@ -560,17 +559,12 @@ impl Viewer {
             #[allow(unused_mut)]
             let mut sides = vec![
                 loading_pane,
-                tiles.insert_pane(Box::new(StatsPanel::new(
-                    device.clone(),
-                    state.adapter.clone(),
-                ))),
+                tiles.insert_pane(Box::new(StatsPanel::new(device.clone(), &state.adapter))),
             ];
 
             #[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
             {
-                sides.push(
-                    tiles.insert_pane(Box::new(crate::panels::RerunPanel::new(device.clone()))),
-                );
+                sides.push(tiles.insert_pane(Box::new(crate::panels::RerunPanel::new(device))));
             }
 
             if cfg!(feature = "tracing") {
@@ -603,7 +597,7 @@ impl Viewer {
             );
         }
 
-        Viewer {
+        Self {
             tree,
             tree_ctx,
             datasets: None,
@@ -628,8 +622,10 @@ impl eframe::App for Viewer {
                     if self.datasets.is_none() {
                         let pane_id = self.tree.tiles.insert_pane(Box::new(DatasetPanel::new()));
                         self.datasets = Some(pane_id);
-                        if let Some(Tile::Container(Container::Linear(lin))) =
-                            self.tree.tiles.get_mut(self.tree.root().unwrap())
+                        if let Some(Tile::Container(Container::Linear(lin))) = self
+                            .tree
+                            .tiles
+                            .get_mut(self.tree.root().expect("UI must have a root"))
                         {
                             lin.add_child(pane_id);
                         }

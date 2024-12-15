@@ -24,6 +24,8 @@ pub enum TrainMessage {
     Eval { view_count: Option<usize> },
 }
 
+// False positive: value needed to keep lifetimes sane.
+#[allow(clippy::needless_pass_by_value)]
 pub(crate) fn train_loop(
     vfs: BrushVfs,
     device: WgpuDevice,
@@ -92,7 +94,7 @@ pub(crate) fn train_loop(
                 .adjusted_bounds(bounds_extent * 0.25, bounds_extent);
 
             let config = RandomSplatsConfig::new().with_sh_degree(load_init_args.sh_degree);
-            Splats::from_random_config(config, adjusted_bounds, &mut rng, &device)
+            Splats::from_random_config(&config, adjusted_bounds, &mut rng, &device)
         };
 
         let train_scene = dataset.train.clone();
@@ -147,7 +149,7 @@ pub(crate) fn train_loop(
                     let (new_splats, stats) = trainer
                         .step(iter, batch, splats)
                         .instrument(tracing::info_span!("Train step"))
-                        .await?;
+                        .await;
                     let (new_splats, refine) =
                         trainer.refine_if_needed(iter, new_splats, extent).await;
 

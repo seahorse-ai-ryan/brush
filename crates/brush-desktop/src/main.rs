@@ -16,7 +16,7 @@ fn main() {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .unwrap();
+            .expect("Failed to intitialize tokio runtime");
 
         runtime.block_on(async {
             env_logger::init();
@@ -25,7 +25,7 @@ fn main() {
             // as the built-in one is git-lfs which cargo doesn't clone properly.
             let icon =
                 eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon-256.png")[..])
-                    .unwrap();
+                    .expect("Failed to load icon");
 
             let native_options = eframe::NativeOptions {
                 // Build app display.
@@ -42,7 +42,7 @@ fn main() {
                 native_options,
                 Box::new(move |cc| Ok(Box::new(brush_viewer::viewer::Viewer::new(cc, None, rec)))),
             )
-            .unwrap();
+            .expect("Failed to run egui app");
         });
     }
 

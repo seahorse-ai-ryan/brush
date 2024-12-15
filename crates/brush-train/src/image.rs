@@ -26,17 +26,17 @@ pub fn tensor_into_image(data: TensorData) -> DynamicImage {
 
     let img: DynamicImage = match data.dtype {
         DType::F32 => {
-            let data = data.to_vec::<f32>().unwrap();
+            let data = data.into_vec::<f32>().expect("Wrong type");
             if c == 3 {
                 Rgb32FImage::from_raw(w as u32, h as u32, data)
-                    .unwrap()
+                    .expect("Failed to create image from tensor")
                     .into()
             } else if c == 4 {
                 Rgba32FImage::from_raw(w as u32, h as u32, data)
-                    .unwrap()
+                    .expect("Failed to create image from tensor")
                     .into()
             } else {
-                panic!("Unsupported number of channels: {}", c);
+                panic!("Unsupported number of channels: {c}");
             }
         }
         _ => panic!("unsopported dtype {:?}", data.dtype),

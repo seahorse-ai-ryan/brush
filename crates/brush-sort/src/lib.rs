@@ -33,13 +33,15 @@ kernel_source_gen!(SortScatter {}, sort_scatter);
 pub fn radix_argsort(
     input_keys: JitTensor<WgpuRuntime>,
     input_values: JitTensor<WgpuRuntime>,
-    n_sort: JitTensor<WgpuRuntime>,
+    n_sort: &JitTensor<WgpuRuntime>,
     sorting_bits: u32,
 ) -> (JitTensor<WgpuRuntime>, JitTensor<WgpuRuntime>) {
-    assert_eq!(input_keys.shape.dims[0], input_values.shape.dims[0]);
-    assert_eq!(n_sort.shape.dims[0], 1);
-
-    assert!(sorting_bits <= 32);
+    assert_eq!(
+        input_keys.shape.dims[0], input_values.shape.dims[0],
+        "Input keys and values must have the same number of elements"
+    );
+    assert_eq!(n_sort.shape.dims[0], 1, "Sort count must have one element");
+    assert!(sorting_bits <= 32, "Can only sort up to 32 bits");
 
     let _span = tracing::trace_span!("Radix sort").entered();
 
@@ -92,6 +94,7 @@ pub fn radix_argsort(
             let reduced_buf =
                 create_tensor::<1, WgpuRuntime>([BLOCK_SIZE as usize], device, client, DType::I32);
 
+            // SAFETY: Kernel has to contain no OOB indexing.
             unsafe {
                 client.execute_unchecked(
                     SortReduce::task(),
@@ -104,6 +107,7 @@ pub fn radix_argsort(
                 );
             }
 
+            // SAFETY: Kernel has to contain no OOB indexing.
             unsafe {
                 client.execute_unchecked(
                     SortScan::task(),
@@ -115,6 +119,7 @@ pub fn radix_argsort(
                 );
             }
 
+            // SAFETY: Kernel has to contain no OOB indexing.
             unsafe {
                 client.execute_unchecked(
                     SortScanAdd::task(),
@@ -132,6 +137,7 @@ pub fn radix_argsort(
         let output_values =
             create_tensor::<1, _>([max_n as usize], device, client, cur_vals.dtype());
 
+        // SAFETY: Kernel has to contain no OOB indexing.
         unsafe {
             client.execute_unchecked(
                 SortScatter::task(),
@@ -199,7 +205,7 @@ mod tests {
                 .into_primitive();
             let num_points = Tensor::<Backend, 1, Int>::from_ints([keys_inp.len() as i32], &device)
                 .into_primitive();
-            let (ret_keys, ret_values) = radix_argsort(keys, values, num_points, 32);
+            let (ret_keys, ret_values) = radix_argsort(keys, values, &num_points, 32);
 
             let ret_keys = Tensor::<Backend, 1, Int>::from_primitive(ret_keys).into_data();
 
@@ -212,9 +218,9 @@ mod tests {
 
             for (((key, val), ref_key), ref_val) in ret_keys
                 .as_slice::<i32>()
-                .unwrap()
+                .expect("Wrong type")
                 .iter()
-                .zip(ret_values.as_slice::<i32>().unwrap())
+                .zip(ret_values.as_slice::<i32>().expect("Wrong type"))
                 .zip(ref_keys)
                 .zip(ref_values)
             {
@@ -250,7 +256,7 @@ mod tests {
         let num_points =
             Tensor::<Backend, 1, Int>::from_ints([keys_inp.len() as i32], &device).into_primitive();
 
-        let (ret_keys, ret_values) = radix_argsort(keys, values, num_points, 32);
+        let (ret_keys, ret_values) = radix_argsort(keys, values, &num_points, 32);
 
         let ret_keys = Tensor::<Backend, 1, Int>::from_primitive(ret_keys).to_data();
         let ret_values = Tensor::<Backend, 1, Int>::from_primitive(ret_values).to_data();
@@ -261,9 +267,9 @@ mod tests {
 
         for (((key, val), ref_key), ref_val) in ret_keys
             .as_slice::<i32>()
-            .unwrap()
+            .expect("Wrong type")
             .iter()
-            .zip(ret_values.as_slice::<i32>().unwrap())
+            .zip(ret_values.as_slice::<i32>().expect("Wrong type"))
             .zip(ref_keys)
             .zip(ref_values)
         {

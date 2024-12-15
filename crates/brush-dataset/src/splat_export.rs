@@ -71,7 +71,7 @@ pub async fn splat_to_ply<B: Backend>(splats: Splats<B>) -> anyhow::Result<Vec<u
 
     let data = read_splat_data(splats.clone())
         .await
-        .map_err(|_| anyhow!("Failed to read data from splat"))?;
+        .map_err(|e| anyhow!("Failed to read data from splat {e:?}"))?;
 
     let property_names = vec![
         "x", "y", "z", "scale_0", "scale_1", "scale_2", "opacity", "rot_0", "rot_1", "rot_2",
@@ -87,7 +87,7 @@ pub async fn splat_to_ply<B: Backend>(splats: Splats<B>) -> anyhow::Result<Vec<u
 
     for i in 0..sh_coeffs_rest {
         properties.push(PropertyDef::new(
-            &format!("f_rest_{}", i),
+            &format!("f_rest_{i}"),
             PropertyType::Scalar(ScalarType::Float),
         ));
     }
@@ -99,9 +99,9 @@ pub async fn splat_to_ply<B: Backend>(splats: Splats<B>) -> anyhow::Result<Vec<u
     vertex.properties = properties;
     ply.header.elements.push(vertex);
     ply.header.encoding = ply::Encoding::BinaryLittleEndian;
-    ply.header.comments.push("Exported from Brush".to_string());
-    ply.header.comments.push("Vertical axis: y".to_string());
-    ply.payload.insert("vertex".to_string(), data);
+    ply.header.comments.push("Exported from Brush".to_owned());
+    ply.header.comments.push("Vertical axis: y".to_owned());
+    ply.payload.insert("vertex".to_owned(), data);
 
     let mut buf = vec![];
     let writer = Writer::<GaussianData>::new();

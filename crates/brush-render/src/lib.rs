@@ -36,7 +36,7 @@ struct BwdAux {
 
 impl BwdAux {
     fn new(num_visible: u32, num_intersects: u32) -> Self {
-        BwdAux {
+        Self {
             data: Some(BwdAuxData {
                 num_visible,
                 num_intersects,
@@ -53,7 +53,7 @@ impl BwdAux {
 
 #[derive(Debug, Clone)]
 pub struct RenderAuxPrimitive<B: Backend> {
-    /// The packed projected splat information, see ProjectedSplat in helpers.wgsl
+    /// The packed projected splat information, see `ProjectedSplat` in helpers.wgsl
     pub projected_splats: FloatTensor<B>,
     pub uniforms_buffer: IntTensor<B>,
     pub num_intersections: IntTensor<B>,
@@ -83,7 +83,7 @@ impl<B: Backend> RenderAuxPrimitive<B> {
 
 #[derive(Debug, Clone)]
 pub struct RenderAux<B: Backend> {
-    /// The packed projected splat information, see ProjectedSplat in helpers.wgsl
+    /// The packed projected splat information, see `ProjectedSplat` in helpers.wgsl
     pub num_intersections: Tensor<B, 1, Int>,
     pub num_visible: Tensor<B, 1, Int>,
     pub final_index: Tensor<B, 2, Int>,
@@ -113,8 +113,10 @@ impl<B: Backend> RenderAux<B> {
                     .execute_async()
                     .await;
 
-                let num_visible: i32 = data[0].to_vec().unwrap()[0];
-                let num_intersections: i32 = data[1].to_vec().unwrap()[0];
+                let num_visible: i32 = data[0].to_vec().expect("Failed to resolve num_visible")[0];
+                let num_intersections: i32 = data[1]
+                    .to_vec()
+                    .expect("Failed to resolve num_intersections")[0];
                 let _ = send.send(BwdAux::new(num_visible as u32, num_intersections as u32));
             }
         }
@@ -164,15 +166,23 @@ impl<B: Backend> RenderAux<B> {
             "Brush doesn't support this many gaussians currently. {num_visible} > {GAUSSIANS_UPPER_BOUND}"
         );
 
-        let final_index = self.final_index.into_data().to_vec::<i32>().unwrap();
-        for &final_index in final_index.iter() {
+        let final_index = self
+            .final_index
+            .into_data()
+            .to_vec::<i32>()
+            .expect("Failed to fetch final index");
+        for &final_index in &final_index {
             assert!(
                 final_index >= 0 && final_index <= num_intersections,
                 "Final index exceeds bounds. Final index {final_index}, num_intersections: {num_intersections}"
             );
         }
 
-        let tile_offsets = self.tile_offsets.into_data().to_vec::<i32>().unwrap();
+        let tile_offsets = self
+            .tile_offsets
+            .into_data()
+            .to_vec::<i32>()
+            .expect("Failed to fetch tile offsets");
         for &offsets in &tile_offsets {
             assert!(
                 offsets >= 0 && offsets <= num_intersections,
@@ -201,9 +211,9 @@ impl<B: Backend> RenderAux<B> {
             .compact_gid_from_isect
             .into_data()
             .to_vec::<i32>()
-            .unwrap()[0..num_intersections as usize];
+            .expect("Failed to fetch compact_gid_from_isect")[0..num_intersections as usize];
 
-        for &compact_gid in compact_gid_from_isect.iter() {
+        for &compact_gid in compact_gid_from_isect {
             assert!(
                 compact_gid >= 0 && compact_gid < num_visible,
                 "Invalid gaussian ID in intersection buffer. {compact_gid} out of {num_visible}"
@@ -215,9 +225,9 @@ impl<B: Backend> RenderAux<B> {
             .global_from_compact_gid
             .into_data()
             .to_vec::<i32>()
-            .unwrap()[0..num_visible as usize];
+            .expect("Failed to fetch global_from_compact_gid")[0..num_visible as usize];
 
-        for &global_gid in global_from_compact_gid.iter() {
+        for &global_gid in global_from_compact_gid {
             assert!(
                 global_gid >= 0 && global_gid < num_points as i32,
                 "Invalid gaussian ID in global_from_compact_gid buffer. {global_gid} out of {num_points}"
@@ -263,7 +273,7 @@ pub trait Backend: burn::tensor::backend::Backend {
     /// This projects the gaussians, sorts them, and rasterizes them to a buffer, in a
     /// differentiable way.
     /// The arguments are all passed as raw tensors. See [`Splats`] for a convenient Module that wraps this fun
-    /// The ['xy_dummy'] variable is only used to carry screenspace xy gradients.
+    /// The [`xy_grad_dummy`] variable is only used to carry screenspace xy gradients.
     /// This function can optionally render a "u32" buffer, which is a packed RGBA (8 bits per channel)
     /// buffer. This is useful when the results need to be displayed immediatly.
     fn render_splats(
@@ -278,9 +288,9 @@ pub trait Backend: burn::tensor::backend::Backend {
         render_u32_buffer: bool,
     ) -> (FloatTensor<Self>, RenderAuxPrimitive<Self>);
 
-    /// Backward pass for render_splats.
+    /// Backward pass for `render_splats`.
     ///
-    /// Do not use directly, render_splats will use this to calculate gradients.
+    /// Do not use directly, `render_splats` will use this to calculate gradients.
     #[allow(unused_variables)]
     fn render_splats_bwd(
         state: GaussianBackwardState<Self>,

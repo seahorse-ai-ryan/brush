@@ -27,16 +27,21 @@ impl<R: JitRuntime> DimCheck<'_, R> {
 
         match self.device.as_ref() {
             None => self.device = Some(tensor.device.clone()),
-            Some(d) => assert_eq!(d, &tensor.device),
+            Some(d) => assert_eq!(
+                d, &tensor.device,
+                "Tensors should be on same device to start with."
+            ),
         }
 
         for (cur_dim, bound) in dims.iter().zip(bounds) {
             match bound {
-                DimBound::Exact(dim) => assert_eq!(cur_dim, dim),
+                DimBound::Exact(dim) => {
+                    assert_eq!(cur_dim, dim, "Dimension mismatch:: {cur_dim} != {dim}");
+                }
                 DimBound::Any => (),
                 DimBound::Matching(id) => {
                     let dim = self.bound.entry(id).or_insert(*cur_dim);
-                    assert_eq!(cur_dim, dim);
+                    assert_eq!(cur_dim, dim, "Dimension mismatch:: {cur_dim} != {dim}");
                 }
             }
         }
@@ -46,27 +51,27 @@ impl<R: JitRuntime> DimCheck<'_, R> {
 
 impl From<usize> for DimBound {
     fn from(value: usize) -> Self {
-        DimBound::Exact(value)
+        Self::Exact(value)
     }
 }
 
 impl From<u32> for DimBound {
     fn from(value: u32) -> Self {
-        DimBound::Exact(value as usize)
+        Self::Exact(value as usize)
     }
 }
 
 impl From<i32> for DimBound {
     fn from(value: i32) -> Self {
-        DimBound::Exact(value as usize)
+        Self::Exact(value as usize)
     }
 }
 
 impl From<&'static str> for DimBound {
     fn from(value: &'static str) -> Self {
         match value {
-            "*" => DimBound::Any,
-            _ => DimBound::Matching(value),
+            "*" => Self::Any,
+            _ => Self::Matching(value),
         }
     }
 }

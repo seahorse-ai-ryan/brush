@@ -40,17 +40,17 @@ struct JsonScene {
     /// Image height
     h: Option<f64>,
 
-    /// First radial distortion parameter used by [OPENCV, OPENCV_FISHEYE]
+    /// First radial distortion parameter used by [`OPENCV`, `OPENCV_FISHEYE`]
     k1: Option<f64>,
-    /// Second radial distortion parameter used by [OPENCV, OPENCV_FISHEYE]
+    /// Second radial distortion parameter used by [`OPENCV`, `OPENCV_FISHEYE`]
     k2: Option<f64>,
-    /// Third radial distortion parameter used by [OPENCV_FISHEYE]
+    /// Third radial distortion parameter used by [`OPENCV_FISHEYE`]
     k3: Option<f64>,
-    /// Fourth radial distortion parameter used by [OPENCV_FISHEYE]
+    /// Fourth radial distortion parameter used by [`OPENCV_FISHEYE`]
     k4: Option<f64>,
-    /// First tangential distortion parameter used by [OPENCV]
+    /// First tangential distortion parameter used by [`OPENCV`]
     p1: Option<f64>,
-    /// Second tangential distortion parameter used by [OPENCV]
+    /// Second tangential distortion parameter used by [`OPENCV`]
     p2: Option<f64>,
 
     frames: Vec<FrameData>,
@@ -75,17 +75,17 @@ struct FrameData {
     h: Option<f64>,
 
     // TODO: These are unused currently.
-    /// First radial distortion parameter used by [OPENCV, OPENCV_FISHEYE]
+    /// First radial distortion parameter used by [`OPENCV`, `OPENCV_FISHEYE`]
     k1: Option<f64>,
-    /// Second radial distortion parameter used by [OPENCV, OPENCV_FISHEYE]
+    /// Second radial distortion parameter used by [`OPENCV`, `OPENCV_FISHEYE`]
     k2: Option<f64>,
-    /// Third radial distortion parameter used by [OPENCV_FISHEYE]
+    /// Third radial distortion parameter used by [`OPENCV_FISHEYE`]
     k3: Option<f64>,
-    /// Fourth radial distortion parameter used by [OPENCV_FISHEYE]
+    /// Fourth radial distortion parameter used by [`OPENCV_FISHEYE`]
     k4: Option<f64>,
-    /// First tangential distortion parameter used by [OPENCV]
+    /// First tangential distortion parameter used by [`OPENCV`]
     p1: Option<f64>,
-    /// Second tangential distortion parameter used by [OPENCV]
+    /// Second tangential distortion parameter used by [`OPENCV`]
     p2: Option<f64>,
 
     transform_matrix: Vec<Vec<f32>>,
@@ -97,7 +97,7 @@ fn read_transforms_file(
     transforms_path: PathBuf,
     vfs: BrushVfs,
     load_args: &LoadDatasetArgs,
-) -> Result<Vec<impl Future<Output = anyhow::Result<SceneView>>>> {
+) -> Vec<impl Future<Output = anyhow::Result<SceneView>>> {
     let iter = scene
         .frames
         .into_iter()
@@ -121,7 +121,7 @@ fn read_transforms_file(
                 let mut path = transforms_path
                     .clone()
                     .parent()
-                    .unwrap()
+                    .expect("Transforms path must be a filename")
                     .join(&frame.file_path);
                 if path.extension().is_none() {
                     path = path.with_extension("png");
@@ -166,7 +166,7 @@ fn read_transforms_file(
                 let cuv = glam::vec2((cx / w as f64) as f32, (cy / h as f64) as f32);
 
                 let view = SceneView {
-                    name: frame.file_path.to_owned(),
+                    name: frame.file_path.clone(),
                     camera: Camera::new(translation, rotation, fovx, fovy, cuv),
                     image: Arc::new(image),
                 };
@@ -174,7 +174,7 @@ fn read_transforms_file(
             }
         });
 
-    Ok(iter.collect())
+    iter.collect()
 }
 
 pub async fn read_dataset<B: Backend>(
@@ -191,7 +191,7 @@ pub async fn read_dataset<B: Backend>(
         .collect();
 
     let transforms_path = if json_files.len() == 1 {
-        json_files.first().cloned().unwrap()
+        json_files.first().cloned().expect("Must have 1 json file")
     } else {
         let train = json_files.iter().find(|x| {
             x.file_name()
@@ -215,7 +215,7 @@ pub async fn read_dataset<B: Backend>(
         transforms_path.clone(),
         vfs.clone(),
         load_args,
-    )?;
+    );
 
     if let Some(subsample) = load_args.subsample_frames {
         train_handles = train_handles
@@ -246,13 +246,12 @@ pub async fn read_dataset<B: Backend>(
                 .read_to_string(&mut json_str)
                 .await?;
             let val_scene = serde_json::from_str(&json_str)?;
-            read_transforms_file(
+            Some(read_transforms_file(
                 val_scene,
                 eval_trans_path.clone(),
                 data_clone,
                 &load_args_clone,
-            )
-            .ok()
+            ))
         } else {
             None
         };
@@ -303,7 +302,10 @@ pub async fn read_dataset<B: Backend>(
 
     let splat_stream = try_fn_stream(|emitter| async move {
         if let Some(init) = train_scene.ply_file_path {
-            let init_path = transforms_path.parent().unwrap().join(init);
+            let init_path = transforms_path
+                .parent()
+                .expect("Transforms path must be a filename")
+                .join(init);
             let ply_data = vfs.open_path(&init_path).await;
 
             if let Ok(ply_data) = ply_data {

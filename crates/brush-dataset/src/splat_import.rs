@@ -28,7 +28,7 @@ pub(crate) struct GaussianData {
 
 impl PropertyAccess for GaussianData {
     fn new() -> Self {
-        GaussianData {
+        Self {
             means: Vec3::ZERO,
             log_scale: Vec3::ZERO,
             opacity: 0.0,
@@ -249,7 +249,7 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
 
             if element.name == "vertex" {
                 if ["x", "y", "z"].into_iter().any(|p| !properties.contains(p)) {
-                    Err(anyhow::anyhow!("Invalid splat ply. Missing properties!"))?
+                    anyhow::bail!("Invalid splat ply. Missing properties!");
                 }
 
                 let update_every = element.count.div_ceil(25);
@@ -263,11 +263,11 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                     // Occasionally send some updated splats.
                     if i % update_every == update_every - 1 {
                         let splats = Splats::from_raw(
-                            means.clone(),
-                            rotations.clone(),
-                            log_scales.clone(),
-                            sh_coeffs.clone(),
-                            opacity.clone(),
+                            &means,
+                            rotations.as_deref(),
+                            log_scales.as_deref(),
+                            sh_coeffs.as_deref(),
+                            opacity.as_deref(),
                             &device,
                         );
 
@@ -312,8 +312,14 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                     }
                 }
 
-                let splats =
-                    Splats::from_raw(means, rotations, log_scales, sh_coeffs, opacity, &device);
+                let splats = Splats::from_raw(
+                    &means,
+                    rotations.as_deref(),
+                    log_scales.as_deref(),
+                    sh_coeffs.as_deref(),
+                    opacity.as_deref(),
+                    &device,
+                );
                 final_splat = Some(splats.clone());
                 emitter
                     .emit(SplatMessage {

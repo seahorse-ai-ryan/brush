@@ -11,7 +11,6 @@ use async_fn_stream::fn_stream;
 use brush_train::scene::{Scene, SceneView};
 use image::DynamicImage;
 use std::future::Future;
-use std::num::NonZero;
 use std::pin::Pin;
 
 use tokio_stream::Stream;
@@ -45,19 +44,19 @@ pub struct Dataset {
 
 impl Dataset {
     pub fn empty() -> Self {
-        Dataset {
+        Self {
             train: Scene::new(vec![]),
             eval: None,
         }
     }
 
     pub fn from_views(train_views: Vec<SceneView>, eval_views: Vec<SceneView>) -> Self {
-        Dataset {
+        Self {
             train: Scene::new(train_views),
             eval: if eval_views.is_empty() {
                 None
             } else {
-                Some(Scene::new(eval_views.clone()))
+                Some(Scene::new(eval_views))
             },
         }
     }
@@ -86,8 +85,8 @@ pub(crate) fn stream_fut_parallel<T: Send + 'static>(
         1
     } else {
         std::thread::available_parallelism()
-            .unwrap_or(NonZero::new(8).unwrap())
-            .get()
+            .map(|x| x.get())
+            .unwrap_or(8)
     };
 
     log::info!("Loading stream with {parallel} threads");
@@ -102,7 +101,9 @@ pub(crate) fn stream_fut_parallel<T: Send + 'static>(
                 .collect();
             // Stream each of them.
             for handle in handles {
-                emitter.emit(handle.await.unwrap()).await;
+                emitter
+                    .emit(handle.await.expect("Underlying stream panicked"))
+                    .await;
             }
         }
     })

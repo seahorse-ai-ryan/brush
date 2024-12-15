@@ -21,6 +21,7 @@ pub fn prefix_sum(input: JitTensor<WgpuRuntime>) -> JitTensor<WgpuRuntime> {
     let client = &input.client;
     let outputs = create_tensor(input.shape.dims::<1>(), &input.device, client, DType::I32);
 
+    // SAFETY: Kernel has to contain no OOB indexing.
     unsafe {
         client.execute_unchecked(
             PrefixSumScan::task(),
@@ -47,6 +48,7 @@ pub fn prefix_sum(input: JitTensor<WgpuRuntime>) -> JitTensor<WgpuRuntime> {
         work_size.push(work_sz);
     }
 
+    // SAFETY: Kernel has to contain no OOB indexing.
     unsafe {
         client.execute_unchecked(
             PrefixSumScanSums::task(),
@@ -59,6 +61,7 @@ pub fn prefix_sum(input: JitTensor<WgpuRuntime>) -> JitTensor<WgpuRuntime> {
     }
 
     for l in 0..(group_buffer.len() - 1) {
+        // SAFETY: Kernel has to contain no OOB indexing.
         unsafe {
             client.execute_unchecked(
                 PrefixSumScanSums::task(),
@@ -74,6 +77,7 @@ pub fn prefix_sum(input: JitTensor<WgpuRuntime>) -> JitTensor<WgpuRuntime> {
     for l in (1..group_buffer.len()).rev() {
         let work_sz = work_size[l - 1];
 
+        // SAFETY: Kernel has to contain no OOB indexing.
         unsafe {
             client.execute_unchecked(
                 PrefixSumAddScannedSums::task(),
@@ -86,6 +90,7 @@ pub fn prefix_sum(input: JitTensor<WgpuRuntime>) -> JitTensor<WgpuRuntime> {
         }
     }
 
+    // SAFETY: Kernel has to contain no OOB indexing.
     unsafe {
         client.execute_unchecked(
             PrefixSumAddScannedSums::task(),
@@ -115,11 +120,11 @@ mod tests {
     fn test_sum_tiny() {
         let device = Default::default();
         let keys = Tensor::<Backend, 1, Int>::from_data([1, 1, 1, 1], &device).into_primitive();
-        let summed = prefix_sum(keys.clone());
+        let summed = prefix_sum(keys);
         let summed = Tensor::<Backend, 1, Int>::from_primitive(summed).to_data();
-        let summed = summed.as_slice::<i32>().unwrap();
+        let summed = summed.as_slice::<i32>().expect("Wrong type");
         assert_eq!(summed.len(), 4);
-        assert_eq!(summed, [1, 2, 3, 4])
+        assert_eq!(summed, [1, 2, 3, 4]);
     }
 
     #[test]
@@ -131,7 +136,7 @@ mod tests {
         }
         let device = Default::default();
         let keys = Tensor::<Backend, 1, Int>::from_data(data.as_slice(), &device).into_primitive();
-        let summed = prefix_sum(keys.clone());
+        let summed = prefix_sum(keys);
         let summed = Tensor::<Backend, 1, Int>::from_primitive(summed).to_data();
         let prefix_sum_ref: Vec<_> = data
             .into_iter()
@@ -140,8 +145,13 @@ mod tests {
                 Some(*x)
             })
             .collect();
-        for (summed, reff) in summed.as_slice::<i32>().unwrap().iter().zip(prefix_sum_ref) {
-            assert_eq!(*summed, reff)
+        for (summed, reff) in summed
+            .as_slice::<i32>()
+            .expect("Wrong type")
+            .iter()
+            .zip(prefix_sum_ref)
+        {
+            assert_eq!(*summed, reff);
         }
     }
 
@@ -159,7 +169,7 @@ mod tests {
 
         let device = Default::default();
         let keys = Tensor::<Backend, 1, Int>::from_data(data.as_slice(), &device).into_primitive();
-        let summed = prefix_sum(keys.clone());
+        let summed = prefix_sum(keys);
         let summed = Tensor::<Backend, 1, Int>::from_primitive(summed).to_data();
 
         let prefix_sum_ref: Vec<_> = data
@@ -170,8 +180,13 @@ mod tests {
             })
             .collect();
 
-        for (summed, reff) in summed.as_slice::<i32>().unwrap().iter().zip(prefix_sum_ref) {
-            assert_eq!(*summed, reff)
+        for (summed, reff) in summed
+            .as_slice::<i32>()
+            .expect("Wrong type")
+            .iter()
+            .zip(prefix_sum_ref)
+        {
+            assert_eq!(*summed, reff);
         }
     }
 }

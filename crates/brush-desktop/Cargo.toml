@@ -42,3 +42,6 @@ wasm-logger.workspace = true
 tracy = ["brush-viewer/tracy", "tracing"]
 tracing = ["brush-viewer/tracing"]
 debug_validation = ["brush-render/debug_validation"]
+
+[lints]
+workspace = true

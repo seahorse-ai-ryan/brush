@@ -13,9 +13,9 @@ pub fn create_wgpu_device(
 ) -> WgpuDevice {
     let setup = burn_wgpu::WgpuSetup {
         instance: Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor::default())), // unused... need to fix this in Burn.
-        adapter: adapter.clone(),
-        device: device.clone(),
-        queue: queue.clone(),
+        adapter,
+        device,
+        queue,
     };
 
     burn_wgpu::init_device(
@@ -49,9 +49,7 @@ pub fn draw_checkerboard(ui: &mut egui::Ui, rect: egui::Rect) {
         .ctx()
         .data(|data| data.get_temp::<egui::TextureHandle>(id));
 
-    let handle = if let Some(handle) = handle {
-        handle
-    } else {
+    let handle = handle.unwrap_or_else(|| {
         let color_1 = [190, 190, 190, 255];
         let color_2 = [240, 240, 240, 255];
 
@@ -74,7 +72,7 @@ pub fn draw_checkerboard(ui: &mut egui::Ui, rect: egui::Rect) {
             data.insert_temp(id, handle.clone());
         });
         handle
-    };
+    });
 
     let uv = egui::Rect::from_min_max(
         egui::pos2(0.0, 0.0),

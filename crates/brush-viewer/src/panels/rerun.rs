@@ -65,7 +65,7 @@ impl VisualizeTools {
                 .into_data_async()
                 .await
                 .to_vec::<f32>()
-                .unwrap();
+                .expect("Wrong type");
             let means = means.chunks(3).map(|c| glam::vec3(c[0], c[1], c[2]));
 
             let base_rgb = splats
@@ -77,7 +77,11 @@ impl VisualizeTools {
 
             let transparency = sigmoid(splats.raw_opacity.val());
 
-            let colors = base_rgb.into_data_async().await.to_vec::<f32>().unwrap();
+            let colors = base_rgb
+                .into_data_async()
+                .await
+                .to_vec::<f32>()
+                .expect("Wrong type");
             let colors = colors.chunks(3).map(|c| {
                 Color::from_rgb(
                     (c[0] * 255.0) as u8,
@@ -92,7 +96,7 @@ impl VisualizeTools {
                 .into_data_async()
                 .await
                 .to_vec()
-                .unwrap();
+                .expect("Wrong type");
 
             let rotations = splats
                 .rotation
@@ -100,7 +104,7 @@ impl VisualizeTools {
                 .into_data_async()
                 .await
                 .to_vec::<f32>()
-                .unwrap();
+                .expect("Wrong type");
             let rotations = rotations
                 .chunks(4)
                 .map(|q| glam::Quat::from_array([q[1], q[2], q[3], q[0]]));
@@ -238,7 +242,7 @@ impl VisualizeTools {
         self.queue_task(async move {
             rec.log(
                 "splats/num_splats",
-                &rerun::Scalar::new(splats.num_splats() as f64).clone(),
+                &rerun::Scalar::new(splats.num_splats() as f64),
             )?;
 
             Ok(())
@@ -320,7 +324,7 @@ impl VisualizeTools {
         });
     }
 
-    pub fn log_refine_stats(self: Arc<Self>, iter: u32, refine: RefineStats) {
+    pub fn log_refine_stats(self: Arc<Self>, iter: u32, refine: &RefineStats) {
         let Some(rec) = self.rec.clone() else {
             return;
         };
@@ -362,7 +366,7 @@ pub(crate) struct RerunPanel {
 
 impl RerunPanel {
     pub(crate) fn new(device: WgpuDevice) -> Self {
-        RerunPanel {
+        Self {
             visualize: None,
             eval_every: 1000,
             eval_view_count: None,
@@ -432,7 +436,7 @@ impl ViewerPanel for RerunPanel {
                     return;
                 };
 
-                visualize.log_refine_stats(*iter, *stats.clone());
+                visualize.log_refine_stats(*iter, stats);
             }
             ProcessMessage::EvalResult { iter, eval } => {
                 let Some(visualize) = self.visualize.clone() else {

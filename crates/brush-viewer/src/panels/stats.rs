@@ -4,7 +4,7 @@ use crate::{
 };
 use burn_jit::cubecl::Runtime;
 use burn_wgpu::{WgpuDevice, WgpuRuntime};
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use web_time::Instant;
 use wgpu::AdapterInfo;
 
@@ -24,7 +24,7 @@ pub(crate) struct StatsPanel {
 }
 
 impl StatsPanel {
-    pub(crate) fn new(device: WgpuDevice, adapter: Arc<wgpu::Adapter>) -> Self {
+    pub(crate) fn new(device: WgpuDevice, adapter: &wgpu::Adapter) -> Self {
         let adapter_info = adapter.get_info();
         Self {
             device,
@@ -44,14 +44,14 @@ fn bytes_format(bytes: u64) -> String {
     let unit = 1000;
 
     if bytes < unit {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     } else {
         let size = bytes as f64;
         let exp = match size.log(1000.0).floor() as usize {
             0 => 1,
             e => e,
         };
-        let unit_prefix = "KMGTPEZY".as_bytes();
+        let unit_prefix = b"KMGTPEZY";
         format!(
             "{:.2} {}B",
             (size / unit.pow(exp as u32) as f64),
@@ -134,7 +134,7 @@ impl ViewerPanel for StatsPanel {
 
                     ui.label("Last eval PSNR");
                     ui.label(if let Some(psnr) = self.last_eval_psnr {
-                        format!("{:.}", psnr)
+                        format!("{psnr:.}")
                     } else {
                         "--".to_owned()
                     });
@@ -142,8 +142,7 @@ impl ViewerPanel for StatsPanel {
 
                     ui.label("Training time");
                     // Round duration to seconds.
-                    let elapsed =
-                        Duration::from_secs((Instant::now() - self.start_load_time).as_secs());
+                    let elapsed = Duration::from_secs(self.start_load_time.elapsed().as_secs());
                     ui.label(format!("{}", humantime::Duration::from(elapsed)));
                     ui.end_row();
                 }

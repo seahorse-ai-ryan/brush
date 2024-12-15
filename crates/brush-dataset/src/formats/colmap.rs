@@ -222,7 +222,7 @@ pub(crate) async fn load_dataset<B: Backend>(
                 }
 
                 let init_splat =
-                    Splats::from_raw(positions, None, None, Some(colors), None, &device);
+                    Splats::from_raw(&positions, None, None, Some(&colors), None, &device);
                 emitter
                     .emit(SplatMessage {
                         meta: crate::splat_import::SplatMetadata {

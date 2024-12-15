@@ -6,7 +6,7 @@
 // rfd on wasm, nor is drag-and-dropping folders in egui.
 use std::{
     collections::HashMap,
-    io::{Cursor, Read},
+    io::{self, Cursor, Read},
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -84,11 +84,11 @@ impl BrushVfs {
             data: Arc::new(bytes),
         };
         let archive = ZipArchive::new(Cursor::new(zip_data))?;
-        Ok(BrushVfs::Zip(archive))
+        Ok(Self::Zip(archive))
     }
 
     pub fn from_paths(paths: PathReader) -> Self {
-        BrushVfs::Manual(paths)
+        Self::Manual(paths)
     }
 
     pub async fn from_directory(dir: &Path) -> anyhow::Result<Self> {
@@ -108,13 +108,17 @@ impl BrushVfs {
                         if path.is_dir() {
                             stack.push(path.clone());
                         }
-                        paths.push(path.strip_prefix(dir.clone()).unwrap().to_path_buf());
+                        paths.push(
+                            path.strip_prefix(dir.clone())
+                                .map_err(|_e| io::ErrorKind::InvalidInput)?
+                                .to_path_buf(),
+                        );
                     }
                 }
                 Ok(paths)
             }
 
-            Ok(BrushVfs::Directory(dir.to_path_buf(), walk_dir(dir).await?))
+            Ok(Self::Directory(dir.to_path_buf(), walk_dir(dir).await?))
         }
 
         #[cfg(target_family = "wasm")]
@@ -126,10 +130,10 @@ impl BrushVfs {
 
     pub fn file_names(&self) -> impl Iterator<Item = &Path> + '_ {
         let iterator: Box<dyn Iterator<Item = &Path>> = match self {
-            BrushVfs::Zip(archive) => Box::new(archive.file_names().map(Path::new)),
-            BrushVfs::Manual(map) => Box::new(map.paths().map(|p| p.as_path())),
+            Self::Zip(archive) => Box::new(archive.file_names().map(Path::new)),
+            Self::Manual(map) => Box::new(map.paths().map(|p| p.as_path())),
             #[cfg(not(target_family = "wasm"))]
-            BrushVfs::Directory(_, paths) => Box::new(paths.iter().map(|p| p.as_path())),
+            Self::Directory(_, paths) => Box::new(paths.iter().map(|p| p.as_path())),
         };
         // stupic macOS.
         iterator.filter(|p| !p.starts_with("__MACOSX"))
@@ -137,7 +141,7 @@ impl BrushVfs {
 
     pub async fn open_path(&mut self, path: &Path) -> anyhow::Result<DynRead> {
         match self {
-            BrushVfs::Zip(archive) => {
+            Self::Zip(archive) => {
                 let name = archive
                     .file_names()
                     .find(|name| path == Path::new(name))
@@ -147,9 +151,9 @@ impl BrushVfs {
                 archive.by_name(&name)?.read_to_end(&mut buffer)?;
                 Ok(Box::new(Cursor::new(buffer)))
             }
-            BrushVfs::Manual(map) => map.open(path).await,
+            Self::Manual(map) => map.open(path).await,
             #[cfg(not(target_family = "wasm"))]
-            BrushVfs::Directory(dir, _) => {
+            Self::Directory(dir, _) => {
                 let total_path = dir.join(path);
                 let file = tokio::fs::File::open(total_path).await?;
                 let file = tokio::io::BufReader::new(file);

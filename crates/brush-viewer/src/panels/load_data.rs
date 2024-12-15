@@ -67,7 +67,7 @@ impl ViewerPanel for LoadDataPanel {
                 } else if dir {
                     DataSource::PickDirectory
                 } else {
-                    DataSource::Url(self.url.to_string())
+                    DataSource::Url(self.url.clone())
                 };
                 context.start_data_load(
                     source,

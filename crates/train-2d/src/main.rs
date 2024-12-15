@@ -47,7 +47,7 @@ fn spawn_train_loop(
         let init_bounds = BoundingBox::from_min_max(-Vec3::ONE * 5.0, Vec3::ONE * 5.0);
 
         let mut splats: Splats<Autodiff<Backend>> = Splats::from_random_config(
-            RandomSplatsConfig::new()
+            &RandomSplatsConfig::new()
                 .with_sh_degree(0)
                 .with_init_count(32),
             init_bounds,
@@ -67,7 +67,7 @@ fn spawn_train_loop(
         let mut iter = 0;
 
         loop {
-            let (new_splats, _) = trainer.step(iter, batch.clone(), splats).await.unwrap();
+            let (new_splats, _) = trainer.step(iter, batch.clone(), splats).await;
             let (new_splats, _) = trainer
                 .refine_if_needed(iter, new_splats, batch.scene_extent)
                 .await;
@@ -102,7 +102,10 @@ struct App {
 
 impl App {
     fn new(cc: &eframe::CreationContext) -> Self {
-        let state = cc.wgpu_render_state.as_ref().unwrap();
+        let state = cc
+            .wgpu_render_state
+            .as_ref()
+            .expect("No wgpu renderer enabled in egui");
         let device = brush_ui::create_wgpu_device(
             state.adapter.clone(),
             state.device.clone(),
@@ -112,7 +115,7 @@ impl App {
         let lr_max = 1.5e-4;
         let decay = 1.0;
 
-        let image = image::open("./crab.jpg").unwrap();
+        let image = image::open("./crab.jpg").expect("Failed to open image");
 
         let fov_x = 0.5 * std::f64::consts::PI;
         let fov_y = focal_to_fov(fov_to_focal(fov_x, image.width()), image.height());
@@ -178,7 +181,10 @@ impl eframe::App for App {
                 true,
             );
 
-            let renderer = frame.wgpu_render_state().unwrap().renderer.clone();
+            let renderer = &frame
+                .wgpu_render_state()
+                .expect("No wgpu renderer enabled in egui")
+                .renderer;
             let size = egui::vec2(image.width() as f32, image.height() as f32);
 
             ui.horizontal(|ui| {
@@ -203,7 +209,7 @@ async fn main() {
     let icon = eframe::icon_data::from_png_bytes(
         &include_bytes!("../../brush-desktop/assets/icon-256.png")[..],
     )
-    .unwrap();
+    .expect("Failed to load icon");
 
     let native_options = eframe::NativeOptions {
         // Build app display.
@@ -220,5 +226,5 @@ async fn main() {
         native_options,
         Box::new(move |cc| Ok(Box::new(App::new(cc)))),
     )
-    .unwrap();
+    .expect("Failed to run egui app");
 }

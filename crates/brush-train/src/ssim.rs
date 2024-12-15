@@ -86,15 +86,11 @@ impl<B: Backend> Ssim<B> {
         ) - mu_yy.clone();
         let sigma_yy = sigma_yy.clamp_min(0.0);
 
-        let sigma_xy = conv2d(
-            img1.clone() * img2.clone(),
-            self.weights.clone(),
-            None,
-            conv_options.clone(),
-        ) - mu_xy.clone();
+        let sigma_xy =
+            conv2d(img1 * img2, self.weights.clone(), None, conv_options) - mu_xy.clone();
 
-        let c1: f32 = 0.01f32.powf(2.0);
-        let c2: f32 = 0.03f32.powf(2.0);
+        let c1 = 0.01f32.powf(2.0);
+        let c2 = 0.03f32.powf(2.0);
 
         let ssim_map = ((mu_xy * 2.0 + c1) * (sigma_xy * 2.0 + c2))
             / ((mu_xx + mu_yy + c1) * (sigma_xx + sigma_yy + c2));

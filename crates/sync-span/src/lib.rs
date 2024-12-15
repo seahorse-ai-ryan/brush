@@ -27,7 +27,7 @@ where
 {
     fn on_close(&self, id: tracing::span::Id, ctx: Context<'_, S>) {
         if SYNC_ENABLED.load(Ordering::Relaxed) {
-            let metadata = ctx.metadata(&id).unwrap();
+            let metadata = ctx.metadata(&id).expect("Span ID invalid");
 
             if metadata.is_span() && metadata.fields().field("sync_burn").is_some() {
                 let _span = info_span!("GPU Wait", name = metadata.name()).entered();

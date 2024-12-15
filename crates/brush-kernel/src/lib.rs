@@ -21,18 +21,18 @@ pub fn calc_cube_count<const D: usize>(sizes: [u32; D], workgroup_size: [u32; 3]
 
 pub fn module_to_compiled<C: Compiler>(
     debug_name: &'static str,
-    module: naga::Module,
+    module: &naga::Module,
     workgroup_size: [u32; 3],
 ) -> CompiledKernel<C> {
     let info = naga::valid::Validator::new(
         naga::valid::ValidationFlags::empty(),
         naga::valid::Capabilities::all(),
     )
-    .validate(&module)
-    .unwrap();
+    .validate(module)
+    .expect("Failed to compile kernel");
 
     let shader_string =
-        naga::back::wgsl::write_string(&module, &info, naga::back::wgsl::WriterFlags::empty())
+        naga::back::wgsl::write_string(module, &info, naga::back::wgsl::WriterFlags::empty())
             .expect("failed to convert naga module to source");
 
     // Dawn annoyingly wants some extra syntax to enable subgroups,
@@ -114,7 +114,7 @@ macro_rules! kernel_source_gen {
 
             fn compile(&self,  _compilation_options: &C::CompilationOptions, _mode: brush_kernel::ExecutionMode) -> brush_kernel::CompiledKernel<C> {
                 let module = self.source();
-                brush_kernel::module_to_compiled(stringify!($struct_name), module, Self::WORKGROUP_SIZE)
+                brush_kernel::module_to_compiled(stringify!($struct_name), &module, Self::WORKGROUP_SIZE)
             }
         }
     };
@@ -184,7 +184,7 @@ impl<C: Compiler> CubeTask<C> for CreateDispatchBuffer {
     ) -> CompiledKernel<C> {
         module_to_compiled(
             "CreateDispatchBuffer",
-            wg::create_shader_source(Default::default()),
+            &wg::create_shader_source(Default::default()),
             [1, 1, 1],
         )
     }

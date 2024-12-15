@@ -8,3 +8,6 @@ license.workspace = true
 [dependencies]
 burn.workspace = true
 rerun.workspace = true
+
+[lints]
+workspace = true

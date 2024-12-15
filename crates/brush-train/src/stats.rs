@@ -23,7 +23,7 @@ pub(crate) struct RefineRecord {
 }
 
 impl RefineRecord {
-    pub(crate) fn new(num_points: usize, device: &<B as Backend>::Device) -> RefineRecord {
+    pub(crate) fn new(num_points: usize, device: &<B as Backend>::Device) -> Self {
         Self {
             grad_2d_accum: Tensor::zeros([num_points], device),
             xy_grad_counts: Tensor::zeros([num_points], device),
@@ -31,7 +31,7 @@ impl RefineRecord {
         }
     }
 
-    pub(crate) fn gather_stats(&mut self, xys_grad: Tensor<BInner, 2>, aux: RenderAux<B>) {
+    pub(crate) fn gather_stats(&self, xys_grad: Tensor<BInner, 2>, aux: RenderAux<B>) {
         let _span = trace_span!("Gather stats", sync_burn = true);
 
         let [h, w] = aux.final_index.shape().dims();
@@ -44,7 +44,7 @@ impl RefineRecord {
             client.resolve_tensor_float::<InnerWgpu>(aux.radii.inner().into_primitive().tensor());
         let xys_grad = client.resolve_tensor_float::<InnerWgpu>(xys_grad.into_primitive().tensor());
 
-        let inner_client = compact_gid.client.clone();
+        let inner_client = &compact_gid.client;
 
         let grad_2d_accum = client.resolve_tensor_float::<InnerWgpu>(
             self.grad_2d_accum.clone().inner().into_primitive().tensor(),
@@ -59,7 +59,7 @@ impl RefineRecord {
         // Execute lazily the kernel with the launch information and the given buffers. For
         // simplicity, no vectorization is performed
         stats_gather_kernel::launch::<WgpuRuntime>(
-            &inner_client,
+            inner_client,
             cubecl::CubeCount::Dynamic(
                 create_dispatch_buffer(num_visible.clone(), [WG_SIZE, 1, 1])
                     .handle

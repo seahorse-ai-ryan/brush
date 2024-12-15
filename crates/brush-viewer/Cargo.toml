@@ -66,3 +66,6 @@ debug-js-glue = false
 demangle-name-section = false
 dwarf-debug-info = false
 omit-default-module-path = false
+
+[lints]
+workspace = true

@@ -46,3 +46,6 @@ divan = "0.1.17"
 [[bench]]
 name = "render_bench"
 harness = false
+
+[lints]
+workspace = true

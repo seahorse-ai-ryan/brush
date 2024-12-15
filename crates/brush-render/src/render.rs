@@ -60,7 +60,7 @@ pub(crate) fn calc_tile_bounds(img_size: glam::UVec2) -> glam::UVec2 {
 pub(crate) fn max_intersections(img_size: glam::UVec2, num_splats: u32) -> u32 {
     // Divide screen into tiles.
     let tile_bounds = calc_tile_bounds(img_size);
-    let num_tiles = tile_bounds[0] as u32 * tile_bounds[1] as u32;
+    let num_tiles = tile_bounds[0] * tile_bounds[1];
 
     // On wasm, we cannot do a sync readback at all.
     // Instead, can just estimate a max number of intersects. All the kernels only handle the actual
@@ -190,7 +190,7 @@ pub(crate) fn render_forward(
             .in_scope(|| {
                 // Interpret the depth as a u32. This is fine for a radix sort, as long as the depth > 0.0,
                 // which we know to be the case given how we cull splats.
-                radix_argsort(depths, global_from_presort_gid, num_visible.clone(), 32)
+                radix_argsort(depths, global_from_presort_gid, &num_visible, 32)
             });
 
         (global_from_compact_gid, num_visible)
@@ -208,7 +208,9 @@ pub(crate) fn render_forward(
     let isect_info =
         create_tensor::<2, WgpuRuntime>([max_intersects as usize, 2], device, client, DType::I32);
 
-    tracing::trace_span!("ProjectVisibile", sync_burn = true).in_scope(|| unsafe {
+    tracing::trace_span!("ProjectVisibile", sync_burn = true).in_scope(|| 
+        // SAFETY: Kernel has to contain no OOB indexing.
+        unsafe {
         client.execute_unchecked(
             ProjectVisible::task(),
             CubeCount::Dynamic(num_vis_wg.clone().handle.binding()),
@@ -258,7 +260,9 @@ pub(crate) fn render_forward(
             prefix_sum(tiles_hit_per_splat)
         });
 
-        tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(|| unsafe {
+        tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(|| 
+        // SAFETY: Kernel has to contain no OOB indexing.
+        unsafe {
             client.execute_unchecked(
                 MapGaussiansToIntersect::task(),
                 CubeCount::Dynamic(intersect_wg_buf.handle.clone().binding()),
@@ -282,7 +286,7 @@ pub(crate) fn render_forward(
                 radix_argsort(
                     tile_id_from_isect,
                     compact_gid_from_isect,
-                    num_intersections.clone(),
+                    &num_intersections,
                     bits,
                 )
             });
@@ -323,6 +327,7 @@ pub(crate) fn render_forward(
         DType::I32,
     );
 
+    // SAFETY: Kernel has to contain no OOB indexing.
     unsafe {
         client.execute_unchecked(
             Rasterize::task(raster_u32),
@@ -412,7 +417,9 @@ pub(crate) fn render_backward(
 
         let hard_floats = has_hard_floats();
 
-        tracing::trace_span!("RasterizeBackwards", sync_burn = true).in_scope(|| unsafe {
+        tracing::trace_span!("RasterizeBackwards", sync_burn = true).in_scope(|| 
+        // SAFETY: Kernel has to contain no OOB indexing.
+        unsafe {
             client.execute_unchecked(
                 RasterizeBackwards::task(hard_floats),
                 CubeCount::Static(invocations, 1, 1),
@@ -439,6 +446,7 @@ pub(crate) fn render_backward(
 
         let _span = tracing::trace_span!("GatherGrads", sync_burn = true).entered();
 
+        // SAFETY: Kernel has to contain no OOB indexing.
         unsafe {
             client.execute_unchecked(
                 GatherGrads::task(),
@@ -446,9 +454,9 @@ pub(crate) fn render_backward(
                 vec![
                     uniforms_buffer.clone().handle.binding(),
                     global_from_compact_gid.clone().handle.binding(),
-                    raw_opac.clone().handle.binding(),
+                    raw_opac.handle.binding(),
                     means.clone().handle.binding(),
-                    v_colors.clone().handle.binding(),
+                    v_colors.handle.binding(),
                     v_coeffs.handle.clone().binding(),
                     v_opacities.handle.clone().binding(),
                 ],
@@ -466,7 +474,9 @@ pub(crate) fn render_backward(
     let v_scales = InnerWgpu::float_zeros([num_points, 3].into(), device);
     let v_quats = InnerWgpu::float_zeros([num_points, 4].into(), device);
 
-    tracing::trace_span!("ProjectBackwards", sync_burn = true).in_scope(|| unsafe {
+    tracing::trace_span!("ProjectBackwards", sync_burn = true).in_scope(|| 
+        // SAFETY: Kernel has to contain no OOB indexing.
+        unsafe {
         client.execute_unchecked(
             ProjectBackwards::task(),
             calc_cube_count([num_points as u32], ProjectBackwards::WORKGROUP_SIZE),

@@ -32,7 +32,7 @@ fn camera_similarity_score(cam: &Camera, reference: &Camera) -> f32 {
 
 impl Scene {
     pub fn new(views: Vec<SceneView>) -> Self {
-        Scene {
+        Self {
             views: Arc::new(views),
         }
     }

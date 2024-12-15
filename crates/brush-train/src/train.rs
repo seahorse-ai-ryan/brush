@@ -95,7 +95,7 @@ impl Default for TrainConfig {
         let decay_steps = 30000;
         let lr_max = 1.6e-4;
         let decay = 1e-2f64.powf(1.0 / decay_steps as f64);
-        TrainConfig::new(ExponentialLrSchedulerConfig::new(lr_max, decay))
+        Self::new(ExponentialLrSchedulerConfig::new(lr_max, decay))
     }
 }
 
@@ -148,11 +148,11 @@ fn quaternion_vec_multiply<B: Backend>(
     let qw = quaternions.clone().slice([0..num_points, 0..1]);
     let qx = quaternions.clone().slice([0..num_points, 1..2]);
     let qy = quaternions.clone().slice([0..num_points, 2..3]);
-    let qz = quaternions.clone().slice([0..num_points, 3..4]);
+    let qz = quaternions.slice([0..num_points, 3..4]);
 
     let vx = vectors.clone().slice([0..num_points, 0..1]);
     let vy = vectors.clone().slice([0..num_points, 1..2]);
-    let vz = vectors.clone().slice([0..num_points, 2..3]);
+    let vz = vectors.slice([0..num_points, 2..3]);
 
     // Common terms
     let qw2 = qw.clone().powf_scalar(2.0);
@@ -164,8 +164,8 @@ fn quaternion_vec_multiply<B: Backend>(
     let xy = qx.clone() * qy.clone();
     let xz = qx.clone() * qz.clone();
     let yz = qy.clone() * qz.clone();
-    let wx = qw.clone() * qx.clone();
-    let wy = qw.clone() * qy.clone();
+    let wx = qw.clone() * qx;
+    let wy = qw.clone() * qy;
     let wz = qw * qz;
 
     // Final components with reused terms
@@ -175,11 +175,10 @@ fn quaternion_vec_multiply<B: Backend>(
             * 2.0;
 
     let y = (qw2.clone() - qx2.clone() + qy2.clone() - qz2.clone()) * vy.clone()
-        + (xy.clone() * vx.clone() + yz.clone() * vz.clone() + wz.clone() * vx.clone()
-            - wx.clone() * vz.clone())
+        + (xy * vx.clone() + yz.clone() * vz.clone() + wz * vx.clone() - wx.clone() * vz.clone())
             * 2.0;
 
-    let z = (qw2 - qx2 - qy2 + qz2) * vz.clone()
+    let z = (qw2 - qx2 - qy2 + qz2) * vz
         + (xz * vx.clone() + yz * vy.clone() + wx * vy - wy * vx) * 2.0;
 
     Tensor::cat(vec![x, y, z], 1)
@@ -217,7 +216,7 @@ impl SplatTrainer {
         iter: u32,
         batch: SceneBatch<B>,
         splats: Splats<B>,
-    ) -> Result<(Splats<B>, TrainStepStats<B>), anyhow::Error> {
+    ) -> (Splats<B>, TrainStepStats<B>) {
         assert!(
             batch.gt_views.len() == 1,
             "Bigger batches aren't yet supported"
@@ -241,7 +240,7 @@ impl SplatTrainer {
                 auxes.push(aux);
             }
 
-            for aux in auxes.iter() {
+            for aux in &auxes {
                 aux.resolve_bwd_data().await;
             }
 
@@ -374,7 +373,7 @@ impl SplatTrainer {
             lr_opac,
         };
 
-        Ok((splats, stats))
+        (splats, stats)
     }
 
     pub async fn refine_if_needed(
@@ -440,7 +439,7 @@ impl SplatTrainer {
             let cur_scale = splats.log_scales.val().select(0, clone_inds.clone());
 
             let cur_coeff = splats.sh_coeffs.val().select(0, clone_inds.clone());
-            let cur_raw_opac = splats.raw_opacity.val().select(0, clone_inds.clone());
+            let cur_raw_opac = splats.raw_opacity.val().select(0, clone_inds);
 
             // let alpha = sigmoid(cur_raw_opac);
             // let new_alpha = -(-alpha + 1.0).sqrt() + 1.0;
@@ -468,7 +467,6 @@ impl SplatTrainer {
         let radii_grow = self
             .refine_record
             .max_radii()
-            .clone()
             .greater_elem(self.config.densify_radius_threshold);
         let split_mask = Tensor::stack::<2>(vec![split_mask, radii_grow], 1)
             .any_dim(1)
@@ -485,7 +483,7 @@ impl SplatTrainer {
             let cur_coeff = splats.sh_coeffs.val().select(0, split_inds.clone());
             let cur_raw_opac = splats.raw_opacity.val().select(0, split_inds.clone());
             let cur_rots = splats.rotation.val().select(0, split_inds.clone());
-            let cur_scale = splats.log_scales.val().select(0, split_inds.clone());
+            let cur_scale = splats.log_scales.val().select(0, split_inds);
 
             let samples = quaternion_vec_multiply(
                 cur_rots.clone(),
@@ -498,7 +496,7 @@ impl SplatTrainer {
             append_coeffs.push(cur_coeff.clone());
             append_opac.push(cur_raw_opac.clone());
 
-            append_means.push(cur_means - samples.clone());
+            append_means.push(cur_means - samples);
             append_rots.push(cur_rots);
             append_scales.push(cur_scale - 1.6f32.ln());
             append_coeffs.push(cur_coeff);
@@ -565,7 +563,7 @@ impl SplatTrainer {
 fn map_param<B: AutodiffBackend, const D: usize>(
     param: &mut Param<Tensor<B, D>>,
     record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
-    map_param: impl Fn(Tensor<B, D>) -> Tensor<B, D>,
+    map_param: impl FnOnce(Tensor<B, D>) -> Tensor<B, D>,
     map_opt: impl Fn(Tensor<B::InnerBackend, D>) -> Tensor<B::InnerBackend, D>,
 ) {
     Splats::map_param(param, map_param);
@@ -584,7 +582,11 @@ pub async fn prune_points<B: AutodiffBackend>(
     record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
     prune: Tensor<B, 1, Bool>,
 ) {
-    assert!(prune.dims()[0] == splats.num_splats());
+    assert_eq!(
+        prune.dims()[0],
+        splats.num_splats(),
+        "Prune mask must have same number of elements as splats"
+    );
 
     // bool[n]. If True, delete these Gaussians.
     let prune_count = prune.dims()[0];
@@ -641,35 +643,43 @@ pub fn concat_splats<B: AutodiffBackend>(
     log_scales: Tensor<B, 2>,
 ) {
     // Concat
+    let means_shape = means.shape();
+    let device = means.device();
     map_param(
         &mut splats.means,
         record,
-        |x| Tensor::cat(vec![x, means.clone()], 0),
-        |x| Tensor::cat(vec![x, Tensor::zeros_like(&means.clone().inner())], 0),
+        move |x| Tensor::cat(vec![x, means], 0),
+        |x| Tensor::cat(vec![x, Tensor::zeros(means_shape.clone(), &device)], 0),
     );
+
+    let rotations_shape = rotations.shape();
     map_param(
         &mut splats.rotation,
         record,
-        |x| Tensor::cat(vec![x, rotations.clone()], 0),
-        |x| Tensor::cat(vec![x, Tensor::zeros_like(&rotations.clone().inner())], 0),
+        move |x| Tensor::cat(vec![x, rotations], 0),
+        |x| Tensor::cat(vec![x, Tensor::zeros(rotations_shape.clone(), &device)], 0),
     );
+
+    let sh_coeffs_shape = sh_coeffs.shape();
     map_param(
         &mut splats.sh_coeffs,
         record,
-        |x| Tensor::cat(vec![x, sh_coeffs.clone()], 0),
-        |x| Tensor::cat(vec![x, Tensor::zeros_like(&sh_coeffs.clone().inner())], 0),
+        move |x| Tensor::cat(vec![x, sh_coeffs], 0),
+        |x| Tensor::cat(vec![x, Tensor::zeros(sh_coeffs_shape.clone(), &device)], 0),
     );
+    let raw_opac_shape = raw_opac.shape();
     map_param(
         &mut splats.raw_opacity,
         record,
-        |x| Tensor::cat(vec![x, raw_opac.clone()], 0),
-        |x| Tensor::cat(vec![x, Tensor::zeros_like(&raw_opac.clone().inner())], 0),
+        move |x| Tensor::cat(vec![x, raw_opac], 0),
+        |x| Tensor::cat(vec![x, Tensor::zeros(raw_opac_shape.clone(), &device)], 0),
     );
+    let log_scales_shape = log_scales.shape();
     map_param(
         &mut splats.log_scales,
         record,
-        |x| Tensor::cat(vec![x, log_scales.clone()], 0),
-        |x| Tensor::cat(vec![x, Tensor::zeros_like(&log_scales.clone().inner())], 0),
+        move |x| Tensor::cat(vec![x, log_scales], 0),
+        |x| Tensor::cat(vec![x, Tensor::zeros(log_scales_shape.clone(), &device)], 0),
     );
 }
 
@@ -694,7 +704,7 @@ mod tests {
             .reshape([1, 4]);
         let vecs = Tensor::<Wgpu, 1>::from_floats([vec.x, vec.y, vec.z], &device).reshape([1, 3]);
         let result = quaternion_vec_multiply(quaternions, vecs);
-        let result: Vec<f32> = result.into_data().to_vec().unwrap();
+        let result: Vec<f32> = result.into_data().to_vec().expect("Wrong type");
         let result = glam::vec3(result[0], result[1], result[2]);
         assert!((result_ref - result).length() < 1e-7);
     }

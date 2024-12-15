@@ -25,39 +25,40 @@ impl DataSource {
         tokio::spawn(async move {
             let stream = try_fn_stream(|emitter| async move {
                 match self {
-                    DataSource::PickFile => {
+                    Self::PickFile => {
                         let picked = rrfd::pick_file()
                             .await
-                            .map_err(|_| std::io::ErrorKind::NotFound)?;
+                            .map_err(|_e| std::io::ErrorKind::NotFound)?;
                         let data = picked.read().await;
                         emitter.emit(Bytes::from_owner(data)).await;
                     }
-                    DataSource::PickDirectory => {
+                    Self::PickDirectory => {
                         let picked = rrfd::pick_directory()
                             .await
-                            .map_err(|_| std::io::ErrorKind::NotFound)?;
+                            .map_err(|_e| std::io::ErrorKind::NotFound)?;
                         let data = picked;
-                        let mut bytes = "BRUSH_PATH".as_bytes().to_vec();
+                        let mut bytes = b"BRUSH_PATH".to_vec();
                         let path_bytes = data
                             .to_str()
                             .context("invalid path")
-                            .map_err(|_| std::io::ErrorKind::InvalidData)?
+                            .map_err(|_e| std::io::ErrorKind::InvalidData)?
                             .as_bytes();
                         bytes.extend(path_bytes);
                         emitter.emit(Bytes::from_owner(bytes)).await;
                     }
-                    DataSource::Url(url) => {
-                        let mut url = url.to_owned();
+                    Self::Url(url) => {
+                        let mut url = url.clone();
                         if !url.starts_with("http://") && !url.starts_with("https://") {
-                            url = format!("https://{}", url);
+                            url = format!("https://{url}");
                         }
                         let mut response = reqwest::get(url)
                             .await
-                            .map_err(|_| std::io::ErrorKind::InvalidInput)?
+                            .map_err(|_e| std::io::ErrorKind::InvalidInput)?
                             .bytes_stream();
 
                         while let Some(bytes) = response.next().await {
-                            let bytes = bytes.map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+                            let bytes =
+                                bytes.map_err(|_e| std::io::ErrorKind::ConnectionAborted)?;
                             emitter.emit(bytes).await;
                         }
                     }

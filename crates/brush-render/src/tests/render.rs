@@ -47,9 +47,13 @@ async fn renders_at_all() {
 
     let output: Tensor<DiffBack, 3> = Tensor::from_primitive(TensorPrimitive::Float(output));
     let rgb = output.clone().slice([0..32, 0..32, 0..3]);
-    let alpha = output.clone().slice([0..32, 0..32, 3..4]);
-    let rgb_mean = rgb.clone().mean().to_data().as_slice::<f32>().unwrap()[0];
-    let alpha_mean = alpha.clone().mean().to_data().as_slice::<f32>().unwrap()[0];
+    let alpha = output.slice([0..32, 0..32, 3..4]);
+    let rgb_mean = rgb.mean().to_data().as_slice::<f32>().expect("Wrong type")[0];
+    let alpha_mean = alpha
+        .mean()
+        .to_data()
+        .as_slice::<f32>()
+        .expect("Wrong type")[0];
     assert_approx_eq!(rgb_mean, 0.0, 1e-5);
     assert_approx_eq!(alpha_mean, 0.0);
 }

@@ -25,7 +25,7 @@ impl<B: Backend> SceneLoader<B> {
             .iter()
             .map(|v| (v.camera.position - center).length())
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less))
-            .unwrap();
+            .unwrap_or(1.0);
 
         let scene_extent = dists * 1.1; // Idk why exactly, but gsplat multiplies this by 1.1
 
@@ -40,7 +40,9 @@ impl<B: Backend> SceneLoader<B> {
                         let index = shuf_indices.pop().unwrap_or_else(|| {
                             shuf_indices = (0..scene.views.len()).collect();
                             shuf_indices.shuffle(&mut rng);
-                            shuf_indices.pop().unwrap()
+                            shuf_indices
+                                .pop()
+                                .expect("Need at least one view in dataset")
                         });
                         let view = scene.views[index].clone();
                         (image_to_tensor(&view.image, &device), view)

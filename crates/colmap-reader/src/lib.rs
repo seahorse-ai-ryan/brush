@@ -27,51 +27,51 @@ pub enum CameraModel {
 impl CameraModel {
     fn from_id(id: i32) -> Option<Self> {
         match id {
-            0 => Some(CameraModel::SimplePinhole),
-            1 => Some(CameraModel::Pinhole),
-            2 => Some(CameraModel::SimpleRadial),
-            3 => Some(CameraModel::Radial),
-            4 => Some(CameraModel::OpenCV),
-            5 => Some(CameraModel::OpenCvFishEye),
-            6 => Some(CameraModel::FullOpenCV),
-            7 => Some(CameraModel::Fov),
-            8 => Some(CameraModel::SimpleRadialFisheye),
-            9 => Some(CameraModel::RadialFisheye),
-            10 => Some(CameraModel::ThinPrismFisheye),
+            0 => Some(Self::SimplePinhole),
+            1 => Some(Self::Pinhole),
+            2 => Some(Self::SimpleRadial),
+            3 => Some(Self::Radial),
+            4 => Some(Self::OpenCV),
+            5 => Some(Self::OpenCvFishEye),
+            6 => Some(Self::FullOpenCV),
+            7 => Some(Self::Fov),
+            8 => Some(Self::SimpleRadialFisheye),
+            9 => Some(Self::RadialFisheye),
+            10 => Some(Self::ThinPrismFisheye),
             _ => None,
         }
     }
 
     fn from_name(name: &str) -> Option<Self> {
         match name {
-            "SIMPLE_PINHOLE" => Some(CameraModel::SimplePinhole),
-            "PINHOLE" => Some(CameraModel::Pinhole),
-            "SIMPLE_RADIAL" => Some(CameraModel::SimpleRadial),
-            "RADIAL" => Some(CameraModel::Radial),
-            "OPENCV" => Some(CameraModel::OpenCV),
-            "OPENCV_FISHEYE" => Some(CameraModel::OpenCvFishEye),
-            "FULL_OPENCV" => Some(CameraModel::FullOpenCV),
-            "FOV" => Some(CameraModel::Fov),
-            "SIMPLE_RADIAL_FISHEYE" => Some(CameraModel::SimpleRadialFisheye),
-            "RADIAL_FISHEYE" => Some(CameraModel::RadialFisheye),
-            "THIN_PRISM_FISHEYE" => Some(CameraModel::ThinPrismFisheye),
+            "SIMPLE_PINHOLE" => Some(Self::SimplePinhole),
+            "PINHOLE" => Some(Self::Pinhole),
+            "SIMPLE_RADIAL" => Some(Self::SimpleRadial),
+            "RADIAL" => Some(Self::Radial),
+            "OPENCV" => Some(Self::OpenCV),
+            "OPENCV_FISHEYE" => Some(Self::OpenCvFishEye),
+            "FULL_OPENCV" => Some(Self::FullOpenCV),
+            "FOV" => Some(Self::Fov),
+            "SIMPLE_RADIAL_FISHEYE" => Some(Self::SimpleRadialFisheye),
+            "RADIAL_FISHEYE" => Some(Self::RadialFisheye),
+            "THIN_PRISM_FISHEYE" => Some(Self::ThinPrismFisheye),
             _ => None,
         }
     }
 
     fn num_params(&self) -> usize {
         match self {
-            CameraModel::SimplePinhole => 3,
-            CameraModel::Pinhole => 4,
-            CameraModel::SimpleRadial => 4,
-            CameraModel::Radial => 5,
-            CameraModel::OpenCV => 8,
-            CameraModel::OpenCvFishEye => 8,
-            CameraModel::FullOpenCV => 12,
-            CameraModel::Fov => 5,
-            CameraModel::SimpleRadialFisheye => 4,
-            CameraModel::RadialFisheye => 5,
-            CameraModel::ThinPrismFisheye => 12,
+            Self::SimplePinhole => 3,
+            Self::Pinhole => 4,
+            Self::SimpleRadial => 4,
+            Self::Radial => 5,
+            Self::OpenCV => 8,
+            Self::OpenCvFishEye => 8,
+            Self::FullOpenCV => 12,
+            Self::Fov => 5,
+            Self::SimpleRadialFisheye => 4,
+            Self::RadialFisheye => 5,
+            Self::ThinPrismFisheye => 12,
         }
     }
 }
@@ -156,10 +156,12 @@ impl Camera {
 
 fn parse<T: std::str::FromStr>(s: &str) -> io::Result<T> {
     s.parse()
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Parse error"))
+        .map_err(|_e| io::Error::new(io::ErrorKind::InvalidData, "Parse error"))
 }
 
-async fn read_cameras_text<R: AsyncRead + Unpin>(reader: R) -> io::Result<HashMap<i32, Camera>> {
+async fn read_cameras_text<R: AsyncRead + Unpin + Send>(
+    reader: R,
+) -> io::Result<HashMap<i32, Camera>> {
     let mut cameras = HashMap::new();
     let mut buf_reader = tokio::io::BufReader::new(reader);
     let mut line = String::new();
@@ -212,7 +214,7 @@ async fn read_cameras_text<R: AsyncRead + Unpin>(reader: R) -> io::Result<HashMa
     Ok(cameras)
 }
 
-async fn read_cameras_binary<R: AsyncRead + Unpin>(
+async fn read_cameras_binary<R: AsyncRead + Unpin + Send>(
     mut reader: R,
 ) -> io::Result<HashMap<i32, Camera>> {
     let mut cameras = HashMap::new();
@@ -248,7 +250,9 @@ async fn read_cameras_binary<R: AsyncRead + Unpin>(
     Ok(cameras)
 }
 
-async fn read_images_text<R: AsyncRead + Unpin>(mut reader: R) -> io::Result<HashMap<i32, Image>> {
+async fn read_images_text<R: AsyncRead + Unpin + Send>(
+    mut reader: R,
+) -> io::Result<HashMap<i32, Image>> {
     let mut images = HashMap::new();
     let mut buf_reader = tokio::io::BufReader::new(reader);
     let mut line = String::new();
@@ -274,7 +278,7 @@ async fn read_images_text<R: AsyncRead + Unpin>(mut reader: R) -> io::Result<Has
             let quat = glam::quat(x, y, z, w);
             let tvec = glam::vec3(parse(elems[5])?, parse(elems[6])?, parse(elems[7])?);
             let camera_id: i32 = parse(elems[8])?;
-            let name = elems[9].to_string();
+            let name = elems[9].to_owned();
 
             line.clear();
             buf_reader.read_line(&mut line).await?;
@@ -304,7 +308,7 @@ async fn read_images_text<R: AsyncRead + Unpin>(mut reader: R) -> io::Result<Has
     Ok(images)
 }
 
-async fn read_images_binary<R: AsyncBufRead + Unpin>(
+async fn read_images_binary<R: AsyncBufRead + Unpin + Send>(
     mut reader: R,
 ) -> io::Result<HashMap<i32, Image>> {
     let mut images = HashMap::new();
@@ -362,7 +366,7 @@ async fn read_images_binary<R: AsyncBufRead + Unpin>(
     Ok(images)
 }
 
-async fn read_points3d_text<R: AsyncRead + Unpin>(
+async fn read_points3d_text<R: AsyncRead + Unpin + Send>(
     mut reader: R,
 ) -> io::Result<HashMap<i64, Point3D>> {
     let mut points3d = HashMap::new();
@@ -422,7 +426,7 @@ async fn read_points3d_text<R: AsyncRead + Unpin>(
     Ok(points3d)
 }
 
-async fn read_points3d_binary<R: AsyncRead + Unpin>(
+async fn read_points3d_binary<R: AsyncRead + Unpin + Send>(
     mut reader: R,
 ) -> io::Result<HashMap<i64, Point3D>> {
     let mut points3d = HashMap::new();
@@ -466,7 +470,7 @@ async fn read_points3d_binary<R: AsyncRead + Unpin>(
     Ok(points3d)
 }
 
-pub async fn read_cameras<R: AsyncRead + Unpin>(
+pub async fn read_cameras<R: AsyncRead + Unpin + Send>(
     mut reader: R,
     binary: bool,
 ) -> io::Result<HashMap<i32, Camera>> {
@@ -477,7 +481,7 @@ pub async fn read_cameras<R: AsyncRead + Unpin>(
     }
 }
 
-pub async fn read_images<R: AsyncBufRead + Unpin>(
+pub async fn read_images<R: AsyncBufRead + Unpin + Send>(
     reader: R,
     binary: bool,
 ) -> io::Result<HashMap<i32, Image>> {
@@ -488,7 +492,7 @@ pub async fn read_images<R: AsyncBufRead + Unpin>(
     }
 }
 
-pub async fn read_points3d<R: AsyncRead + Unpin>(
+pub async fn read_points3d<R: AsyncRead + Unpin + Send>(
     reader: R,
     binary: bool,
 ) -> io::Result<HashMap<i64, Point3D>> {

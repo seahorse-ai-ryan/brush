@@ -41,7 +41,7 @@ pub fn inverse_sigmoid(x: f32) -> f32 {
 
 impl<B: Backend> Splats<B> {
     pub fn from_random_config(
-        config: RandomSplatsConfig,
+        config: &RandomSplatsConfig,
         bounds: BoundingBox,
         rng: &mut impl Rng,
         device: &B::Device,
@@ -69,17 +69,17 @@ impl<B: Backend> Splats<B> {
             colors.push(b);
         }
 
-        Splats::from_raw(positions, None, None, Some(colors), None, device)
+        Self::from_raw(&positions, None, None, Some(&colors), None, device)
     }
 
     pub fn from_raw(
-        means: Vec<Vec3>,
-        rotations: Option<Vec<Quat>>,
-        log_scales: Option<Vec<Vec3>>,
-        sh_coeffs: Option<Vec<f32>>,
-        raw_opacities: Option<Vec<f32>>,
+        means: &[Vec3],
+        rotations: Option<&[Quat]>,
+        log_scales: Option<&[Vec3]>,
+        sh_coeffs: Option<&[f32]>,
+        raw_opacities: Option<&[f32]>,
         device: &B::Device,
-    ) -> Splats<B> {
+    ) -> Self {
         let n_splats = means.len();
 
         let means_tensor: Vec<f32> = means.iter().flat_map(|v| [v.x, v.y, v.z]).collect();
@@ -87,7 +87,7 @@ impl<B: Backend> Splats<B> {
 
         let rotations = if let Some(rotations) = rotations {
             let rotations: Vec<f32> = rotations
-                .into_iter()
+                .iter()
                 .flat_map(|v| [v.w, v.x, v.y, v.z])
                 .collect();
             Tensor::from_data(TensorData::new(rotations, [n_splats, 4]), device)
@@ -98,10 +98,7 @@ impl<B: Backend> Splats<B> {
         };
 
         let log_scales = if let Some(log_scales) = log_scales {
-            let log_scales: Vec<f32> = log_scales
-                .into_iter()
-                .flat_map(|v| [v.x, v.y, v.z])
-                .collect();
+            let log_scales: Vec<f32> = log_scales.iter().flat_map(|v| [v.x, v.y, v.z]).collect();
             Tensor::from_data(TensorData::new(log_scales, [n_splats, 3]), device)
         } else {
             let tree_pos: Vec<[f32; 3]> = means.iter().map(|v| [v.x, v.y, v.z]).collect();
@@ -130,7 +127,7 @@ impl<B: Backend> Splats<B> {
         let sh_coeffs = if let Some(sh_coeffs) = sh_coeffs {
             let n_coeffs = sh_coeffs.len() / n_splats;
             Tensor::from_data(
-                TensorData::new(sh_coeffs, [n_splats, n_coeffs / 3, 3]),
+                TensorData::new(sh_coeffs.to_vec(), [n_splats, n_coeffs / 3, 3]),
                 device,
             )
         } else {
@@ -140,7 +137,8 @@ impl<B: Backend> Splats<B> {
         };
 
         let raw_opacities = if let Some(raw_opacities) = raw_opacities {
-            Tensor::from_data(TensorData::new(raw_opacities, [n_splats]), device).require_grad()
+            Tensor::from_data(TensorData::new(raw_opacities.to_vec(), [n_splats]), device)
+                .require_grad()
         } else {
             Tensor::ones(Shape::new([n_splats]), device) * inverse_sigmoid(0.1)
         };
@@ -160,7 +158,7 @@ impl<B: Backend> Splats<B> {
         let [n, c, _] = self.sh_coeffs.dims();
 
         if self.sh_coeffs.dims()[1] < n_coeffs {
-            Splats::map_param(&mut self.sh_coeffs, |coeffs| {
+            Self::map_param(&mut self.sh_coeffs, |coeffs| {
                 let device = coeffs.device();
                 Tensor::cat(
                     vec![coeffs, Tensor::zeros([n, n_coeffs - c, 3], &device)],
@@ -179,19 +177,16 @@ impl<B: Backend> Splats<B> {
         sh_coeffs: Tensor<B, 3>,
         raw_opacity: Tensor<B, 1>,
     ) -> Self {
-        assert_eq!(means.dims()[1], 3);
-        assert_eq!(rotation.dims()[1], 4);
-        assert_eq!(log_scales.dims()[1], 3);
+        assert_eq!(means.dims()[1], 3, "Means must be 3D");
+        assert_eq!(rotation.dims()[1], 4, "Rotation must be 4D");
+        assert_eq!(log_scales.dims()[1], 3, "Scales must be 3D");
 
         let num_points = means.shape().dims[0];
         let device = means.device();
 
-        Splats {
+        Self {
             means: Param::initialized(ParamId::new(), means.detach().require_grad()),
-            sh_coeffs: Param::initialized(
-                ParamId::new(),
-                sh_coeffs.clone().detach().require_grad(),
-            ),
+            sh_coeffs: Param::initialized(ParamId::new(), sh_coeffs.detach().require_grad()),
             rotation: Param::initialized(ParamId::new(), rotation.detach().require_grad()),
             raw_opacity: Param::initialized(ParamId::new(), raw_opacity.detach().require_grad()),
             log_scales: Param::initialized(ParamId::new(), log_scales.detach().require_grad()),
@@ -200,10 +195,12 @@ impl<B: Backend> Splats<B> {
     }
 
     pub fn map_param<const D: usize>(
-        tensor: &mut Param<Tensor<B, D>>,
-        f: impl Fn(Tensor<B, D>) -> Tensor<B, D>,
+        param: &mut Param<Tensor<B, D>>,
+        f: impl FnOnce(Tensor<B, D>) -> Tensor<B, D>,
     ) {
-        *tensor = tensor.clone().map(|x| f(x).detach().require_grad());
+        // TODO: use param::map once Burn makes it FnOnce.
+        let (id, tensor) = (param.id, param.val());
+        *param = Param::initialized(id, f(tensor).detach().require_grad());
     }
 
     pub fn render(
@@ -253,11 +250,11 @@ impl<B: Backend> Splats<B> {
 
     pub fn from_safetensors(tensors: &SafeTensors, device: &B::Device) -> anyhow::Result<Self> {
         Ok(Self::from_tensor_data(
-            safetensor_to_burn::<B, 2>(tensors.tensor("means")?, device),
-            safetensor_to_burn::<B, 2>(tensors.tensor("quats")?, device),
-            safetensor_to_burn::<B, 2>(tensors.tensor("scales")?, device),
-            safetensor_to_burn::<B, 3>(tensors.tensor("coeffs")?, device),
-            safetensor_to_burn::<B, 1>(tensors.tensor("opacities")?, device),
+            safetensor_to_burn::<B, 2>(&tensors.tensor("means")?, device),
+            safetensor_to_burn::<B, 2>(&tensors.tensor("quats")?, device),
+            safetensor_to_burn::<B, 2>(&tensors.tensor("scales")?, device),
+            safetensor_to_burn::<B, 3>(&tensors.tensor("coeffs")?, device),
+            safetensor_to_burn::<B, 1>(&tensors.tensor("opacities")?, device),
         ))
     }
 

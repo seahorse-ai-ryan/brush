@@ -17,9 +17,9 @@ impl FileHandle {
     pub async fn write(&self, data: &[u8]) -> std::io::Result<()> {
         match self {
             #[cfg(not(target_os = "android"))]
-            FileHandle::Rfd(file_handle) => file_handle.write(data).await,
+            Self::Rfd(file_handle) => file_handle.write(data).await,
             #[cfg(target_os = "android")]
-            FileHandle::Android(_) => {
+            Self::Android(_) => {
                 let _ = data;
                 unimplemented!("No saving on Android yet.")
             }
@@ -29,9 +29,9 @@ impl FileHandle {
     pub async fn read(mut self) -> Vec<u8> {
         match &mut self {
             #[cfg(not(target_os = "android"))]
-            FileHandle::Rfd(file_handle) => file_handle.read().await,
+            Self::Rfd(file_handle) => file_handle.read().await,
             #[cfg(target_os = "android")]
-            FileHandle::Android(file) => {
+            Self::Android(file) => {
                 use tokio::io::AsyncReadExt;
 
                 let mut buf = vec![];

@@ -21,3 +21,6 @@ rand.workspace = true
 [build-dependencies]
 brush-wgsl.path = "../brush-wgsl"
 miette.workspace = true
+
+[lints]
+workspace = true

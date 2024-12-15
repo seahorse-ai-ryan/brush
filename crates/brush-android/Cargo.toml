@@ -23,3 +23,6 @@ log.workspace = true
 [lib]
 name = "main"
 crate-type = ["cdylib"]
+
+[lints]
+workspace = true

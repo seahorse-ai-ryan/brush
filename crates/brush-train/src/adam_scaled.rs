@@ -108,7 +108,7 @@ impl<B: Backend> SimpleOptimizer<B> for AdamScaled {
             scaling: scaling.clone(),
         };
 
-        let delta = if let Some(scale) = scaling.clone() {
+        let delta = if let Some(scale) = scaling {
             grad * (scale * lr).unsqueeze()
         } else {
             grad * lr
