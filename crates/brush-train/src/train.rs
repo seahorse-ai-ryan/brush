@@ -514,11 +514,16 @@ impl SplatTrainer {
         let alpha_pruned = start_count - splats.num_splats();
 
         // Delete Gaussians with too large of a radius in world-units.
-        let scale_mask = splats
-            .scales()
-            .max_dim(1)
-            .squeeze(1)
-            .greater_elem(self.config.cull_scale3d_percentage_threshold * scene_extent);
+        let scale_big = splats
+            .log_scales
+            .val()
+            .greater_elem((self.config.cull_scale3d_percentage_threshold * scene_extent).ln());
+
+        // less than e^-10, too small to care about.
+        let scale_small = splats.log_scales.val().lower_elem(-10.0);
+
+        let scale_mask =
+            Tensor::any_dim(Tensor::cat(vec![scale_small, scale_big], 1), 1).squeeze(1);
         prune_points(&mut splats, &mut record, scale_mask).await;
         let scale_pruned = start_count - splats.num_splats();
 
