@@ -920,6 +920,8 @@ dependencies = [
  "eframe",
  "egui",
  "glam",
+ "tokio",
+ "tokio_with_wasm",
  "wgpu",
 ]
 

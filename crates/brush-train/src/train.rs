@@ -85,7 +85,10 @@ pub struct TrainConfig {
     lr_rotation: f64,
 
     #[config(default = 42)]
-    seed: u64,
+    pub seed: u64,
+
+    #[config(default = 1000)]
+    pub eval_every: u32,
 }
 
 type B = Autodiff<Wgpu>;

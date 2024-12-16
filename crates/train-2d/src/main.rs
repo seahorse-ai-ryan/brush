@@ -73,9 +73,7 @@ fn spawn_train_loop(
                 .await;
 
             splats = new_splats;
-
             iter += 1;
-
             ctx.request_repaint();
 
             if sender

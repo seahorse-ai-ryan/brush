@@ -17,8 +17,8 @@ use tracing::trace_span;
 use web_time::Instant;
 
 use crate::{
-    app::{AppContext, AppPanel, ProcessMessage},
-    train_loop::TrainMessage,
+    app::{AppContext, AppPanel},
+    process_loop::{ControlMessage, ProcessMessage},
 };
 
 pub(crate) struct ScenePanel {
@@ -29,7 +29,7 @@ pub(crate) struct ScenePanel {
     frame_count: usize,
 
     frame: f32,
-    err: Option<Arc<anyhow::Error>>,
+    err: Option<String>,
 
     is_loading: bool,
 
@@ -227,7 +227,7 @@ impl AppPanel for ScenePanel {
                 }
             }
             ProcessMessage::Error(e) => {
-                self.err = Some(e.clone());
+                self.err = Some(e.to_string());
             }
             _ => {}
         }
@@ -332,7 +332,7 @@ For bigger training runs consider using the native app."#,
 
                     if ui.selectable_label(!self.paused, label).clicked() {
                         self.paused = !self.paused;
-                        context.send_train_message(TrainMessage::Paused(self.paused));
+                        context.control_message(ControlMessage::Paused(self.paused));
                     }
 
                     ui.add_space(15.0);

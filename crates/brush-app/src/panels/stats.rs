@@ -1,4 +1,7 @@
-use crate::app::{AppContext, AppPanel, ProcessMessage};
+use crate::{
+    app::{AppContext, AppPanel},
+    process_loop::ProcessMessage,
+};
 use burn_jit::cubecl::Runtime;
 use burn_wgpu::{WgpuDevice, WgpuRuntime};
 use std::time::Duration;

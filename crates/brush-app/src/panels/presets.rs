@@ -1,4 +1,7 @@
-use crate::app::{AppContext, AppPanel, ProcessMessage};
+use crate::{
+    app::{AppContext, AppPanel},
+    process_loop::ProcessMessage,
+};
 use egui::Hyperlink;
 
 pub(crate) struct PresetsPanel {}

@@ -1,42 +1,28 @@
 use core::f32;
 use std::ops::Range;
-use std::path::Path;
-use std::{pin::Pin, sync::Arc};
 
-use async_fn_stream::try_fn_stream;
-
-use brush_dataset::brush_vfs::{BrushVfs, PathReader};
-use brush_dataset::{self, splat_import, Dataset, LoadDatasetArgs, LoadInitArgs};
+use brush_dataset::{self, Dataset, LoadDatasetArgs, LoadInitArgs};
 use brush_render::camera::Camera;
-use brush_render::gaussian_splats::Splats;
-use brush_train::train::{RefineStats, TrainStepStats};
-use brush_train::{eval::EvalStats, train::TrainConfig};
-use burn::backend::Autodiff;
-use burn_wgpu::{Wgpu, WgpuDevice};
+use brush_train::train::TrainConfig;
+use brush_ui::channel::{reactive_receiver, reactive_receiver_unbounded};
+use burn_wgpu::WgpuDevice;
 use eframe::egui;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3, Vec3A};
 
-use ::tokio::io::{AsyncRead, AsyncReadExt};
-use ::tokio::sync::mpsc::error::TrySendError;
+use ::tokio::sync::mpsc::channel;
 use ::tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use ::tokio::sync::mpsc::{Receiver, UnboundedReceiver};
-use ::tokio::{io::BufReader, sync::mpsc::channel};
 use std::collections::HashMap;
 use tokio::task;
 use tokio_with_wasm::alias as tokio;
 use wgpu::Features;
 
-use tokio_stream::{Stream, StreamExt};
-use web_time::Instant;
-
-type Backend = Wgpu;
-
 use crate::data_source::DataSource;
+use crate::process_loop::{self, ControlMessage, ProcessMessage};
 use crate::{
     orbit_controls::OrbitControls,
     panels::{DatasetPanel, LoadDataPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel},
-    train_loop::{self, TrainMessage},
 };
 
 use egui_tiles::SimplificationOptions;
@@ -101,56 +87,6 @@ pub enum UiControlMessage {
     LoadData(String),
 }
 
-#[derive(Clone)]
-pub(crate) enum ProcessMessage {
-    NewSource,
-    StartLoading {
-        training: bool,
-    },
-    /// Some process errored out, and want to display this error
-    /// to the user.
-    Error(Arc<anyhow::Error>),
-    /// Loaded a splat from a ply file.
-    ///
-    /// Nb: This includes all the intermediately loaded splats.
-    /// Nb: Animated splats will have the 'frame' number set.
-    ViewSplats {
-        up_axis: Vec3,
-        splats: Box<Splats<Backend>>,
-        frame: usize,
-        total_frames: usize,
-    },
-    /// Loaded a bunch of viewpoints to train on.
-    Dataset {
-        data: Dataset,
-    },
-    /// Splat, or dataset and initial splat, are done loading.
-    #[allow(unused)]
-    DoneLoading {
-        training: bool,
-    },
-    /// Some number of training steps are done.
-    #[allow(unused)]
-    TrainStep {
-        splats: Box<Splats<Backend>>,
-        stats: Box<TrainStepStats<Autodiff<Backend>>>,
-        iter: u32,
-        timestamp: Instant,
-    },
-    /// Some number of training steps are done.
-    #[allow(unused)]
-    RefineStep {
-        stats: Box<RefineStats>,
-        iter: u32,
-    },
-    /// Eval was run successfully with these results.
-    #[allow(unused)]
-    EvalResult {
-        iter: u32,
-        eval: EvalStats<Backend>,
-    },
-}
-
 pub struct App {
     tree: egui_tiles::Tree<PaneType>,
     datasets: Option<TileId>,
@@ -169,122 +105,9 @@ pub(crate) struct AppContext {
     ctx: egui::Context,
 
     rec_ui_control_msg: UnboundedReceiver<UiControlMessage>,
-    send_train_msg: Option<UnboundedSender<TrainMessage>>,
+    send_train_msg: Option<UnboundedSender<ControlMessage>>,
 
     rec_process_msg: Option<Receiver<ProcessMessage>>,
-}
-
-async fn read_at_most<R: AsyncRead + Unpin>(
-    reader: &mut R,
-    limit: usize,
-) -> std::io::Result<Vec<u8>> {
-    let mut buffer = vec![0; limit];
-    let bytes_read = reader.read(&mut buffer).await?;
-    buffer.truncate(bytes_read);
-    Ok(buffer)
-}
-
-fn process_loop(
-    source: DataSource,
-    device: WgpuDevice,
-    train_receiver: UnboundedReceiver<TrainMessage>,
-    load_data_args: LoadDatasetArgs,
-    load_init_args: LoadInitArgs,
-    train_config: TrainConfig,
-) -> Pin<Box<impl Stream<Item = anyhow::Result<ProcessMessage>>>> {
-    let stream = try_fn_stream(|emitter| async move {
-        let _ = emitter.emit(ProcessMessage::NewSource).await;
-
-        // Small hack to peek some bytes: Read them
-        // and add them at the start again.
-        let data = source.into_reader();
-        let mut data = BufReader::new(data);
-        let peek = read_at_most(&mut data, 64).await?;
-        let reader = std::io::Cursor::new(peek.clone()).chain(data);
-
-        let mut vfs = if peek.as_slice().starts_with(b"ply") {
-            let mut path_reader = PathReader::default();
-            path_reader.add(Path::new("input.ply"), reader);
-            BrushVfs::from_paths(path_reader)
-        } else if peek.starts_with(b"PK") {
-            BrushVfs::from_zip_reader(reader).await?
-        } else if peek.starts_with(b"<!DOCTYPE html>") {
-            anyhow::bail!("Failed to download data (are you trying to download from Google Drive? You might have to use the proxy.")
-        } else if let Some(path_bytes) = peek.strip_prefix(b"BRUSH_PATH") {
-            let string = String::from_utf8(path_bytes.to_vec())?;
-            let path = Path::new(&string);
-            BrushVfs::from_directory(path).await?
-        } else {
-            anyhow::bail!("only zip and ply files are supported.");
-        };
-
-        let paths: Vec<_> = vfs.file_names().map(|x| x.to_path_buf()).collect();
-        log::info!("Mounted VFS with {} files", paths.len());
-
-        if paths
-            .iter()
-            .all(|p| p.extension().is_some_and(|p| p == "ply"))
-        {
-            for (i, path) in paths.iter().enumerate() {
-                log::info!("Loading single ply file");
-
-                let _ = emitter
-                    .emit(ProcessMessage::StartLoading { training: false })
-                    .await;
-
-                let sub_sample = None; // Subsampling a trained ply doesn't really make sense.
-                let splat_stream = splat_import::load_splat_from_ply(
-                    vfs.open_path(path).await?,
-                    sub_sample,
-                    device.clone(),
-                );
-
-                let mut splat_stream = std::pin::pin!(splat_stream);
-
-                while let Some(message) = splat_stream.next().await {
-                    let message = message?;
-
-                    // If there's multiple ply files in a zip, don't support animated plys, that would
-                    // get rather mind bending.
-                    let (frame, total_frames) = if paths.len() == 1 {
-                        (message.meta.current_frame, message.meta.frame_count)
-                    } else {
-                        (i, paths.len())
-                    };
-
-                    emitter
-                        .emit(ProcessMessage::ViewSplats {
-                            up_axis: message.meta.up_axis,
-                            splats: Box::new(message.splats),
-                            frame,
-                            total_frames,
-                        })
-                        .await;
-                }
-            }
-
-            emitter
-                .emit(ProcessMessage::DoneLoading { training: false })
-                .await;
-        } else {
-            let stream = train_loop::train_loop(
-                vfs,
-                device,
-                train_receiver,
-                load_data_args,
-                load_init_args,
-                train_config,
-            );
-            let mut stream = std::pin::pin!(stream);
-            while let Some(message) = stream.next().await {
-                emitter.emit(message?).await;
-            }
-        }
-
-        Ok(())
-    });
-
-    Box::pin(stream)
 }
 
 struct CameraSettings {
@@ -301,7 +124,7 @@ impl AppContext {
         device: WgpuDevice,
         ctx: egui::Context,
         cam_settings: CameraSettings,
-        controller: UnboundedReceiver<UiControlMessage>,
+        ui_receiver: UnboundedReceiver<UiControlMessage>,
     ) -> Self {
         let model_transform = Affine3A::IDENTITY;
 
@@ -321,25 +144,7 @@ impl AppContext {
             glam::vec2(0.5, 0.5),
         );
 
-        // TODO: Generalize this "inner control" logic.
-        let (inner_send, inner_control) = ::tokio::sync::mpsc::unbounded_channel();
-        let ctx_spawn = ctx.clone();
-        let mut controller = controller;
-        task::spawn(async move {
-            // Loop until there are no more messages, processing is done.
-            while let Some(m) = controller.recv().await {
-                ctx_spawn.request_repaint();
-
-                // Give back to the runtime for a second.
-                // This only really matters in the browser.
-                tokio::task::yield_now().await;
-
-                // If channel is closed, bail.
-                if inner_send.send(m).is_err() {
-                    break;
-                }
-            }
-        });
+        let rec_ui_control_msg = reactive_receiver_unbounded(ui_receiver, ctx.clone());
 
         Self {
             camera,
@@ -350,7 +155,7 @@ impl AppContext {
             dataset: Dataset::empty(),
             rec_process_msg: None,
             send_train_msg: None,
-            rec_ui_control_msg: inner_control,
+            rec_ui_control_msg,
         }
     }
 
@@ -390,19 +195,16 @@ impl AppContext {
         // create a channel for the train loop.
         let (train_sender, train_receiver) = unbounded_channel();
         let (sender, receiver) = channel(1);
+        let receiver = reactive_receiver(receiver, self.ctx.clone());
 
         self.rec_process_msg = Some(receiver);
         self.send_train_msg = Some(train_sender);
 
         self.dataset = Dataset::empty();
-        let ctx = self.ctx.clone();
-        ctx.request_repaint();
 
-        let fut = async move {
-            ctx.request_repaint();
-
-            // Map errors to a message containing the error.
-            let mut stream = process_loop(
+        task::spawn(async move {
+            process_loop::process_loop(
+                sender,
                 source,
                 device,
                 train_receiver,
@@ -410,65 +212,14 @@ impl AppContext {
                 load_init_args,
                 train_config,
             )
-            .map(|m| m.unwrap_or_else(|e| ProcessMessage::Error(Arc::new(e))));
-
-            // Loop until there are no more messages, processing is done.
-            while let Some(m) = stream.next().await {
-                ctx.request_repaint();
-
-                // Give back to the runtime for a second.
-                // This only really matters in the browser.
-                tokio::task::yield_now().await;
-
-                match m {
-                    // Messages that have to be received.
-                    ProcessMessage::NewSource
-                    | ProcessMessage::StartLoading { .. }
-                    | ProcessMessage::Error(_)
-                    | ProcessMessage::ViewSplats { .. }
-                    | ProcessMessage::Dataset { .. }
-                    | ProcessMessage::DoneLoading { .. }
-                    | ProcessMessage::RefineStep { .. }
-                    | ProcessMessage::EvalResult { .. } => {
-                        // If channel is closed, bail.
-                        if sender.send(m).await.is_err() {
-                            break;
-                        }
-                    }
-
-                    // Messages that can be missed.
-                    ProcessMessage::TrainStep { .. } => {
-                        // If channel is closed, bail.
-                        if let Err(TrySendError::Closed(_)) = sender.try_send(m) {
-                            break;
-                        }
-                    }
-                }
-            }
-        };
-
-        task::spawn(fut);
+            .await;
+        });
     }
 
-    pub fn send_train_message(&self, message: TrainMessage) {
-        if let Some(sender) = self.send_train_msg.as_ref() {
-            let _ = sender.send(message);
-        }
-    }
-
-    fn receive_controls(&mut self) {
-        while let Ok(m) = self.rec_ui_control_msg.try_recv() {
-            match m {
-                UiControlMessage::LoadData(url) => {
-                    self.start_data_load(
-                        DataSource::Url(url.clone()),
-                        LoadDatasetArgs::default(),
-                        LoadInitArgs::default(),
-                        TrainConfig::default(),
-                    );
-                }
-            }
-        }
+    pub fn control_message(&self, message: ControlMessage) {
+        self.send_train_msg.as_ref().inspect(|send| {
+            let _ = send.send(message);
+        });
     }
 }
 
@@ -542,6 +293,7 @@ impl App {
             .get("radius")
             .and_then(|f| f.parse().ok())
             .unwrap_or(4.0);
+
         let min_radius = search_params
             .get("min_radius")
             .and_then(|f| f.parse().ok())
@@ -647,7 +399,18 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        self.tree_ctx.context.receive_controls();
+        while let Ok(m) = self.tree_ctx.context.rec_ui_control_msg.try_recv() {
+            match m {
+                UiControlMessage::LoadData(url) => {
+                    self.tree_ctx.context.start_data_load(
+                        DataSource::Url(url.clone()),
+                        LoadDatasetArgs::default(),
+                        LoadInitArgs::default(),
+                        TrainConfig::default(),
+                    );
+                }
+            }
+        }
 
         if let Some(rec) = self.tree_ctx.context.rec_process_msg.as_mut() {
             let mut messages = vec![];

@@ -5,6 +5,7 @@ use eframe::egui_wgpu::WgpuConfiguration;
 use wgpu::{Adapter, Device, Queue};
 
 pub mod burn_texture;
+pub mod channel;
 
 pub fn create_wgpu_device(
     adapter: Arc<Adapter>,

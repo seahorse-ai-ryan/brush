@@ -13,6 +13,8 @@ glam.workspace = true
 eframe.workspace = true
 egui.workspace = true
 wgpu.workspace = true
+tokio = { workspace = true, features = ["rt", "sync"] }
+tokio_with_wasm = { workspace = true, features = ["rt"] }
 
 [lints]
 workspace = true
