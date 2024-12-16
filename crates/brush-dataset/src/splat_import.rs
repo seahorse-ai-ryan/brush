@@ -51,8 +51,8 @@ impl PropertyAccess for GaussianData {
             return;
         };
 
-        if value.is_nan() || value.is_infinite() || value.is_subnormal() {
-            log::warn!("Invalid numbers in your friggin splat!!");
+        if value.is_nan() || value.is_infinite() {
+            log::warn!("Invalid numbers in imported splat, defaulting to 0");
             value = 0.0;
         }
 

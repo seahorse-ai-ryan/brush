@@ -1,7 +1,4 @@
-use crate::{
-    viewer::{ProcessMessage, ViewerContext},
-    ViewerPanel,
-};
+use crate::app::{AppContext, AppPanel, ProcessMessage};
 use egui::Hyperlink;
 
 pub(crate) struct PresetsPanel {}
@@ -16,14 +13,14 @@ fn url_button(label: &str, url: &str, ui: &mut egui::Ui) {
     ui.add(Hyperlink::from_label_and_url(label, url).open_in_new_tab(true));
 }
 
-impl ViewerPanel for PresetsPanel {
+impl AppPanel for PresetsPanel {
     fn title(&self) -> String {
         "Presets".to_owned()
     }
 
-    fn on_message(&mut self, _: &ProcessMessage, _: &mut ViewerContext) {}
+    fn on_message(&mut self, _: &ProcessMessage, _: &mut AppContext) {}
 
-    fn ui(&mut self, ui: &mut egui::Ui, _: &mut ViewerContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, _: &mut AppContext) {
         ui.heading("Mipnerf scenes");
 
         egui::Grid::new("mip_grid")

@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use brush_app::App;
 use tokio_with_wasm::alias as tokio;
 
 #[cfg(target_family = "wasm")]
@@ -24,7 +25,7 @@ fn main() {
             // NB: Load carrying icon. egui at head fails when no icon is included
             // as the built-in one is git-lfs which cargo doesn't clone properly.
             let icon =
-                eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon-256.png")[..])
+                eframe::icon_data::from_png_bytes(&include_bytes!("../../assets/icon-256.png")[..])
                     .expect("Failed to load icon");
 
             let native_options = eframe::NativeOptions {
@@ -40,7 +41,7 @@ fn main() {
             eframe::run_native(
                 "Brush",
                 native_options,
-                Box::new(move |cc| Ok(Box::new(brush_viewer::viewer::Viewer::new(cc, None, rec)))),
+                Box::new(move |cc| Ok(Box::new(App::new(cc, None, rec)))),
             )
             .expect("Failed to run egui app");
         });
@@ -52,7 +53,10 @@ fn main() {
             eframe::WebLogger::init(log::LevelFilter::Debug).ok();
         }
 
-        let document = web_sys::window().unwrap().document().unwrap();
+        let document = web_sys::window()
+            .expect("Failed to find web window (not running in a browser?")
+            .document()
+            .expect("Failed to find document body");
 
         if let Some(canvas) = document
             .get_element_by_id("main_canvas")
@@ -69,9 +73,7 @@ fn main() {
                     .start(
                         canvas,
                         web_options,
-                        Box::new(|cc| {
-                            Ok(Box::new(brush_viewer::viewer::Viewer::new(cc, None, rec)))
-                        }),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, None, rec)))),
                     )
                     .await
                     .expect("failed to start eframe");
@@ -85,18 +87,19 @@ mod embedded {
     use ::tokio::sync::mpsc::UnboundedSender;
     use tokio_with_wasm::alias as tokio;
 
-    use brush_viewer::viewer::UiControlMessage;
+    use brush_app::App;
+    use brush_app::UiControlMessage;
     use wasm_bindgen::prelude::*;
 
     #[wasm_bindgen]
-    pub struct EmbeddedViewer {
+    pub struct EmbeddedApp {
         ui_control: UnboundedSender<UiControlMessage>,
     }
 
     #[wasm_bindgen]
-    impl EmbeddedViewer {
+    impl EmbeddedApp {
         #[wasm_bindgen(constructor)]
-        pub fn new(canvas_name: &str, url: &str) -> EmbeddedViewer {
+        pub fn new(canvas_name: &str, url: &str) -> Self {
             let wgpu_options = brush_ui::create_egui_options();
             let document = web_sys::window().unwrap().document().unwrap();
             let canvas = document
@@ -118,19 +121,13 @@ mod embedded {
                             wgpu_options,
                             ..Default::default()
                         },
-                        Box::new(|cc| {
-                            Ok(Box::new(brush_viewer::viewer::Viewer::new(
-                                cc,
-                                Some(url),
-                                rec,
-                            )))
-                        }),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, Some(url), rec)))),
                     )
                     .await
                     .expect("failed to start eframe");
             });
 
-            EmbeddedViewer { ui_control: send }
+            Self { ui_control: send }
         }
 
         #[wasm_bindgen]

@@ -724,8 +724,8 @@ name = "brush-android"
 version = "0.1.0"
 dependencies = [
  "android_logger",
+ "brush-app",
  "brush-ui",
- "brush-viewer",
  "eframe",
  "egui",
  "jni",
@@ -734,6 +734,53 @@ dependencies = [
  "tokio",
  "tokio_with_wasm",
  "winit",
+]
+
+[[package]]
+name = "brush-app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-fn-stream",
+ "brush-dataset",
+ "brush-render",
+ "brush-rerun",
+ "brush-train",
+ "brush-ui",
+ "burn",
+ "burn-jit",
+ "burn-wgpu",
+ "cfg-if",
+ "console_error_panic_hook",
+ "eframe",
+ "egui",
+ "egui_tiles",
+ "env_logger 0.11.5",
+ "glam",
+ "humantime",
+ "image",
+ "log",
+ "rand",
+ "reqwest",
+ "rerun",
+ "rrfd",
+ "sync-span",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tokio_with_wasm",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-tracy",
+ "tracing-wasm",
+ "urlencoding",
+ "wasm-bindgen",
+ "wasm-logger",
+ "web-sys",
+ "web-time",
+ "wgpu",
+ "winit",
+ "zip 2.2.1",
 ]
 
 [[package]]
@@ -758,28 +805,6 @@ dependencies = [
  "tokio_with_wasm",
  "tracing",
  "zip 2.2.1",
-]
-
-[[package]]
-name = "brush-desktop"
-version = "0.1.0"
-dependencies = [
- "brush-render",
- "brush-ui",
- "brush-viewer",
- "cfg-if",
- "console_error_panic_hook",
- "eframe",
- "egui",
- "env_logger 0.11.5",
- "log",
- "tokio",
- "tokio_with_wasm",
- "tracing",
- "wasm-bindgen",
- "wasm-logger",
- "web-sys",
- "winit",
 ]
 
 [[package]]
@@ -896,47 +921,6 @@ dependencies = [
  "egui",
  "glam",
  "wgpu",
-]
-
-[[package]]
-name = "brush-viewer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-fn-stream",
- "brush-dataset",
- "brush-render",
- "brush-rerun",
- "brush-train",
- "brush-ui",
- "burn",
- "burn-jit",
- "burn-wgpu",
- "eframe",
- "egui",
- "egui_tiles",
- "glam",
- "humantime",
- "image",
- "log",
- "rand",
- "reqwest",
- "rerun",
- "rrfd",
- "sync-span",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tokio_with_wasm",
- "tracing",
- "tracing-subscriber",
- "tracing-tracy",
- "tracing-wasm",
- "urlencoding",
- "web-sys",
- "web-time",
- "wgpu",
- "zip 2.2.1",
 ]
 
 [[package]]

@@ -1,16 +1,16 @@
-use crate::{viewer::ViewerContext, ViewerPanel};
+use crate::app::{AppContext, AppPanel};
 
 #[derive(Default)]
 pub(crate) struct TracingPanel {
     constant_redraw: bool,
 }
 
-impl ViewerPanel for TracingPanel {
+impl AppPanel for TracingPanel {
     fn title(&self) -> String {
         "Load data".to_owned()
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _: &mut ViewerContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, _: &mut AppContext) {
         let mut checked = sync_span::is_enabled();
         ui.checkbox(&mut checked, "Sync scopes");
         sync_span::set_enabled(checked);

@@ -6,7 +6,7 @@
 // rfd on wasm, nor is drag-and-dropping folders in egui.
 use std::{
     collections::HashMap,
-    io::{self, Cursor, Read},
+    io::{Cursor, Read},
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -110,7 +110,7 @@ impl BrushVfs {
                         }
                         paths.push(
                             path.strip_prefix(dir.clone())
-                                .map_err(|_e| io::ErrorKind::InvalidInput)?
+                                .map_err(|_e| std::io::ErrorKind::InvalidInput)?
                                 .to_path_buf(),
                         );
                     }

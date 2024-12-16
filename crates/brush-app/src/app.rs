@@ -37,12 +37,48 @@ use crate::{
     orbit_controls::OrbitControls,
     panels::{DatasetPanel, LoadDataPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel},
     train_loop::{self, TrainMessage},
-    PaneType, ViewerTree,
 };
 
-struct TrainStats {
-    loss: f32,
-    train_image_index: usize,
+use egui_tiles::SimplificationOptions;
+
+pub(crate) trait AppPanel {
+    fn title(&self) -> String;
+    fn ui(&mut self, ui: &mut egui::Ui, controls: &mut AppContext);
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
+        let _ = message;
+        let _ = context;
+    }
+}
+
+struct AppTree {
+    zen: bool,
+    context: AppContext,
+}
+
+type PaneType = Box<dyn AppPanel>;
+
+impl egui_tiles::Behavior<PaneType> for AppTree {
+    fn tab_title_for_pane(&mut self, pane: &PaneType) -> egui::WidgetText {
+        pane.title().into()
+    }
+
+    fn pane_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        _tile_id: egui_tiles::TileId,
+        pane: &mut PaneType,
+    ) -> egui_tiles::UiResponse {
+        pane.ui(ui, &mut self.context);
+        egui_tiles::UiResponse::None
+    }
+
+    /// What are the rules for simplifying the tree?
+    fn simplification_options(&self) -> SimplificationOptions {
+        SimplificationOptions {
+            all_panes_must_have_tabs: !self.zen,
+            ..Default::default()
+        }
+    }
 }
 
 fn parse_search(search: &str) -> HashMap<String, String> {
@@ -89,10 +125,12 @@ pub(crate) enum ProcessMessage {
         data: Dataset,
     },
     /// Splat, or dataset and initial splat, are done loading.
+    #[allow(unused)]
     DoneLoading {
         training: bool,
     },
     /// Some number of training steps are done.
+    #[allow(unused)]
     TrainStep {
         splats: Box<Splats<Backend>>,
         stats: Box<TrainStepStats<Autodiff<Backend>>>,
@@ -100,25 +138,27 @@ pub(crate) enum ProcessMessage {
         timestamp: Instant,
     },
     /// Some number of training steps are done.
+    #[allow(unused)]
     RefineStep {
         stats: Box<RefineStats>,
         iter: u32,
     },
     /// Eval was run successfully with these results.
+    #[allow(unused)]
     EvalResult {
         iter: u32,
         eval: EvalStats<Backend>,
     },
 }
 
-pub struct Viewer {
+pub struct App {
     tree: egui_tiles::Tree<PaneType>,
     datasets: Option<TileId>,
-    tree_ctx: ViewerTree,
+    tree_ctx: AppTree,
 }
 
 // TODO: Bit too much random shared state here.
-pub(crate) struct ViewerContext {
+pub(crate) struct AppContext {
     pub dataset: Dataset,
     pub camera: Camera,
     pub controls: OrbitControls,
@@ -157,7 +197,7 @@ fn process_loop(
 
         // Small hack to peek some bytes: Read them
         // and add them at the start again.
-        let data = source.into_reader()?;
+        let data = source.into_reader();
         let mut data = BufReader::new(data);
         let peek = read_at_most(&mut data, 64).await?;
         let reader = std::io::Cursor::new(peek.clone()).chain(data);
@@ -256,7 +296,7 @@ struct CameraSettings {
     radius_range: Range<f32>,
 }
 
-impl ViewerContext {
+impl AppContext {
     fn new(
         device: WgpuDevice,
         ctx: egui::Context,
@@ -361,7 +401,7 @@ impl ViewerContext {
         let fut = async move {
             ctx.request_repaint();
 
-            // Map errors to a viewer message containing thee error.
+            // Map errors to a message containing the error.
             let mut stream = process_loop(
                 source,
                 device,
@@ -432,7 +472,7 @@ impl ViewerContext {
     }
 }
 
-impl Viewer {
+impl App {
     pub fn new(
         cc: &eframe::CreationContext,
         start_uri: Option<String>,
@@ -537,7 +577,7 @@ impl Viewer {
             pitch_range: min_pitch..max_pitch,
         };
 
-        let context = ViewerContext::new(device.clone(), cc.egui_ctx.clone(), settings, controller);
+        let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), settings, controller);
 
         let mut tiles: Tiles<PaneType> = Tiles::default();
         let scene_pane = ScenePanel::new(
@@ -559,12 +599,12 @@ impl Viewer {
             #[allow(unused_mut)]
             let mut sides = vec![
                 loading_pane,
-                tiles.insert_pane(Box::new(StatsPanel::new(device.clone(), &state.adapter))),
+                tiles.insert_pane(Box::new(StatsPanel::new(device, &state.adapter))),
             ];
 
             #[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
             {
-                sides.push(tiles.insert_pane(Box::new(crate::panels::RerunPanel::new(device))));
+                sides.push(tiles.insert_pane(Box::new(crate::panels::RerunPanel::new())));
             }
 
             if cfg!(feature = "tracing") {
@@ -583,9 +623,9 @@ impl Viewer {
             scene_pane_id
         };
 
-        let tree = egui_tiles::Tree::new("viewer_tree", root_container, tiles);
+        let tree = egui_tiles::Tree::new("brush_tree", root_container, tiles);
 
-        let mut tree_ctx = ViewerTree { zen, context };
+        let mut tree_ctx = AppTree { zen, context };
 
         let url = search_params.get("url");
         if let Some(url) = url {
@@ -605,7 +645,7 @@ impl Viewer {
     }
 }
 
-impl eframe::App for Viewer {
+impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         self.tree_ctx.context.receive_controls();
 

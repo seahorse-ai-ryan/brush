@@ -1,7 +1,4 @@
-use crate::{
-    viewer::{ProcessMessage, ViewerContext},
-    ViewerPanel,
-};
+use crate::app::{AppContext, AppPanel, ProcessMessage};
 use burn_jit::cubecl::Runtime;
 use burn_wgpu::{WgpuDevice, WgpuRuntime};
 use std::time::Duration;
@@ -60,12 +57,12 @@ fn bytes_format(bytes: u64) -> String {
     }
 }
 
-impl ViewerPanel for StatsPanel {
+impl AppPanel for StatsPanel {
     fn title(&self) -> String {
         "Stats".to_owned()
     }
 
-    fn on_message(&mut self, message: &ProcessMessage, _: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, _: &mut AppContext) {
         match message {
             ProcessMessage::StartLoading { training } => {
                 self.start_load_time = Instant::now();
@@ -107,7 +104,7 @@ impl ViewerPanel for StatsPanel {
         }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _: &mut ViewerContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, _: &mut AppContext) {
         egui::Grid::new("stats_grid")
             .num_columns(2)
             .spacing([40.0, 4.0])

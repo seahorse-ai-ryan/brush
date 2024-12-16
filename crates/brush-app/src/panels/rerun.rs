@@ -1,13 +1,11 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{
+    app::{AppContext, AppPanel, ProcessMessage},
     train_loop::TrainMessage,
-    viewer::{ProcessMessage, ViewerContext},
-    ViewerPanel,
 };
 
 use brush_rerun::BurnToRerun;
-use burn_wgpu::WgpuDevice;
 
 use brush_render::{gaussian_splats::Splats, AutodiffBackend, Backend};
 use brush_train::{image::tensor_into_image, scene::Scene, train::RefineStats};
@@ -230,7 +228,7 @@ impl VisualizeTools {
         });
     }
 
-    pub fn log_splat_stats<B: AutodiffBackend>(&self, splats: Splats<B>) {
+    pub fn log_splat_stats<B: Backend>(&self, splats: &Splats<B>) {
         let Some(rec) = self.rec.clone() else {
             return;
         };
@@ -238,13 +236,10 @@ impl VisualizeTools {
         if !rec.is_enabled() {
             return;
         }
+        let num = splats.num_splats();
 
         self.queue_task(async move {
-            rec.log(
-                "splats/num_splats",
-                &rerun::Scalar::new(splats.num_splats() as f64),
-            )?;
-
+            rec.log("splats/num_splats", &rerun::Scalar::new(num as f64))?;
             Ok(())
         });
     }
@@ -356,7 +351,6 @@ impl VisualizeTools {
 
 pub(crate) struct RerunPanel {
     visualize: Option<Arc<VisualizeTools>>,
-    device: WgpuDevice,
     eval_every: u32,
     eval_view_count: Option<usize>,
     log_train_stats_every: u32,
@@ -365,14 +359,13 @@ pub(crate) struct RerunPanel {
 }
 
 impl RerunPanel {
-    pub(crate) fn new(device: WgpuDevice) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             visualize: None,
             eval_every: 1000,
             eval_view_count: None,
             log_train_stats_every: 50,
             visualize_splats_every: None,
-            device,
             ready_to_log_dataset: false,
         }
     }
@@ -380,12 +373,12 @@ impl RerunPanel {
 
 impl RerunPanel {}
 
-impl ViewerPanel for RerunPanel {
+impl AppPanel for RerunPanel {
     fn title(&self) -> String {
         "Rerun".to_owned()
     }
 
-    fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
         match message {
             ProcessMessage::StartLoading { training } => {
                 if *training {
@@ -410,7 +403,6 @@ impl ViewerPanel for RerunPanel {
                 let Some(visualize) = self.visualize.clone() else {
                     return;
                 };
-
                 if let Some(every) = self.visualize_splats_every {
                     if iter % every == 0 {
                         visualize.clone().log_splats(*splats.clone());
@@ -424,9 +416,9 @@ impl ViewerPanel for RerunPanel {
                     });
                 }
 
+                visualize.log_splat_stats(splats);
+
                 // Log out train stats.
-                // HACK: Always log on a refine step, as they can happen off beat.
-                // Not sure how to best handle this properly.
                 if iter % self.log_train_stats_every == 0 {
                     visualize.log_train_stats(*iter, *stats.clone());
                 }
@@ -450,7 +442,7 @@ impl ViewerPanel for RerunPanel {
         }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, context: &mut ViewerContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, context: &mut AppContext) {
         let Some(visualize) = self.visualize.clone() else {
             if ui.button("Enable rerun").clicked() {
                 self.visualize = Some(Arc::new(VisualizeTools::new()));

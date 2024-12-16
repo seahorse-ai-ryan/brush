@@ -70,8 +70,9 @@ Brush is split into various crates. A quick overview of the different responsibi
 
 - `brush-render` is the main crate that pulls together the kernels into rendering functions.
 - `brush-train` has code to actually train Gaussians, and handle larger scale optimizations like splitting/cloning gaussians etc.
-- `brush-viewer` handles the UI and integrating the training loop.
-- `brush-android` is the binary target for running on android, while `brush-desktop` is for running both on web, and mac/Windows/Linux.
+- `brush-train-loop` default training loop using brush-train.
+- `brush-app` handles the UI and integrating the training loop. This is also the binary target for the  web, and mac/Windows/Linux.
+- `brush-android` handles running on android.
 - `brush-wgsl` handles some kernel inspection for generating CPU-side structs and interacing with [naga-oil](https://github.com/bevyengine/naga_oil) to handle shader imports.
 - `brush-dataset` handles importing different training data formats.
 - `brush-prefix-sum` and `brush-sort` are only compute kernels and should be largely independent of Brush (other than `brush-wgsl`).

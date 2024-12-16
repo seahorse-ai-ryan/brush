@@ -1,7 +1,4 @@
-use crate::{
-    viewer::{ProcessMessage, ViewerContext},
-    ViewerPanel,
-};
+use crate::app::{AppContext, AppPanel, ProcessMessage};
 use brush_train::scene::{Scene, ViewType};
 use egui::{pos2, Slider, TextureHandle, TextureOptions};
 
@@ -22,7 +19,7 @@ impl DatasetPanel {
 }
 
 impl DatasetPanel {
-    fn selected_scene(&self, context: &ViewerContext) -> Scene {
+    fn selected_scene(&self, context: &AppContext) -> Scene {
         if let Some(eval_scene) = context.dataset.eval.as_ref() {
             match self.view_type {
                 ViewType::Train => context.dataset.train.clone(),
@@ -34,12 +31,12 @@ impl DatasetPanel {
     }
 }
 
-impl ViewerPanel for DatasetPanel {
+impl AppPanel for DatasetPanel {
     fn title(&self) -> String {
         "Dataset".to_owned()
     }
 
-    fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
         match message {
             ProcessMessage::NewSource | ProcessMessage::DoneLoading { .. } => {
                 self.loading = false;
@@ -58,7 +55,7 @@ impl ViewerPanel for DatasetPanel {
         }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, context: &mut ViewerContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, context: &mut AppContext) {
         let mut nearest_view_ind = self
             .selected_scene(context)
             .get_nearest_view(&context.camera);

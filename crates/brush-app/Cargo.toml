@@ -1,9 +1,17 @@
 [package]
-name = "brush-viewer"
+name = "brush-app"
 edition.workspace = true
 version.workspace = true
 readme.workspace = true
 license.workspace = true
+
+[lib]
+name = "brush_app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "brush_app"
+path = "src/bin/bin.rs"
 
 [dependencies]
 # Brush deps.
@@ -47,6 +55,25 @@ tokio-stream.workspace = true
 
 reqwest.workspace = true
 urlencoding.workspace = true
+
+# Default to wayland on linux. Change this to x11 if needed.
+# this perhaps could use a feature on our side as well,
+# so you could run with cargo run --no-default-features --features=11
+winit = { version = "0.30", features = ["default"] }
+
+cfg-if.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["io-util", "rt", "rt-multi-thread"] }
+env_logger.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tokio = { workspace = true, features = ["io-util", "rt"] }
+wasm-bindgen.workspace = true
+console_error_panic_hook.workspace = true
+web-sys.workspace = true
+wasm-logger.workspace = true
+
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rerun.workspace = true

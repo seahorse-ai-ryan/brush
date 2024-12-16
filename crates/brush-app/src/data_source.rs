@@ -1,5 +1,3 @@
-use std::pin::Pin;
-
 use anyhow::Context;
 use async_fn_stream::try_fn_stream;
 
@@ -15,10 +13,8 @@ pub enum DataSource {
     Url(String),
 }
 
-type DataRead = Pin<Box<dyn AsyncRead + Send>>;
-
 impl DataSource {
-    pub fn into_reader(self) -> anyhow::Result<impl AsyncRead + Send> {
+    pub fn into_reader(self) -> impl AsyncRead + Send {
         let (send, rec) = ::tokio::sync::mpsc::channel(16);
 
         // Spawn the data reading.
@@ -75,7 +71,6 @@ impl DataSource {
             }
         });
 
-        let reader = StreamReader::new(ReceiverStream::new(rec));
-        Ok(reader)
+        StreamReader::new(ReceiverStream::new(rec))
     }
 }

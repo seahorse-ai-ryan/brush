@@ -17,9 +17,8 @@ use tracing::trace_span;
 use web_time::Instant;
 
 use crate::{
+    app::{AppContext, AppPanel, ProcessMessage},
     train_loop::TrainMessage,
-    viewer::{ProcessMessage, ViewerContext},
-    ViewerPanel,
 };
 
 pub(crate) struct ScenePanel {
@@ -40,11 +39,7 @@ pub(crate) struct ScenePanel {
 
     last_size: glam::UVec2,
     dirty: bool,
-
-    queue: Arc<wgpu::Queue>,
-    device: Arc<wgpu::Device>,
     renderer: Arc<EguiRwLock<Renderer>>,
-
     zen: bool,
 }
 
@@ -57,7 +52,7 @@ impl ScenePanel {
     ) -> Self {
         Self {
             frame: 0.0,
-            backbuffer: BurnTexture::new(device.clone(), queue.clone()),
+            backbuffer: BurnTexture::new(device, queue),
             last_draw: None,
             err: None,
             view_splats: vec![],
@@ -67,8 +62,6 @@ impl ScenePanel {
             last_size: glam::UVec2::ZERO,
             is_loading: false,
             is_training: false,
-            queue,
-            device,
             renderer,
             zen,
             frame_count: 0,
@@ -78,7 +71,7 @@ impl ScenePanel {
     pub(crate) fn draw_splats(
         &mut self,
         ui: &mut egui::Ui,
-        context: &mut ViewerContext,
+        context: &mut AppContext,
         splats: &Splats<Wgpu>,
         delta_time: web_time::Duration,
     ) {
@@ -182,12 +175,12 @@ impl ScenePanel {
     }
 }
 
-impl ViewerPanel for ScenePanel {
+impl AppPanel for ScenePanel {
     fn title(&self) -> String {
         "Scene".to_owned()
     }
 
-    fn on_message(&mut self, message: &ProcessMessage, context: &mut ViewerContext) {
+    fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
         if self.live_update {
             self.dirty = true;
         }
@@ -217,7 +210,6 @@ impl ViewerPanel for ScenePanel {
 
                 if self.live_update {
                     self.view_splats.truncate(*frame);
-                    log::info!("Received splat at {frame}");
                     self.view_splats.push(*splats.clone());
                 }
                 self.frame_count = *total_frames;
@@ -241,7 +233,7 @@ impl ViewerPanel for ScenePanel {
         }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, context: &mut ViewerContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, context: &mut AppContext) {
         let cur_time = Instant::now();
         let delta_time = self
             .last_draw

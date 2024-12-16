@@ -1,4 +1,7 @@
-use crate::{data_source::DataSource, viewer::ViewerContext, ViewerPanel};
+use crate::{
+    app::{AppContext, AppPanel},
+    data_source::DataSource,
+};
 use brush_dataset::{LoadDatasetArgs, LoadInitArgs};
 use brush_train::train::TrainConfig;
 use egui::Slider;
@@ -31,12 +34,12 @@ impl LoadDataPanel {
     }
 }
 
-impl ViewerPanel for LoadDataPanel {
+impl AppPanel for LoadDataPanel {
     fn title(&self) -> String {
         "Load data".to_owned()
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, context: &mut ViewerContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, context: &mut AppContext) {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.label("Select a .ply to visualize, or a .zip with training data.");
 

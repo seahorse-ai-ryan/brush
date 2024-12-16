@@ -207,7 +207,7 @@ async fn main() {
     // NB: Load carrying icon. egui at head fails when no icon is included
     // as the built-in one is git-lfs which cargo doesn't clone properly.
     let icon = eframe::icon_data::from_png_bytes(
-        &include_bytes!("../../brush-desktop/assets/icon-256.png")[..],
+        &include_bytes!("../../brush-app/assets/icon-256.png")[..],
     )
     .expect("Failed to load icon");
 

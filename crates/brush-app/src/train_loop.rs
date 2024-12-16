@@ -14,14 +14,17 @@ use tokio_stream::{Stream, StreamExt};
 use tracing::Instrument;
 use web_time::Instant;
 
-use crate::viewer::ProcessMessage;
+use crate::app::ProcessMessage;
 
 const UPDATE_EVERY: u32 = 5;
 
 #[derive(Debug, Clone)]
 pub enum TrainMessage {
     Paused(bool),
-    Eval { view_count: Option<usize> },
+    #[allow(unused)]
+    Eval {
+        view_count: Option<usize>,
+    },
 }
 
 // False positive: value needed to keep lifetimes sane.
