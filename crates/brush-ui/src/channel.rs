@@ -1,11 +1,12 @@
-use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
+use ::tokio::sync::mpsc::{channel, unbounded_channel, Receiver, UnboundedReceiver};
+use tokio_with_wasm::alias as tokio;
 
 pub fn reactive_receiver<T: Send + 'static>(
     receiver: Receiver<T>,
     ctx: egui::Context,
 ) -> Receiver<T> {
     let mut receiver = receiver;
-    let (send_inner, receive) = tokio::sync::mpsc::channel(1);
+    let (send_inner, receive) = channel(1);
     tokio::spawn(async move {
         // Listen for inconimg messages.
         while let Some(m) = receiver.recv().await {
@@ -30,7 +31,7 @@ pub fn reactive_receiver_unbounded<T: Send + 'static>(
     ctx: egui::Context,
 ) -> UnboundedReceiver<T> {
     let mut receiver = receiver;
-    let (send_inner, receive) = tokio::sync::mpsc::unbounded_channel();
+    let (send_inner, receive) = unbounded_channel();
     tokio::spawn(async move {
         // Listen for inconimg messages.
         while let Some(m) = receiver.recv().await {
