@@ -16,7 +16,6 @@ use ::tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use std::collections::HashMap;
 use tokio::task;
 use tokio_with_wasm::alias as tokio;
-use wgpu::Features;
 
 use crate::data_source::DataSource;
 use crate::process_loop::{self, ControlMessage, ProcessMessage};
@@ -240,12 +239,12 @@ impl App {
             state.queue.clone(),
         );
 
-        brush_render::render::set_hard_floats_available(
-            state
-                .adapter
-                .features()
-                .contains(Features::SHADER_FLT32_ATOMIC),
-        );
+        // brush_render::render::set_hard_floats_available(
+        //     state
+        //         .adapter
+        //         .features()
+        //         .contains(Features::SHADER_FLT32_ATOMIC),
+        // );
 
         if cfg!(feature = "tracing") {
             // TODO: In debug only?

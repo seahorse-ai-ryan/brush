@@ -55,9 +55,9 @@ safetensors = "0.4.5"
 log = "0.4.22"
 wasm-bindgen = "0.2.97"
 
-wgpu = "22.1.0"
-naga = "22.1.0"
-naga_oil = "0.15"
+wgpu = "23.0.0"
+naga = "23.0.0"
+naga_oil = "0.16"
 
 env_logger = "0.11.5"
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
@@ -65,32 +65,29 @@ parking_lot = { version = "0.12.3", features = ["arc_lock"] }
 # The default ply-rs has a really bad slowdown. Use a forked version which is a good amount faster.
 ply-rs.git = "https://github.com/ArthurBrussee/ply-rs.git"
 
-# Various burn packages. Currently need to use burn at head.
-burn = { git = "https://github.com/tracel-ai/burn", features = [
+burn = { git = "https://github.com/ArthurBrussee/burn", branch = "temp-update", features = [
     'wgpu',
     'autodiff',
     'template',
-] }
-burn-jit = { git = "https://github.com/tracel-ai/burn" }
-burn-wgpu = { git = "https://github.com/tracel-ai/burn", features = [
+] } # Various burn packages. Currently need to use burn at head.
+burn-jit = { git = "https://github.com/ArthurBrussee/burn", branch = "temp-update" }
+burn-wgpu = { git = "https://github.com/ArthurBrussee/burn", branch = "temp-update", features = [
     "exclusive-memory-only",
 ] }
-burn-fusion = { git = "https://github.com/tracel-ai/burn" }
+burn-fusion = { git = "https://github.com/ArthurBrussee/burn", branch = "temp-update" }
 
-cubecl = { git = "https://github.com/tracel-ai/cubecl", rev = "1c4e0036c043422773fd6824c2a888160fca8e5e" }
+cubecl = { git = "https://github.com/ArthurBrussee/cubecl", default-features = false, branch = "temp-update" }
 
-egui = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
-
-eframe = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7", default-features = false, features = [
+egui = "0.30.0"
+eframe = { version = "0.30.0", default-features = false, features = [
     "wgpu",
     "android-game-activity",
     "wayland",
     "x11",
 ] }
-egui_tiles = { git = "https://github.com/ArthurBrussee/egui_tiles/", branch = "temp-master" }
-egui_extras = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7", features = [
-    "all_loaders",
-] }
+
+egui_tiles = "0.11.0"
+egui_extras = { version = "0.30.0", features = ["all_loaders"] }
 
 rerun = { version = "0.20.3", default-features = false, features = [
     'sdk',
@@ -112,8 +109,8 @@ zip = { version = "2.2.1", default-features = false, features = ["deflate"] }
 urlencoding = "2.1"
 hashbrown = "0.15"
 
-[patch."https://github.com/tracel-ai/burn"]
-# Uncomment this to use local burn.
+# [patch."https://github.com/tracel-ai/burn"]
+# # Uncomment this to use local burn.
 # burn = { path = "../burn/crates/burn" }
 # burn-jit = { path = "../burn/crates/burn-jit" }
 # burn-wgpu = { path = "../burn/crates/burn-wgpu" }
@@ -125,11 +122,11 @@ hashbrown = "0.15"
 
 [patch.crates-io]
 # Override wgpu branch to force branch that includes float atomics.
-wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "flt-atom" }
-naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "flt-atom" }
+# wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "flt-atom" }
+# naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "flt-atom" }
 
-emath = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
-ecolor = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
+# emath = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
+# ecolor = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
 
 [profile.dev]
 opt-level = 1
