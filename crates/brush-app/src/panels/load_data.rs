@@ -6,15 +6,10 @@ use brush_dataset::{LoadDatasetArgs, LoadInitArgs};
 use brush_train::train::TrainConfig;
 use egui::Slider;
 
-enum Quality {
-    Low,
-    Normal,
-}
-
 pub(crate) struct LoadDataPanel {
     load_args: LoadDatasetArgs,
     init_args: LoadInitArgs,
-    quality: Quality,
+    train_config: TrainConfig,
     url: String,
 }
 
@@ -27,8 +22,8 @@ impl LoadDataPanel {
                 max_resolution: Some(1920),
                 ..Default::default()
             },
+            train_config: TrainConfig::default(),
             init_args: LoadInitArgs::default(),
-            quality: Quality::Normal,
             url: "splat.com/example.ply".to_owned(),
         }
     }
@@ -56,15 +51,6 @@ impl AppPanel for LoadDataPanel {
             ui.add_space(10.0);
 
             if file || dir || url {
-                let mut config = TrainConfig::default();
-                if matches!(self.quality, Quality::Low) {
-                    config = config
-                        .with_densify_grad_thresh(0.0003)
-                        .with_refine_every(150)
-                        .with_ssim_weight(0.0)
-                        .with_cull_opacity(0.01);
-                }
-
                 let source = if file {
                     DataSource::PickFile
                 } else if dir {
@@ -76,7 +62,7 @@ impl AppPanel for LoadDataPanel {
                     source,
                     self.load_args.clone(),
                     self.init_args.clone(),
-                    config,
+                    self.train_config.clone(),
                 );
             }
 
@@ -85,22 +71,6 @@ impl AppPanel for LoadDataPanel {
 
             ui.label("Spherical Harmonics Degree:");
             ui.add(Slider::new(&mut self.init_args.sh_degree, 0..=4));
-
-            ui.horizontal(|ui| {
-                ui.label("Quality:");
-                if ui
-                    .selectable_label(matches!(self.quality, Quality::Low), "Low")
-                    .clicked()
-                {
-                    self.quality = Quality::Low;
-                }
-                if ui
-                    .selectable_label(matches!(self.quality, Quality::Normal), "Normal")
-                    .clicked()
-                {
-                    self.quality = Quality::Normal;
-                }
-            });
 
             let mut limit_res = self.load_args.max_resolution.is_some();
             if ui
@@ -138,6 +108,15 @@ impl AppPanel for LoadDataPanel {
                         .suffix(" frames"),
                 );
             }
+
+            ui.horizontal(|ui| {
+                ui.label("Evaluate");
+                ui.add(
+                    egui::Slider::new(&mut self.train_config.eval_every, 1..=5000)
+                        .prefix("every ")
+                        .suffix(" steps"),
+                );
+            });
 
             let mut use_frame_subsample = self.load_args.subsample_frames.is_some();
             if ui

@@ -8,7 +8,6 @@ use crate::{
 
 pub(crate) struct RerunPanel {
     visualize: Option<Arc<VisualizeTools>>,
-    eval_every: u32,
     eval_view_count: Option<usize>,
     log_train_stats_every: u32,
     visualize_splats_every: Option<u32>,
@@ -19,7 +18,6 @@ impl RerunPanel {
     pub(crate) fn new() -> Self {
         Self {
             visualize: None,
-            eval_every: 1000,
             eval_view_count: None,
             log_train_stats_every: 50,
             visualize_splats_every: None,
@@ -87,7 +85,6 @@ impl AppPanel for RerunPanel {
 
                 visualize.log_eval_stats(*iter, eval.clone());
             }
-
             _ => {}
         }
     }
@@ -120,15 +117,6 @@ impl AppPanel for RerunPanel {
             ui.label("Log train stats");
             ui.add(
                 egui::Slider::new(&mut self.log_train_stats_every, 1..=1000)
-                    .prefix("every ")
-                    .suffix(" steps"),
-            );
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Evaluate");
-            ui.add(
-                egui::Slider::new(&mut self.eval_every, 1..=5000)
                     .prefix("every ")
                     .suffix(" steps"),
             );
