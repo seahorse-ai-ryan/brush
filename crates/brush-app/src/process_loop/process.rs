@@ -247,18 +247,16 @@ async fn train_process_loop(
     // Read initial splats if any.
     while let Some(message) = splat_stream.next().await {
         let message = message?;
-        let splats = message.splats.with_sh_degree(load_init_args.sh_degree);
         let msg = ProcessMessage::ViewSplats {
             up_axis: message.meta.up_axis,
-            splats: Box::new(splats.valid()),
+            splats: Box::new(message.splats.valid()),
             frame: 0,
             total_frames: 0,
         };
         if output.send(msg).await.is_err() {
             return Ok(());
         }
-
-        initial_splats = Some(splats);
+        initial_splats = Some(message.splats);
     }
 
     // Read dataset stream.
@@ -287,9 +285,11 @@ async fn train_process_loop(
             .train
             .adjusted_bounds(bounds_extent * 0.25, bounds_extent);
 
-        let config = RandomSplatsConfig::new().with_sh_degree(load_init_args.sh_degree);
+        let config = RandomSplatsConfig::new();
         Splats::from_random_config(&config, adjusted_bounds, &mut rng, &device)
     };
+
+    let splats = splats.with_sh_degree(load_init_args.sh_degree);
 
     let mut control_receiver = control_receiver;
 

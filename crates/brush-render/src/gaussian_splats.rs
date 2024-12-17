@@ -19,8 +19,6 @@ use safetensors::SafeTensors;
 pub struct RandomSplatsConfig {
     #[config(default = 10000)]
     init_count: usize,
-    #[config(default = 0)]
-    sh_degree: u32,
 }
 
 #[derive(Module, Debug)]
@@ -152,20 +150,26 @@ impl<B: Backend> Splats<B> {
         )
     }
 
+    /// Set the SH degree of this splat to be equal to `sh_degree`
     pub fn with_sh_degree(mut self, sh_degree: u32) -> Self {
         let n_coeffs = sh_coeffs_for_degree(sh_degree) as usize;
 
-        let [n, c, _] = self.sh_coeffs.dims();
+        let [n, cur_coeffs, _] = self.sh_coeffs.dims();
 
-        if self.sh_coeffs.dims()[1] < n_coeffs {
-            Self::map_param(&mut self.sh_coeffs, |coeffs| {
-                let device = coeffs.device();
+        Self::map_param(&mut self.sh_coeffs, |coeffs| {
+            let device = coeffs.device();
+            if cur_coeffs < n_coeffs {
                 Tensor::cat(
-                    vec![coeffs, Tensor::zeros([n, n_coeffs - c, 3], &device)],
+                    vec![
+                        coeffs,
+                        Tensor::zeros([n, n_coeffs - cur_coeffs, 3], &device),
+                    ],
                     1,
                 )
-            });
-        }
+            } else {
+                coeffs.slice([0..n, 0..n_coeffs])
+            }
+        });
 
         self
     }

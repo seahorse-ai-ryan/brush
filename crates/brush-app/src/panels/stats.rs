@@ -14,6 +14,7 @@ pub(crate) struct StatsPanel {
     last_train_step: (Instant, u32),
     train_iter_per_s: f32,
     last_eval_psnr: Option<f32>,
+    cur_sh_degree: u32,
 
     training_started: bool,
     num_splats: usize,
@@ -34,6 +35,7 @@ impl StatsPanel {
             training_started: false,
             num_splats: 0,
             frames: 0,
+            cur_sh_degree: 0,
             start_load_time: Instant::now(),
             adapter_info,
         }
@@ -72,6 +74,7 @@ impl AppPanel for StatsPanel {
                 self.last_train_step = (Instant::now(), 0);
                 self.train_iter_per_s = 0.0;
                 self.num_splats = 0;
+                self.cur_sh_degree = 0;
                 self.last_eval_psnr = None;
                 self.training_started = *training;
             }
@@ -83,6 +86,7 @@ impl AppPanel for StatsPanel {
             } => {
                 self.num_splats = splats.num_splats();
                 self.frames = *frame;
+                self.cur_sh_degree = splats.sh_degree();
             }
             ProcessMessage::TrainStep {
                 splats,
@@ -90,11 +94,10 @@ impl AppPanel for StatsPanel {
                 iter,
                 timestamp,
             } => {
+                self.cur_sh_degree = splats.sh_degree();
                 self.num_splats = splats.num_splats();
-
                 let current_iter_per_s = (iter - self.last_train_step.1) as f32
                     / (*timestamp - self.last_train_step.0).as_secs_f32();
-
                 self.train_iter_per_s = 0.95 * self.train_iter_per_s + 0.05 * current_iter_per_s;
                 self.last_train_step = (*timestamp, *iter);
             }
@@ -115,6 +118,10 @@ impl AppPanel for StatsPanel {
             .show(ui, |ui| {
                 ui.label("Splats");
                 ui.label(format!("{}", self.num_splats));
+                ui.end_row();
+
+                ui.label("SH Degree");
+                ui.label(format!("{}", self.cur_sh_degree));
                 ui.end_row();
 
                 if self.frames > 0 {
