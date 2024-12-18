@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use brush_app::App;
-use tokio_with_wasm::alias as tokio;
 
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::JsCast;
@@ -9,8 +8,7 @@ use wasm_bindgen::JsCast;
 fn main() {
     let wgpu_options = brush_ui::create_egui_options();
 
-    // Unused.
-    let (_, rec) = ::tokio::sync::mpsc::unbounded_channel();
+    let (send, _) = tokio::sync::oneshot::channel();
 
     #[cfg(not(target_family = "wasm"))]
     {
@@ -41,7 +39,7 @@ fn main() {
             eframe::run_native(
                 "Brush",
                 native_options,
-                Box::new(move |cc| Ok(Box::new(App::new(cc, None, rec)))),
+                Box::new(move |cc| Ok(Box::new(App::new(cc, send)))),
             )
             .expect("Failed to run egui app");
         });
@@ -49,6 +47,8 @@ fn main() {
 
     #[cfg(target_family = "wasm")]
     {
+        use tokio_with_wasm::alias as tokio_wasm;
+
         if cfg!(debug_assertions) {
             eframe::WebLogger::init(log::LevelFilter::Debug).ok();
         }
@@ -63,7 +63,7 @@ fn main() {
             .and_then(|x| x.dyn_into::<web_sys::HtmlCanvasElement>().ok())
         {
             // On wasm, run as a local task.
-            tokio::spawn(async {
+            tokio_wasm::task::spawn(async {
                 let web_options = eframe::WebOptions {
                     wgpu_options,
                     ..Default::default()
@@ -73,7 +73,7 @@ fn main() {
                     .start(
                         canvas,
                         web_options,
-                        Box::new(|cc| Ok(Box::new(App::new(cc, None, rec)))),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, send)))),
                     )
                     .await
                     .expect("failed to start eframe");
@@ -84,16 +84,21 @@ fn main() {
 
 #[cfg(target_family = "wasm")]
 mod embedded {
-    use ::tokio::sync::mpsc::UnboundedSender;
-    use tokio_with_wasm::alias as tokio;
+    use std::future::IntoFuture;
 
-    use brush_app::App;
-    use brush_app::UiControlMessage;
+    use tokio::sync::mpsc::UnboundedSender;
+    use tokio_with_wasm::alias as tokio_wasm;
+
+    use brush_app::{
+        data_source::DataSource,
+        process_loop::{start_process, ProcessArgs},
+        App,
+    };
     use wasm_bindgen::prelude::*;
 
     #[wasm_bindgen]
     pub struct EmbeddedApp {
-        ui_control: UnboundedSender<UiControlMessage>,
+        command_channel: UnboundedSender<ProcessArgs>,
     }
 
     #[wasm_bindgen]
@@ -108,12 +113,13 @@ mod embedded {
                 .dyn_into::<web_sys::HtmlCanvasElement>()
                 .unwrap();
 
-            // Unused.
-            let (send, rec) = ::tokio::sync::mpsc::unbounded_channel();
-
             let url = url.to_owned();
+            let (send, rec) = tokio::sync::oneshot::channel();
+
+            let (cmd_send, mut cmd_rec) = tokio::sync::mpsc::unbounded_channel();
+
             // On wasm, run as a local task.
-            tokio::spawn(async {
+            tokio_wasm::spawn(async {
                 eframe::WebRunner::new()
                     .start(
                         canvas,
@@ -121,21 +127,42 @@ mod embedded {
                             wgpu_options,
                             ..Default::default()
                         },
-                        Box::new(|cc| Ok(Box::new(App::new(cc, Some(url), rec)))),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, send)))),
                     )
                     .await
                     .expect("failed to start eframe");
             });
 
-            Self { ui_control: send }
+            tokio_wasm::spawn(async move {
+                let context = rec.into_future().await.unwrap().context;
+
+                while let Some(args) = cmd_rec.recv().await {
+                    let mut ctx = context.write().unwrap();
+                    let process = start_process(args, ctx.device.clone());
+                    ctx.connect_to(process);
+                }
+            });
+            // Load initial url.
+            let _ = cmd_send.send(ProcessArgs {
+                source: DataSource::Url(url.to_owned()),
+                load_args: Default::default(),
+                init_args: Default::default(),
+                train_config: Default::default(),
+            });
+            Self {
+                command_channel: cmd_send,
+            }
         }
 
         #[wasm_bindgen]
         pub fn load_url(&self, url: &str) {
-            // If channel is dropped, don't do anything.
-            let _ = self
-                .ui_control
-                .send(UiControlMessage::LoadData(url.to_owned()));
+            let args = ProcessArgs {
+                source: DataSource::Url(url.to_owned()),
+                load_args: Default::default(),
+                init_args: Default::default(),
+                train_config: Default::default(),
+            };
+            self.command_channel.send(args).expect("Viewer was closed?");
         }
     }
 }
