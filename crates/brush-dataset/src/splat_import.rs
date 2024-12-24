@@ -255,7 +255,7 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                 let update_every = element.count.div_ceil(25);
 
                 for i in 0..element.count {
-                    // Ocassionally yield.
+                    // Occasionally yield.
                     if i % 500 == 0 {
                         tokio_wasm::task::yield_now().await;
                     }
@@ -348,7 +348,7 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                 };
 
                 for i in 0..element.count {
-                    // Ocassionally yield.
+                    // Occasionally yield.
                     if i % 500 == 0 {
                         tokio_wasm::task::yield_now().await;
                     }
