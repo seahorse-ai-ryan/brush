@@ -226,7 +226,7 @@ pub(crate) async fn load_dataset<B: Backend>(
                 emitter
                     .emit(SplatMessage {
                         meta: crate::splat_import::SplatMetadata {
-                            up_axis: Vec3::Y,
+                            up_axis: None,
                             total_splats: init_splat.num_splats(),
                             frame_count: 1,
                             current_frame: 0,

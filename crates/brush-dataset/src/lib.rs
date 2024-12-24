@@ -12,8 +12,8 @@ use brush_train::scene::{Scene, SceneView};
 use image::DynamicImage;
 use std::future::Future;
 
-use glam::{Vec3, Vec4, Mat3, Mat4};
 use clap::Args;
+use glam::{Mat3, Mat4, Vec3};
 use tokio_stream::Stream;
 use tokio_with_wasm::alias as tokio_wasm;
 
@@ -58,15 +58,12 @@ fn solve_cubic(a: f32, b: f32, c: f32, d: f32) -> Vec<f32> {
     let t2 = 2.0 * f32::sqrt(-p / 3.0) * f32::cos((phi + 2.0 * std::f32::consts::PI) / 3.0);
     let t3 = 2.0 * f32::sqrt(-p / 3.0) * f32::cos((phi + 4.0 * std::f32::consts::PI) / 3.0);
     // Convert back to original cubic
-    let mut roots = vec![
-        t1 - b / (3.0 * a),
-        t2 - b / (3.0 * a),
-        t3 - b / (3.0 * a),
-    ];
-    roots.sort_by(|a, b| b.partial_cmp(a).unwrap()); // sort in descending order
+    let mut roots = vec![t1 - b / (3.0 * a), t2 - b / (3.0 * a), t3 - b / (3.0 * a)];
+    roots.sort_by(|a, b| b.partial_cmp(a).expect("Invalid value in cubic.")); // sort in descending order
     roots
 }
 
+#[allow(clippy::needless_range_loop)]
 fn find_eigenvector(matrix: Mat3, eigenvalue: f32) -> Vec3 {
     // Create matrix (A - λI)
     let m = Mat3::from_cols(
@@ -129,15 +126,18 @@ pub fn compute_sorted_eigenvectors(matrix: Mat3) -> Vec<Vec3> {
     // det(A - λI) = -λ^3 + c2λ^2 + c1λ + c0
     let a = -1.0;
     let b = matrix.col(0).x + matrix.col(1).y + matrix.col(2).z;
-    let c = matrix.col(1).z * matrix.col(2).y + matrix.col(0).z * matrix.col(2).x +
-        matrix.col(0).y * matrix.col(1).x - matrix.col(0).x * matrix.col(1).y -
-        matrix.col(1).y * matrix.col(2).z - matrix.col(0).x * matrix.col(2).z;
-    let d = matrix.col(0).x * matrix.col(1).y * matrix.col(2).z +
-        matrix.col(0).y * matrix.col(1).z * matrix.col(2).x +
-        matrix.col(0).z * matrix.col(1).x * matrix.col(2).y -
-        matrix.col(0).x * matrix.col(1).z * matrix.col(2).y -
-        matrix.col(0).y * matrix.col(1).x * matrix.col(2).z -
-        matrix.col(0).z * matrix.col(1).y * matrix.col(2).x;
+    let c = matrix.col(1).z * matrix.col(2).y
+        + matrix.col(0).z * matrix.col(2).x
+        + matrix.col(0).y * matrix.col(1).x
+        - matrix.col(0).x * matrix.col(1).y
+        - matrix.col(1).y * matrix.col(2).z
+        - matrix.col(0).x * matrix.col(2).z;
+    let d = matrix.col(0).x * matrix.col(1).y * matrix.col(2).z
+        + matrix.col(0).y * matrix.col(1).z * matrix.col(2).x
+        + matrix.col(0).z * matrix.col(1).x * matrix.col(2).y
+        - matrix.col(0).x * matrix.col(1).z * matrix.col(2).y
+        - matrix.col(0).y * matrix.col(1).x * matrix.col(2).z
+        - matrix.col(0).z * matrix.col(1).y * matrix.col(2).x;
     // Find eigenvalues
     let eigenvalues = solve_cubic(a, b, c, d);
     // Find eigenvectors
@@ -173,36 +173,35 @@ impl Dataset {
         }
     }
 
+    #[allow(clippy::needless_range_loop)]
     pub fn estimate_up(&self) -> Vec3 {
         // based on https://github.com/jonbarron/camp_zipnerf/blob/8e6d57e3aee34235faf3ef99decca0994efe66c9/camp_zipnerf/internal/camera_utils.py#L233
         let mut c2ws = vec![];
         let mut ts = vec![];
         for view in self.train.views.iter() {
             c2ws.push(view.camera.local_to_world());
-            ts.push(view.camera.position.clone());
+            ts.push(view.camera.position);
         }
         if let Some(eval_scene) = &self.eval {
             for view in eval_scene.views.iter() {
                 c2ws.push(view.camera.local_to_world());
-                ts.push(view.camera.position.clone());
+                ts.push(view.camera.position);
             }
         }
         let mean_t = ts.iter().fold(Vec3::ZERO, |acc, x| acc + *x) / ts.len() as f32;
-        for t in ts.iter_mut() {
+        for t in &mut ts {
             *t -= mean_t;
         }
         // Compute 3x3 covariance by t^T * t ((3, N) * (N, 3) -> (3, 3))
-        let mut t_cov_rows = vec![];
+        let mut t_cov = Mat3::ZERO;
         for row in 0..3 {
             let mut cov_row = Vec3::ZERO;
-            for col in 0..3 {
-                for n in 0..ts.len() {
-                    cov_row[col] += ts[n][row] * ts[n][col];
-                }
+            for n in 0..ts.len() {
+                cov_row += ts[n][row] * ts[n];
             }
-            t_cov_rows.push(cov_row);
+            *t_cov.col_mut(row) = cov_row;
         }
-        let t_cov = Mat3::from_cols(t_cov_rows[0], t_cov_rows[1], t_cov_rows[2]).transpose();
+        t_cov = t_cov.transpose();
         let eigvecs = compute_sorted_eigenvectors(t_cov);
         let mut rot = Mat3::from_cols(eigvecs[0], eigvecs[1], eigvecs[2]).transpose();
         if rot.determinant() < 0.0 {
@@ -216,13 +215,13 @@ impl Dataset {
             rot.mul_vec3(-mean_t).extend(1.0),
         );
         let mut y_axis_z = 0.0;
-        for c2w in c2ws.iter() {
+        for c2w in &c2ws {
             y_axis_z += transform.mul_mat4(c2w).col(1).z;
         }
         // Flip coordinate system if z component of y-axis is negative
         if y_axis_z < 0.0 {
-            let diag = Mat4::from_diagonal(Vec4::new(1.0, -1.0, -1.0, 1.0));
-            transform = diag.mul_mat4(&transform);
+            let scale = Mat4::from_scale(Vec3::new(1.0, -1.0, -1.0));
+            transform = scale.mul_mat4(&transform);
         }
         Vec3::new(transform.col(0).z, transform.col(1).z, -transform.col(2).z)
     }

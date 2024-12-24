@@ -204,7 +204,9 @@ impl AppPanel for ScenePanel {
                 frame,
                 total_frames,
             } => {
-                context.set_up_axis(*up_axis);
+                if let Some(up_axis) = up_axis {
+                    context.set_up_axis(*up_axis);
+                }
 
                 if self.live_update {
                     self.view_splats.truncate(*frame);

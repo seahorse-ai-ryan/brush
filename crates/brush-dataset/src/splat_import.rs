@@ -156,7 +156,7 @@ async fn decode_splat<T: AsyncBufRead + Unpin + 'static>(
 }
 
 pub struct SplatMetadata {
-    pub up_axis: Vec3,
+    pub up_axis: Option<Vec3>,
     pub total_splats: usize,
     pub frame_count: usize,
     pub current_frame: usize,
@@ -198,8 +198,7 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                 Some("z") => Some(Vec3::Z),
                 _ => None,
             })
-            .last()
-            .unwrap_or(Vec3::Y);
+            .last();
 
         let frame_count = header
             .elements

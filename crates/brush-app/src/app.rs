@@ -113,7 +113,7 @@ impl AppContext {
             cam_settings.pitch_range,
         );
 
-        // Camera position will be controller by controls.
+        // Camera position will be controlled by the orbit controls.
         let camera = Camera::new(
             Vec3::ZERO,
             Quat::IDENTITY,
@@ -133,25 +133,29 @@ impl AppContext {
         }
     }
 
-    pub fn set_up_axis(&mut self, up_axis: Vec3) {
-        let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
-        let model_transform = Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
-        self.model_transform = model_transform;
-    }
-
-    pub fn focus_view(&mut self, cam: &Camera) {
+    fn update_control_positions(&mut self) {
         // set the controls transform.
-        let cam_transform = Affine3A::from_rotation_translation(cam.rotation, cam.position);
+        let cam_transform =
+            Affine3A::from_rotation_translation(self.camera.rotation, self.camera.position);
         let transform = self.model_transform.inverse() * cam_transform;
         let (_, rotation, position) = transform.to_scale_rotation_translation();
         self.controls.position = position.into();
         self.controls.rotation = rotation;
-
-        // Copy the camera, mostly to copy over the intrinsics and such.
-        self.controls.focus = transform.translation
-            + transform.matrix3 * Vec3A::Z * self.dataset.train.bounds().extent.length() * 0.5;
         self.controls.dirty = true;
+    }
+
+    pub fn set_up_axis(&mut self, up_axis: Vec3) {
+        let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
+        let model_transform = Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
+        self.model_transform = model_transform;
+        self.update_control_positions();
+    }
+
+    pub fn focus_view(&mut self, cam: &Camera) {
         self.camera = cam.clone();
+        self.update_control_positions();
+        self.controls.focus = self.controls.position
+            + self.controls.rotation * Vec3A::Z * self.dataset.train.bounds().extent.length() * 0.5;
     }
 
     pub fn connect_to(&mut self, process: RunningProcess) {
@@ -344,7 +348,6 @@ impl App {
                 .write()
                 .expect("Lock poisoned")
                 .connect_to(running);
-            // tree_ctx.context.start_data_load(args);
         }
 
         Self {

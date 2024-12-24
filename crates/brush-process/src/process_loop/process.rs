@@ -37,7 +37,7 @@ pub enum ProcessMessage {
     /// Nb: This includes all the intermediately loaded splats.
     /// Nb: Animated splats will have the 'frame' number set.
     ViewSplats {
-        up_axis: Vec3,
+        up_axis: Option<Vec3>,
         splats: Box<Splats<Wgpu>>,
         frame: usize,
         total_frames: usize,
@@ -219,7 +219,9 @@ async fn train_process_loop(
     while let Some(message) = splat_stream.next().await {
         let message = message?;
         let msg = ProcessMessage::ViewSplats {
-            up_axis: estimated_up,  // message.meta.up_axis
+            // If the metadata has an up axis prefer that, otherwise estimate
+            // the up direction.
+            up_axis: message.meta.up_axis.or(Some(estimated_up)),
             splats: Box::new(message.splats.valid()),
             frame: 0,
             total_frames: 0,
