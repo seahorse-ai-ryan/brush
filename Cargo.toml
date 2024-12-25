@@ -93,7 +93,7 @@ rerun = { version = "0.21", default-features = false, features = [
     'image',
 ] }
 
-kiddo = "4.2.1"
+ball-tree = "0.5.1"
 
 # Build dependencies.
 thiserror = "*"

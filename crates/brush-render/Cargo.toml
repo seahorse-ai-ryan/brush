@@ -25,10 +25,10 @@ safetensors.workspace = true
 tracing.workspace = true
 log.workspace = true
 serde.workspace = true
-kiddo.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 rand.workspace = true
 wgpu.workspace = true
+ball-tree.workspace = true
 
 [features]
 debug_validation = []

@@ -5,13 +5,13 @@ use crate::{
     safetensor_utils::safetensor_to_burn,
     Backend, RenderAux,
 };
+use ball_tree::BallTree;
 use burn::{
     config::Config,
     module::{Module, Param, ParamId},
     tensor::{activation::sigmoid, Shape, Tensor, TensorData, TensorPrimitive},
 };
 use glam::{Quat, Vec3};
-use kiddo::{KdTree, SquaredEuclidean};
 use rand::Rng;
 use safetensors::SafeTensors;
 
@@ -99,21 +99,21 @@ impl<B: Backend> Splats<B> {
             let log_scales: Vec<f32> = log_scales.iter().flat_map(|v| [v.x, v.y, v.z]).collect();
             Tensor::from_data(TensorData::new(log_scales, [n_splats, 3]), device)
         } else {
-            let tree_pos: Vec<[f32; 3]> = means.iter().map(|v| [v.x, v.y, v.z]).collect();
-            let tree: KdTree<_, 3> = (&tree_pos).into();
+            let tree_pos: Vec<[f64; 3]> = means
+                .iter()
+                .map(|v| [v.x as f64, v.y as f64, v.z as f64])
+                .collect();
+
+            let empty = vec![(); tree_pos.len()];
+            let tree = BallTree::new(tree_pos.clone(), empty);
+
             let extents: Vec<_> = tree_pos
                 .iter()
                 .map(|p| {
                     // Get average of 3 nearest squared distances.
-                    (tree
-                        .nearest_n::<SquaredEuclidean>(p, 4)
-                        .iter()
-                        .map(|x| x.distance)
-                        .sum::<f32>()
-                        / 4.0)
-                        .sqrt()
+                    (tree.query().nn(p).take(4).skip(1).map(|x| x.1).sum::<f64>() / 3.0)
                         .max(1e-12)
-                        .ln()
+                        .ln() as f32
                 })
                 .collect();
 
