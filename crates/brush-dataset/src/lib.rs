@@ -59,7 +59,7 @@ fn solve_cubic(a: f32, b: f32, c: f32, d: f32) -> Vec<f32> {
     let t3 = 2.0 * f32::sqrt(-p / 3.0) * f32::cos((phi + 4.0 * std::f32::consts::PI) / 3.0);
     // Convert back to original cubic
     let mut roots = vec![t1 - b / (3.0 * a), t2 - b / (3.0 * a), t3 - b / (3.0 * a)];
-    roots.sort_by(|a, b| b.partial_cmp(a).expect("Invalid value in cubic.")); // sort in descending order
+    roots.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Less)); // sort in descending order
     roots
 }
 
