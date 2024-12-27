@@ -18,7 +18,8 @@ pub struct Cli {
     #[arg(
         long,
         default_value = "true",
-        default_value_if("source", ArgPredicate::IsPresent, "false")
+        default_value_if("source", ArgPredicate::IsPresent, "false"),
+        help = "Spawn a viewer to visualize the training"
     )]
     pub with_viewer: bool,
 
