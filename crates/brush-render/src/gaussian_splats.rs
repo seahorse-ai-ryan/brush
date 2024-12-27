@@ -111,8 +111,8 @@ impl<B: Backend> Splats<B> {
                 .iter()
                 .map(|p| {
                     // Get average of 3 nearest squared distances.
-                    (tree.query().nn(p).take(4).skip(1).map(|x| x.1).sum::<f64>() / 3.0)
-                        .max(1e-12)
+                    (tree.query().nn(p).take(3).skip(1).map(|x| x.1).sum::<f64>() / 4.0)
+                        .clamp(1e-12, 2.0)
                         .ln() as f32
                 })
                 .collect();
