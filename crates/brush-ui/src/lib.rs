@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use burn_wgpu::{RuntimeOptions, WgpuDevice};
 use eframe::egui_wgpu::WgpuConfiguration;
-use wgpu::{Adapter, Device, Queue};
+use wgpu::{Adapter, Device, Features, Queue};
 
 pub mod burn_texture;
 pub mod channel;
@@ -35,7 +35,9 @@ pub fn create_egui_options() -> WgpuConfiguration {
             power_preference: wgpu::PowerPreference::HighPerformance,
             device_descriptor: Arc::new(|adapter: &Adapter| wgpu::DeviceDescriptor {
                 label: Some("egui+burn"),
-                required_features: adapter.features(),
+                required_features: adapter
+                    .features()
+                    .difference(Features::MAPPABLE_PRIMARY_BUFFERS),
                 required_limits: adapter.limits(),
                 memory_hints: wgpu::MemoryHints::Performance,
             }),
