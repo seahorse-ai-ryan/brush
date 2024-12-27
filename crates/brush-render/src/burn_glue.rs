@@ -411,7 +411,6 @@ impl Backend for Fusion<BBase> {
         let client = v_output.client.clone();
 
         let num_points = state.means.shape[0];
-        let num_visible = state.rx.borrow().data().num_visible;
 
         let coeffs = sh_coeffs_for_degree(state.sh_degree) as usize;
 
@@ -421,7 +420,7 @@ impl Backend for Fusion<BBase> {
             v_scales: client.tensor_uninitialized(vec![num_points, 3], DType::F32),
             v_coeffs: client.tensor_uninitialized(vec![num_points, coeffs, 3], DType::F32),
             v_raw_opac: client.tensor_uninitialized(vec![num_points], DType::F32),
-            v_xy: client.tensor_uninitialized(vec![num_visible as usize, 2], DType::F32),
+            v_xy: client.tensor_uninitialized(vec![num_points, 2], DType::F32),
         };
 
         let desc = CustomOpDescription::new(

@@ -402,7 +402,25 @@ pub(crate) fn render_backward(
 
     let client = &means.client;
 
-    let (v_xys_local, v_conics, v_coeffs, v_raw_opac) = {
+    // Create tensors to hold gradients.
+
+    // Nb: these are packed vec3 values, special care is taken in the kernel to respect alignment.
+    // Nb: These have to be zerod out - as we only write to visible splats.
+    //
+    let v_xys_local = InnerWgpu::float_zeros([num_points, 2].into(), device);
+    let v_means = InnerWgpu::float_zeros([num_points, 3].into(), device);
+    let v_scales = InnerWgpu::float_zeros([num_points, 3].into(), device);
+    let v_quats = InnerWgpu::float_zeros([num_points, 4].into(), device);
+
+    let v_coeffs = InnerWgpu::float_zeros(
+        [num_points, sh_coeffs_for_degree(sh_degree) as usize, 3].into(),
+        device,
+    );
+    let v_raw_opac = InnerWgpu::float_zeros([num_points].into(), device);
+
+    log::info!("Stepping with {} visible gaussians", num_visible);
+
+    if num_visible > 0 {
         let tile_bounds = uvec2(
             img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),
             img_size.y.div_ceil(shaders::helpers::TILE_WIDTH),
@@ -411,38 +429,31 @@ pub(crate) fn render_backward(
         let invocations = tile_bounds.x * tile_bounds.y;
 
         // These gradients are atomically added to so important to zero them.
-        let v_xys_local = InnerWgpu::float_zeros([num_visible as usize, 2].into(), device);
         let v_conics = InnerWgpu::float_zeros([num_visible as usize, 3].into(), device);
         let v_colors = InnerWgpu::float_zeros([num_visible as usize, 4].into(), device);
 
         let hard_floats = has_hard_floats();
 
         tracing::trace_span!("RasterizeBackwards", sync_burn = true).in_scope(||
-        // SAFETY: Kernel has to contain no OOB indexing.
-        unsafe {
-            client.execute_unchecked(
-                RasterizeBackwards::task(hard_floats),
-                CubeCount::Static(invocations, 1, 1),
-                vec![
-                    uniforms_buffer.clone().handle.binding(),
-                    compact_gid_from_isect.handle.binding(),
-                    tile_offsets.handle.binding(),
-                    projected_splats.handle.binding(),
-                    final_index.handle.binding(),
-                    out_img.handle.binding(),
-                    v_output.handle.binding(),
-                    v_xys_local.clone().handle.binding(),
-                    v_conics.clone().handle.binding(),
-                    v_colors.clone().handle.binding(),
-                ],
-            );
-        });
-
-        let v_coeffs = InnerWgpu::float_zeros(
-            [num_points, sh_coeffs_for_degree(sh_degree) as usize, 3].into(),
-            device,
-        );
-        let v_opacities = InnerWgpu::float_zeros([num_points].into(), device);
+            // SAFETY: Kernel has to contain no OOB indexing.
+            unsafe {
+                client.execute_unchecked(
+                    RasterizeBackwards::task(hard_floats),
+                    CubeCount::Static(invocations, 1, 1),
+                    vec![
+                        uniforms_buffer.clone().handle.binding(),
+                        compact_gid_from_isect.handle.binding(),
+                        tile_offsets.handle.binding(),
+                        projected_splats.handle.binding(),
+                        final_index.handle.binding(),
+                        out_img.handle.binding(),
+                        v_output.handle.binding(),
+                        v_xys_local.clone().handle.binding(),
+                        v_conics.clone().handle.binding(),
+                        v_colors.clone().handle.binding(),
+                    ],
+                );
+            });
 
         let _span = tracing::trace_span!("GatherGrads", sync_burn = true).entered();
 
@@ -458,23 +469,12 @@ pub(crate) fn render_backward(
                     means.clone().handle.binding(),
                     v_colors.handle.binding(),
                     v_coeffs.handle.clone().binding(),
-                    v_opacities.handle.clone().binding(),
+                    v_raw_opac.handle.clone().binding(),
                 ],
             );
         }
 
-        (v_xys_local, v_conics, v_coeffs, v_opacities)
-    };
-
-    // Create tensors to hold gradients.
-
-    // Nb: these are packed vec3 values, special care is taken in the kernel to respect alignment.
-    // Nb: These have to be zerod out - as we only write to visible splats.
-    let v_means = InnerWgpu::float_zeros([num_points, 3].into(), device);
-    let v_scales = InnerWgpu::float_zeros([num_points, 3].into(), device);
-    let v_quats = InnerWgpu::float_zeros([num_points, 4].into(), device);
-
-    tracing::trace_span!("ProjectBackwards", sync_burn = true).in_scope(||
+        tracing::trace_span!("ProjectBackwards", sync_burn = true).in_scope(||
         // SAFETY: Kernel has to contain no OOB indexing.
         unsafe {
         client.execute_unchecked(
@@ -494,6 +494,7 @@ pub(crate) fn render_backward(
             ],
         );
     });
+    }
 
     SplatGrads {
         v_means,

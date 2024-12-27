@@ -610,11 +610,18 @@ pub async fn prune_points<B: AutodiffBackend>(
         return;
     }
 
-    let valid_inds = prune.bool_not().argwhere_async().await.squeeze(1);
+    let valid_inds = prune.bool_not().argwhere_async().await;
+
+    if valid_inds.dims()[0] == 0 {
+        log::warn!("Trying to create empty splat!");
+        return;
+    }
+
     let start_splats = splats.num_splats();
     let new_points = valid_inds.dims()[0];
 
     if new_points < start_splats {
+        let valid_inds = valid_inds.squeeze(1);
         map_param(
             &mut splats.means,
             record,
