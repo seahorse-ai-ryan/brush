@@ -403,11 +403,6 @@ impl eframe::App for App {
         self.receive_messages();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Close when pressing escape (in a native viewer anyway).
-            #[cfg(not(target_family = "wasm"))]
-            if ui.input(|r| r.key_pressed(egui::Key::Escape)) {
-                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            }
             self.tree.ui(&mut self.tree_ctx, ui);
         });
     }
