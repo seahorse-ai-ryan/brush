@@ -418,8 +418,6 @@ pub(crate) fn render_backward(
     );
     let v_raw_opac = InnerWgpu::float_zeros([num_points].into(), device);
 
-    log::info!("Stepping with {} visible gaussians", num_visible);
-
     if num_visible > 0 {
         let tile_bounds = uvec2(
             img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),

@@ -8,7 +8,7 @@ use crate::{clamp_img_to_max_size, Dataset};
 use anyhow::Context;
 use anyhow::Result;
 use async_fn_stream::try_fn_stream;
-use brush_render::camera::{focal_to_fov, fov_to_focal, Camera};
+use brush_render::camera::{focal_to_fov, Camera};
 use brush_render::Backend;
 use brush_train::scene::SceneView;
 use std::future::Future;
@@ -20,18 +20,21 @@ use tokio_stream::StreamExt;
 #[derive(serde::Deserialize, Clone)]
 #[allow(unused)] // not reading camera distortions yet.
 struct JsonScene {
-    // Simple synthetic nerf camera model.
+    // Horizontal FOV.
     camera_angle_x: Option<f64>,
-    // Not really used atm.
-    camera_model: Option<String>,
-
-    // Nerfstudio doesn't mention this in their format? But fine to include really.
-    ply_file_path: Option<String>,
+    // Vertical FOV.
+    camera_angle_y: Option<f64>,
 
     /// Focal length x
     fl_x: Option<f64>,
     /// Focal length y
     fl_y: Option<f64>,
+
+    // Not really used atm.
+    camera_model: Option<String>,
+    // Nerfstudio doesn't mention this in their format? But fine to include really.
+    ply_file_path: Option<String>,
+
     /// Principal point x
     cx: Option<f64>,
     /// Principal point y
@@ -60,12 +63,16 @@ struct JsonScene {
 #[derive(serde::Deserialize, Clone)]
 #[allow(unused)] // not reading camera distortions yet.
 struct FrameData {
-    // Nerfstudio format
-    //
+    // Horizontal FOV.
+    camera_angle_x: Option<f64>,
+    // Vertical FOV.
+    camera_angle_y: Option<f64>,
+
     /// Focal length x
     fl_x: Option<f64>,
     /// Focal length y
     fl_y: Option<f64>,
+
     /// Principal point x
     cx: Option<f64>,
     /// Principal point y
@@ -149,17 +156,28 @@ fn read_transforms_file(
                     image = clamp_img_to_max_size(image, max_resolution);
                 }
 
-                let focal_x = frame
-                    .fl_x
-                    .or(scene.fl_x)
-                    .or(scene.camera_angle_x.map(|fx| fov_to_focal(fx, w)))
+                // let focal_x = frame
+                //     .fl_x
+                //     .or(scene.fl_x)
+                //     .or(scene.camera_angle_x.map(|fx| fov_to_focal(fx, w)))
+                //     .context("Must have a focal length of some kind.")?;
+
+                // // Read fov y or derive it from the input.
+                // let focal_y = frame.fl_y.or(scene.fl_y).unwrap_or(focal_x);
+
+                let fovx = frame
+                    .camera_angle_x
+                    .or(frame.fl_x.map(|fx| focal_to_fov(fx, w)))
+                    .or(scene.camera_angle_x)
+                    .or(scene.fl_x.map(|fx| focal_to_fov(fx, w)))
                     .context("Must have a focal length of some kind.")?;
 
-                // Read fov y or derive it from the input.
-                let focal_y = frame.fl_y.or(scene.fl_y).unwrap_or(focal_x);
-
-                let fovx = focal_to_fov(focal_x, w);
-                let fovy = focal_to_fov(focal_y, h);
+                let fovy = frame
+                    .camera_angle_y
+                    .or(frame.fl_y.map(|fy| focal_to_fov(fy, h)))
+                    .or(scene.camera_angle_y)
+                    .or(scene.fl_y.map(|fy| focal_to_fov(fy, h)))
+                    .context("Must have a focal length of some kind.")?;
 
                 let cx = frame.cx.or(scene.cx).unwrap_or(w as f64 / 2.0);
                 let cy = frame.cy.or(scene.cy).unwrap_or(h as f64 / 2.0);
@@ -233,10 +251,19 @@ pub async fn read_dataset<B: Backend>(
         let mut train_views = vec![];
         let mut eval_views = vec![];
 
-        let eval_trans_path = json_files.iter().find(|x| {
-            x.file_name()
-                .is_some_and(|p| p.to_string_lossy().contains("_val"))
-        });
+        // Use transforms_val as eval, or _test if no _val is present. (Brush doesn't really have any notion of a test
+        let eval_trans_path = json_files
+            .iter()
+            .find(|x| {
+                x.file_name()
+                    .is_some_and(|p| p.to_string_lossy().contains("_val"))
+            })
+            .or_else(|| {
+                json_files.iter().find(|x| {
+                    x.file_name()
+                        .is_some_and(|p| p.to_string_lossy().contains("_test"))
+                })
+            });
 
         // If a separate eval file is specified, read it.
         let val_stream = if let Some(eval_trans_path) = eval_trans_path {

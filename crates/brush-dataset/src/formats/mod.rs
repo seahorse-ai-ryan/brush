@@ -4,7 +4,7 @@ use crate::{
     Dataset, LoadDataseConfig, WasmNotSend,
 };
 use brush_render::Backend;
-use std::{path::Path, pin::Pin};
+use std::pin::Pin;
 use tokio_stream::Stream;
 
 pub mod colmap;
@@ -33,9 +33,17 @@ pub async fn load_dataset<B: Backend>(
         ),
     };
 
-    // If there's an init.ply definitey override the init stream with that.
-    let init_stream = if let Ok(reader) = vfs.open_path(Path::new("init.ply")).await {
-        log::info!("Using init.ply as initial point cloud.");
+    // If there's an initial ply file, override the init stream with that.
+    let path: Vec<_> = vfs
+        .file_names()
+        .filter(|x| x.extension().is_some_and(|ext| ext == "ply"))
+        .collect();
+
+    let init_stream = if path.len() == 1 {
+        let main_path = path.first().expect("unreachable").to_path_buf();
+        log::info!("Using ply {main_path:?} as initial point cloud.");
+
+        let reader = vfs.open_path(&main_path).await?;
         Box::pin(load_splat_from_ply(
             reader,
             load_args.subsample_points,
