@@ -52,8 +52,7 @@ skip = [
     { name = 'cargo_metadata' }, # Duplicate from custom ply + rerun
 
     # Other
-    { name = "core-foundation" }, # Egui has two?
-    # { name = "web-time" },            # Old version from egui & rerun.
+    { name = "core-foundation" },     # Egui has two?
     { name = 'windows_x86_64_msvc' }, # Old version from winit.
     { name = 'windows_x86_64_gnu' },  # Old version from winit.
     { name = 'windows-targets' },     # Old version from winit.
@@ -67,8 +66,6 @@ skip = [
     { name = 'pollster' },
 
     { name = 'indexmap' },
-
-    { name = 'ndk-sys' },
 ]
 
 [licenses]

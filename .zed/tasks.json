@@ -4,7 +4,7 @@
 [
   {
     "label": "debug",
-    "command": "cargo run",
+    "command": "cargo run -- C:\\Users\\A-Bru\\Documents\\Scans\\BerkoTree\\dense\\0",
     "env": {
       "RUST_BACKTRACE": "1",
       "RUST_LOG": "info,wgpu_core=off"
