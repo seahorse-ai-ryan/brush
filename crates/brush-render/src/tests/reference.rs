@@ -113,8 +113,6 @@ async fn test_reference() -> Result<()> {
 
         // Check if images match.
         assert!(out.clone().all_close(img_ref, Some(1e-5), Some(1e-6)));
-        wrapped_aux.resolve_bwd_data().await;
-
         wrapped_aux.clone().debug_assert_valid();
 
         let num_visible = wrapped_aux.num_visible.into_scalar_async().await as usize;

@@ -2,12 +2,11 @@
 #![allow(clippy::single_range_in_vec_init)]
 use burn::prelude::Tensor;
 use burn::tensor::ops::{FloatTensor, IntTensor};
-use burn::tensor::{ElementConversion, Int, TensorPrimitive, Transaction};
+use burn::tensor::{ElementConversion, Int, TensorPrimitive};
 use burn_jit::JitBackend;
 use burn_wgpu::WgpuRuntime;
 use camera::Camera;
 use shaders::helpers::TILE_WIDTH;
-use tokio::sync::watch::{Receiver, Sender};
 
 mod burn_glue;
 mod dim_check;
@@ -23,34 +22,6 @@ pub mod camera;
 pub mod gaussian_splats;
 pub mod render;
 
-#[derive(Default, Debug, Clone)]
-struct BwdAuxData {
-    num_visible: u32,
-    num_intersects: u32,
-}
-
-#[derive(Default, Debug, Clone)]
-struct BwdAux {
-    data: Option<BwdAuxData>,
-}
-
-impl BwdAux {
-    fn new(num_visible: u32, num_intersects: u32) -> Self {
-        Self {
-            data: Some(BwdAuxData {
-                num_visible,
-                num_intersects,
-            }),
-        }
-    }
-
-    fn data(&self) -> &BwdAuxData {
-        self.data
-            .as_ref()
-            .expect("Bwd state must be resolved before calling num_visible")
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct RenderAuxPrimitive<B: Backend> {
     /// The packed projected splat information, see `ProjectedSplat` in helpers.wgsl
@@ -63,7 +34,6 @@ pub struct RenderAuxPrimitive<B: Backend> {
     pub compact_gid_from_isect: IntTensor<B>,
     pub global_from_compact_gid: IntTensor<B>,
     pub radii: FloatTensor<B>,
-    sender: Option<Sender<BwdAux>>,
 }
 
 impl<B: Backend> RenderAuxPrimitive<B> {
@@ -76,7 +46,6 @@ impl<B: Backend> RenderAuxPrimitive<B> {
             compact_gid_from_isect: Tensor::from_primitive(self.compact_gid_from_isect),
             global_from_compact_gid: Tensor::from_primitive(self.global_from_compact_gid),
             radii: Tensor::from_primitive(TensorPrimitive::Float(self.radii)),
-            sender: self.sender,
         }
     }
 }
@@ -91,7 +60,6 @@ pub struct RenderAux<B: Backend> {
     pub compact_gid_from_isect: Tensor<B, 1, Int>,
     pub global_from_compact_gid: Tensor<B, 1, Int>,
     pub radii: Tensor<B, 1>,
-    sender: Option<Sender<BwdAux>>,
 }
 
 #[derive(Debug, Clone)]
@@ -104,24 +72,6 @@ const INTERSECTS_UPPER_BOUND: u32 = shaders::map_gaussian_to_intersects::WORKGRO
 const GAUSSIANS_UPPER_BOUND: u32 = 256 * 65535;
 
 impl<B: Backend> RenderAux<B> {
-    pub async fn resolve_bwd_data(&self) {
-        if let Some(send) = self.sender.clone() {
-            if !send.is_closed() {
-                let data = Transaction::default()
-                    .register(self.num_visible.clone())
-                    .register(self.num_intersections.clone())
-                    .execute_async()
-                    .await;
-
-                let num_visible: i32 = data[0].to_vec().expect("Failed to resolve num_visible")[0];
-                let num_intersections: i32 = data[1]
-                    .to_vec()
-                    .expect("Failed to resolve num_intersections")[0];
-                let _ = send.send(BwdAux::new(num_visible as u32, num_intersections as u32));
-            }
-        }
-    }
-
     pub fn calc_tile_depth(&self) -> Tensor<B, 2, Int> {
         let bins = self.tile_offsets.clone();
         let n_bins = bins.dims()[0];
@@ -155,6 +105,11 @@ impl<B: Backend> RenderAux<B> {
         assert!(
             num_intersections >= 0 && num_intersections < INTERSECTS_UPPER_BOUND as i32,
             "Too many intersections, Brush currently can't handle this. {num_intersections} > {INTERSECTS_UPPER_BOUND}"
+        );
+
+        assert!(
+            num_visible != 0,
+            "Nothing visible which probably indicates a bug"
         );
 
         assert!(
@@ -263,7 +218,6 @@ pub struct GaussianBackwardState<B: Backend> {
     final_index: IntTensor<B>,
 
     sh_degree: u32,
-    rx: Receiver<BwdAux>,
 }
 
 // Custom operations in Burn work by extending the backend with an extra func.

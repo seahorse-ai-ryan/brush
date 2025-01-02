@@ -1,4 +1,6 @@
 #![allow(clippy::single_range_in_vec_init)]
+#![recursion_limit = "256"]
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::{fs::File, io::Read};
@@ -163,15 +165,11 @@ fn bench_general(
         fov_y,
         glam::vec2(0.5, 0.5),
     );
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .expect("Failed to build tokio runtime");
 
     if grad {
         bencher.bench_local(move || {
             for _ in 0..INTERNAL_ITERS {
                 let out = splats.render(&camera, resolution, false);
-                rt.block_on(out.1.resolve_bwd_data());
                 let _ = out.0.mean().backward();
             }
             // Wait for GPU work.

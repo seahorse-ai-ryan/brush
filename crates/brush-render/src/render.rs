@@ -355,7 +355,6 @@ pub(crate) fn render_forward(
             compact_gid_from_isect,
             global_from_compact_gid,
             radii,
-            sender: None,
         },
     )
 }
@@ -390,8 +389,6 @@ pub(crate) fn render_backward(
     global_from_compact_gid: JitTensor<WgpuRuntime>,
     tile_offsets: JitTensor<WgpuRuntime>,
     final_index: JitTensor<WgpuRuntime>,
-
-    num_visible: u32,
     sh_degree: u32,
 ) -> SplatGrads<InnerWgpu> {
     let device = &out_img.device;
@@ -418,21 +415,19 @@ pub(crate) fn render_backward(
     );
     let v_raw_opac = InnerWgpu::float_zeros([num_points].into(), device);
 
-    if num_visible > 0 {
-        let tile_bounds = uvec2(
-            img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),
-            img_size.y.div_ceil(shaders::helpers::TILE_WIDTH),
-        );
+    let tile_bounds = uvec2(
+        img_size.x.div_ceil(shaders::helpers::TILE_WIDTH),
+        img_size.y.div_ceil(shaders::helpers::TILE_WIDTH),
+    );
+    let invocations = tile_bounds.x * tile_bounds.y;
 
-        let invocations = tile_bounds.x * tile_bounds.y;
+    // These gradients are atomically added to so important to zero them.
+    let v_conics = InnerWgpu::float_zeros([num_points, 3].into(), device);
+    let v_colors = InnerWgpu::float_zeros([num_points, 4].into(), device);
 
-        // These gradients are atomically added to so important to zero them.
-        let v_conics = InnerWgpu::float_zeros([num_visible as usize, 3].into(), device);
-        let v_colors = InnerWgpu::float_zeros([num_visible as usize, 4].into(), device);
+    let hard_floats = has_hard_floats();
 
-        let hard_floats = has_hard_floats();
-
-        tracing::trace_span!("RasterizeBackwards", sync_burn = true).in_scope(||
+    tracing::trace_span!("RasterizeBackwards", sync_burn = true).in_scope(||
             // SAFETY: Kernel has to contain no OOB indexing.
             unsafe {
                 client.execute_unchecked(
@@ -453,26 +448,26 @@ pub(crate) fn render_backward(
                 );
             });
 
-        let _span = tracing::trace_span!("GatherGrads", sync_burn = true).entered();
+    let _span = tracing::trace_span!("GatherGrads", sync_burn = true).entered();
 
-        // SAFETY: Kernel has to contain no OOB indexing.
-        unsafe {
-            client.execute_unchecked(
-                GatherGrads::task(),
-                calc_cube_count([num_visible], GatherGrads::WORKGROUP_SIZE),
-                vec![
-                    uniforms_buffer.clone().handle.binding(),
-                    global_from_compact_gid.clone().handle.binding(),
-                    raw_opac.handle.binding(),
-                    means.clone().handle.binding(),
-                    v_colors.handle.binding(),
-                    v_coeffs.handle.clone().binding(),
-                    v_raw_opac.handle.clone().binding(),
-                ],
-            );
-        }
+    // SAFETY: Kernel has to contain no OOB indexing.
+    unsafe {
+        client.execute_unchecked(
+            GatherGrads::task(),
+            calc_cube_count([num_points as u32], GatherGrads::WORKGROUP_SIZE),
+            vec![
+                uniforms_buffer.clone().handle.binding(),
+                global_from_compact_gid.clone().handle.binding(),
+                raw_opac.handle.binding(),
+                means.clone().handle.binding(),
+                v_colors.handle.binding(),
+                v_coeffs.handle.clone().binding(),
+                v_raw_opac.handle.clone().binding(),
+            ],
+        );
+    }
 
-        tracing::trace_span!("ProjectBackwards", sync_burn = true).in_scope(||
+    tracing::trace_span!("ProjectBackwards", sync_burn = true).in_scope(||
         // SAFETY: Kernel has to contain no OOB indexing.
         unsafe {
         client.execute_unchecked(
@@ -492,7 +487,6 @@ pub(crate) fn render_backward(
             ],
         );
     });
-    }
 
     SplatGrads {
         v_means,

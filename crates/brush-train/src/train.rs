@@ -221,7 +221,7 @@ impl SplatTrainer {
         );
     }
 
-    pub async fn step(
+    pub fn step(
         &mut self,
         iter: u32,
         batch: SceneBatch<B>,
@@ -246,12 +246,10 @@ impl SplatTrainer {
                 let (pred_image, aux) =
                     splats.render(camera, glam::uvec2(img_w as u32, img_h as u32), false);
 
+                // aux.clone().debug_assert_valid();
+
                 renders.push(pred_image);
                 auxes.push(aux);
-            }
-
-            for aux in &auxes {
-                aux.resolve_bwd_data().await;
             }
 
             let pred_images = Tensor::stack(renders, 0);

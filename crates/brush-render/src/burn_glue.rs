@@ -56,11 +56,6 @@ impl Backend for BBase {
         state: GaussianBackwardState<Self>,
         v_output: FloatTensor<Self>,
     ) -> SplatGrads<Self> {
-        let bwd_state = state.rx.borrow().data().clone();
-        let max_intersects = state.compact_gid_from_isect.shape.dims[0] as u32;
-
-        assert!(bwd_state.num_intersects <= max_intersects, "Too many tile intersections. This can happen for scenes with a lot of large gaussians ({} > {})", bwd_state.num_intersects, max_intersects);
-
         render_backward(
             v_output,
             state.means,
@@ -74,7 +69,6 @@ impl Backend for BBase {
             state.global_from_compact_gid,
             state.tile_offsets,
             state.final_index,
-            bwd_state.num_visible,
             state.sh_degree,
         )
     }
@@ -177,8 +171,6 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
             render_u32_buffer,
         );
 
-        let (send, rx) = tokio::sync::watch::channel(crate::BwdAux::default());
-
         let wrapped_aux = RenderAuxPrimitive::<Self> {
             projected_splats: <Self as AutodiffBackend>::from_inner(aux.projected_splats.clone()),
             radii: <Self as AutodiffBackend>::from_inner(aux.radii),
@@ -189,7 +181,6 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
             compact_gid_from_isect: aux.compact_gid_from_isect.clone(),
             global_from_compact_gid: aux.global_from_compact_gid.clone(),
             uniforms_buffer: aux.uniforms_buffer.clone(),
-            sender: Some(send),
         };
 
         match prep_nodes {
@@ -205,7 +196,6 @@ impl<B: Backend, C: CheckpointStrategy> Backend for Autodiff<B, C> {
                             [1] as u32,
                     ),
                     out_img: out_img.clone(),
-                    rx,
                     projected_splats: aux.projected_splats,
                     uniforms_buffer: aux.uniforms_buffer,
                     final_index: aux.final_index,
@@ -319,7 +309,6 @@ impl Backend for Fusion<BBase> {
                 .tensor_uninitialized(vec![max_intersects as usize], DType::I32),
             global_from_compact_gid: client.tensor_uninitialized(vec![num_points], DType::I32),
             radii: client.tensor_uninitialized(vec![num_points], DType::F32),
-            sender: None,
         };
 
         let desc = CustomOpDescription::new(
@@ -391,7 +380,6 @@ impl Backend for Fusion<BBase> {
                     global_from_compact_gid: h
                         .get_int_tensor::<BBase>(&state.global_from_compact_gid.into_description()),
                     sh_degree: state.sh_degree,
-                    rx: state.rx,
                 };
 
                 let grads =

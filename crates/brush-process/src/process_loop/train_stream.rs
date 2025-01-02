@@ -48,7 +48,7 @@ pub(crate) fn train_stream(
             let batch = dataloader.next_batch().await;
             let extent = batch.scene_extent;
 
-            let (new_splats, stats) = trainer.step(iter, batch, splats).await;
+            let (new_splats, stats) = trainer.step(iter, batch, splats);
             let (new_splats, refine) = trainer.refine_if_needed(iter, new_splats, extent).await;
             iter += 1;
             splats = new_splats;
