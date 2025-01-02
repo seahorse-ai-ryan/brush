@@ -66,6 +66,8 @@ skip = [
     { name = 'pollster' },
 
     { name = 'indexmap' },
+
+    { name = 'ndk-sys' }, # Needed on Android.
 ]
 
 [licenses]

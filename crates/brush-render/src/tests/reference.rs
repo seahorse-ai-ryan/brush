@@ -144,7 +144,11 @@ async fn test_reference() -> Result<()> {
             .backward();
 
         // XY gradients are also in compact format.
-        let v_xys = splats.xys_dummy.grad(&grads).context("no xys grad")?;
+        let v_xys = splats
+            .xys_dummy
+            .grad(&grads)
+            .context("no xys grad")?
+            .slice([0..num_visible]);
         let v_xys_ref =
             safetensor_to_burn::<DiffBack, 2>(&tensors.tensor("v_xy")?, &device).inner();
         let v_xys_ref = v_xys_ref.select(0, gs_ids.inner().clone());

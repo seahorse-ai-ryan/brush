@@ -108,11 +108,6 @@ impl<B: Backend> RenderAux<B> {
         );
 
         assert!(
-            num_visible != 0,
-            "Nothing visible which probably indicates a bug"
-        );
-
-        assert!(
             num_visible >= 0 && num_visible <= num_points as i32,
             "Something went wrong when calculating the number of visible gaussians. {num_visible} > {num_points}"
         );
