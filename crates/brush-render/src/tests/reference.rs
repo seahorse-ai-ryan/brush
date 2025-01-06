@@ -75,7 +75,7 @@ async fn test_reference() -> Result<()> {
         let fov_y = focal_to_fov(focal, h as u32);
 
         let cam = Camera::new(
-            glam::vec3(0.123, -0.123, -8.0),
+            glam::vec3(0.0, 0.0, -8.0),
             glam::Quat::IDENTITY,
             fov_x,
             fov_y,
@@ -111,9 +111,10 @@ async fn test_reference() -> Result<()> {
             )?;
         }
 
+        wrapped_aux.clone().debug_assert_valid();
+
         // Check if images match.
         assert!(out.clone().all_close(img_ref, Some(1e-5), Some(1e-6)));
-        wrapped_aux.clone().debug_assert_valid();
 
         let num_visible = wrapped_aux.num_visible.into_scalar_async().await as usize;
         let projected_splats =
