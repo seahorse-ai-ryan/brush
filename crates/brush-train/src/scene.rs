@@ -1,5 +1,5 @@
 use brush_render::{bounding_box::BoundingBox, camera::Camera};
-use glam::Vec3;
+use glam::{vec3, Vec3};
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -23,11 +23,12 @@ pub struct Scene {
     pub views: Arc<Vec<SceneView>>,
 }
 
-fn camera_similarity_score(cam: &Camera, reference: &Camera) -> f32 {
-    let distance = (cam.position - reference.position).length();
-    let forward_ref = reference.rotation * Vec3::Z;
-    let forward_cam = cam.rotation * Vec3::Z;
-    distance * (1.0 - forward_ref.dot(forward_cam))
+fn camera_distance_score(cam: &Camera, reference: &Camera) -> f32 {
+    (cam.position - reference.position).length()
+        + (cam.position + cam.rotation * vec3(-1.0, 0.0, 1.0) - reference.position).length()
+        + (cam.position + cam.rotation * vec3(1.0, 0.0, 1.0) - reference.position).length()
+        + (cam.position + cam.rotation * vec3(0.0, -1.0, 1.0) - reference.position).length()
+        + (cam.position + cam.rotation * vec3(0.0, 1.0, 1.0) - reference.position).length()
 }
 
 impl Scene {
@@ -62,8 +63,8 @@ impl Scene {
             .iter()
             .enumerate() // This will give us (index, view) pairs
             .min_by(|(_, a), (_, b)| {
-                let score_a = camera_similarity_score(&a.camera, reference);
-                let score_b = camera_similarity_score(&b.camera, reference);
+                let score_a = camera_distance_score(&a.camera, reference);
+                let score_b = camera_distance_score(&b.camera, reference);
                 score_a
                     .partial_cmp(&score_b)
                     .unwrap_or(std::cmp::Ordering::Equal)
