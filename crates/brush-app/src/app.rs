@@ -255,11 +255,11 @@ impl App {
         let min_radius = search_params
             .get("min_radius")
             .and_then(|f| f.parse().ok())
-            .unwrap_or(1.0);
+            .unwrap_or(0.5);
         let max_radius = search_params
             .get("max_radius")
             .and_then(|f| f.parse().ok())
-            .unwrap_or(10.0);
+            .unwrap_or(100.0);
 
         let min_yaw = search_params
             .get("min_yaw")
