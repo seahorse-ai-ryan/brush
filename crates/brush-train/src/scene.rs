@@ -24,11 +24,16 @@ pub struct Scene {
 }
 
 fn camera_distance_score(cam: &Camera, reference: &Camera) -> f32 {
-    (cam.position - reference.position).length()
-        + (cam.position + cam.rotation * vec3(-1.0, 0.0, 1.0) - reference.position).length()
-        + (cam.position + cam.rotation * vec3(1.0, 0.0, 1.0) - reference.position).length()
-        + (cam.position + cam.rotation * vec3(0.0, -1.0, 1.0) - reference.position).length()
-        + (cam.position + cam.rotation * vec3(0.0, 1.0, 1.0) - reference.position).length()
+    let mut score = 0.0;
+    for off_x in [-1.0, 0.0, 1.0] {
+        for off_y in [-1.0, 0.0, 1.0] {
+            let offset = vec3(off_x, off_y, 1.0);
+            let cam_pos = cam.position + cam.rotation * offset;
+            let ref_pos = reference.position + reference.rotation * offset;
+            score += (cam_pos - ref_pos).length();
+        }
+    }
+    score
 }
 
 impl Scene {
