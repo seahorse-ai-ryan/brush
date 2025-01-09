@@ -4,12 +4,22 @@ use burn::{
 };
 use image::{DynamicImage, Rgb32FImage, Rgba32FImage};
 
-// Converts an image to a tensor. The tensor will be a floating point image with a [0, 1] image.
-pub fn image_to_tensor<B: Backend>(image: &DynamicImage, device: &B::Device) -> Tensor<B, 3> {
+// Converts an image to a train sample. The tensor will be a floating point image with a [0, 1] image.
+//
+// This assume the input image has un-premultiplied alpha, whereas the output has pre-multiplied alpha.
+pub fn image_to_sample<B: Backend>(image: &DynamicImage, device: &B::Device) -> Tensor<B, 3> {
     let (w, h) = (image.width(), image.height());
 
     let tensor_data = if image.color().has_alpha() {
-        TensorData::new(image.to_rgba32f().into_vec(), [h as usize, w as usize, 4])
+        // Assume image has un-multiplied alpha and conver it to pre-mutliplied.
+        let mut rgba = image.to_rgba32f();
+        for pixel in rgba.pixels_mut() {
+            let a = pixel[3];
+            pixel[0] *= a;
+            pixel[1] *= a;
+            pixel[2] *= a;
+        }
+        TensorData::new(rgba.into_vec(), [h as usize, w as usize, 4])
     } else {
         TensorData::new(image.to_rgb32f().into_vec(), [h as usize, w as usize, 3])
     };

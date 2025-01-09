@@ -8,7 +8,7 @@ use brush_render::{
     gaussian_splats::{RandomSplatsConfig, Splats},
 };
 use brush_train::{
-    image::image_to_tensor,
+    image::image_to_sample,
     scene::SceneView,
     train::{SceneBatch, SplatTrainer, TrainConfig},
 };
@@ -56,7 +56,7 @@ fn spawn_train_loop(
 
         // One batch of training data, it's the same every step so can just cosntruct it once.
         let batch = SceneBatch {
-            gt_images: image_to_tensor(&view.image, &device).unsqueeze(),
+            gt_images: image_to_sample(&view.image, &device).unsqueeze(),
             gt_views: vec![view],
             scene_extent: 1.0,
         };

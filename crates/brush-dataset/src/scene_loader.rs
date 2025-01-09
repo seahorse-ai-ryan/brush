@@ -1,5 +1,5 @@
 use brush_render::Backend;
-use brush_train::image::image_to_tensor;
+use brush_train::image::image_to_sample;
 use brush_train::scene::Scene;
 use brush_train::train::SceneBatch;
 use burn::tensor::Tensor;
@@ -45,7 +45,7 @@ impl<B: Backend> SceneLoader<B> {
                                 .expect("Need at least one view in dataset")
                         });
                         let view = scene.views[index].clone();
-                        (image_to_tensor(&view.image, &device), view)
+                        (image_to_sample(&view.image, &device), view)
                     })
                     .unzip();
 

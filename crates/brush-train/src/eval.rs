@@ -4,7 +4,7 @@ use burn::tensor::{ElementConversion, Tensor};
 use image::DynamicImage;
 use rand::seq::IteratorRandom;
 
-use crate::image::image_to_tensor;
+use crate::image::image_to_sample;
 use crate::scene::{Scene, SceneView};
 use crate::ssim::Ssim;
 
@@ -59,7 +59,7 @@ pub async fn eval_stats<B: Backend>(
         let ground_truth: DynamicImage = view.image.clone().to_rgb8().into();
         let res = glam::uvec2(ground_truth.width(), ground_truth.height());
 
-        let gt_tensor = image_to_tensor::<B>(&ground_truth, device);
+        let gt_tensor = image_to_sample::<B>(&ground_truth, device);
         let (rendered, aux) = splats.render(&view.camera, res, false);
 
         let render_rgb = rendered.slice([0..res.y as usize, 0..res.x as usize, 0..3]);
