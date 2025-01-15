@@ -37,8 +37,8 @@ pub struct TrainConfig {
     #[clap(long, help_heading = "Training options", default_value = "11")]
     ssim_window_size: usize,
     /// Start learning rate for the mean.
-    #[config(default = 1.6e-4)]
-    #[arg(long, help_heading = "Training options", default_value = "1.6e-4")]
+    #[config(default = 2.0e-4)]
+    #[arg(long, help_heading = "Training options", default_value = "2.5e-4")]
     lr_mean: f64,
     /// Learning rate decay for the mean lr.
     #[config(default = 1e-2)]
@@ -66,26 +66,41 @@ pub struct TrainConfig {
     #[arg(long, help_heading = "Training options", default_value = "1e-3")]
     lr_rotation: f64,
 
+    /// Weight of mean-opacity loss.
+    #[config(default = 0.0)]
+    #[arg(long, help_heading = "Training options", default_value = "0.0")]
+    opac_loss_weight: f32,
+
+    /// How much opacity to subtrat every refine step.
+    #[config(default = 0.025)]
+    #[arg(long, help_heading = "Training options", default_value = "0.025")]
+    opac_refine_subtract: f32,
+
     /// GSs with opacity below this value will be pruned
     #[config(default = 0.005)]
     #[arg(long, help_heading = "Refine options", default_value = "0.005")]
     cull_opacity: f32,
+
     /// Threshold for positional gradient norm
     #[config(default = 0.0002)]
     #[arg(long, help_heading = "Refine options", default_value = "0.0002")]
     densify_grad_thresh: f32,
+
     /// Gaussians bigger than this size in screenspace radius are split
     #[config(default = 0.1)]
     #[arg(long, help_heading = "Refine options", default_value = "0.1")]
     densify_radius_threshold: f32,
+
     /// Below this size, gaussians are *duplicated*, otherwise split
     #[config(default = 0.01)]
     #[arg(long, help_heading = "Refine options", default_value = "0.01")]
     densify_size_threshold: f32,
+
     /// Gaussians bigger than this size in percent of the scene extent are culled
     #[config(default = 0.5)]
     #[arg(long, help_heading = "Refine options", default_value = "0.5")]
     cull_scale3d_percentage_threshold: f32,
+
     /// Period before refinement starts.
     #[config(default = 500)]
     #[arg(long, help_heading = "Refine options", default_value = "500")]
@@ -194,6 +209,7 @@ fn quaternion_vec_multiply<B: Backend>(
 impl SplatTrainer {
     pub fn new(splats: &Splats<B>, config: &TrainConfig, device: &WgpuDevice) -> Self {
         let optim = AdamScaledConfig::new().with_epsilon(1e-15).init();
+
         let ssim = Ssim::new(config.ssim_window_size, 3, device);
 
         let decay = config.lr_mean_decay.powf(1.0 / config.total_steps as f64);
@@ -206,19 +222,6 @@ impl SplatTrainer {
             refine_record: RefineRecord::new(splats.num_splats(), device),
             ssim,
         }
-    }
-
-    pub(crate) fn reset_opacity(
-        &self,
-        splats: &mut Splats<B>,
-        record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
-    ) {
-        map_param(
-            &mut splats.raw_opacity,
-            record,
-            |op| Tensor::zeros_like(&op) + inverse_sigmoid(self.config.cull_opacity * 2.0),
-            |state| Tensor::zeros_like(&state),
-        );
     }
 
     pub fn step(
@@ -268,9 +271,9 @@ impl SplatTrainer {
                 pred_rgb.clone()
             };
 
-            let loss = (pred_compare - batch.gt_images.clone()).abs().mean();
+            let mut loss = (pred_compare - batch.gt_images.clone()).abs().mean();
 
-            let loss = if self.config.ssim_weight > 0.0 {
+            if self.config.ssim_weight > 0.0 {
                 let gt_rgb =
                     batch
                         .gt_images
@@ -278,20 +281,24 @@ impl SplatTrainer {
                         .slice([0..batch_size, 0..img_h, 0..img_w, 0..3]);
 
                 let ssim_loss = -self.ssim.ssim(pred_rgb, gt_rgb) + 1.0;
-                loss * (1.0 - self.config.ssim_weight) + ssim_loss * self.config.ssim_weight
-            } else {
-                loss
-            };
+                loss = loss * (1.0 - self.config.ssim_weight) + ssim_loss * self.config.ssim_weight;
+            }
+
+            if self.config.opac_loss_weight > 0.0 {
+                let opac_loss = splats.opacity().mean();
+                loss = loss + opac_loss * self.config.opac_loss_weight;
+            }
 
             (pred_images, auxes, loss)
         };
 
         let mut grads = trace_span!("Backward pass", sync_burn = true).in_scope(|| loss.backward());
 
-        // TODO: Should scale lr be scales by scene scale as well?
         let (lr_mean, lr_rotation, lr_scale, lr_coeffs, lr_opac) = (
             self.sched_mean.step() * batch.scene_extent as f64,
             self.config.lr_rotation,
+            // Scale is relative to the scene scale, but the exp() activation function
+            // means "offsetting" all values also solves the learning rate scaling.
             self.config.lr_scale,
             self.config.lr_coeffs_dc,
             self.config.lr_opac,
@@ -496,15 +503,17 @@ impl SplatTrainer {
                 Tensor::random([split_count, 3], Distribution::Normal(0.0, 1.0), &device),
             ) * cur_scale.clone().exp();
 
+            let scale_div: f32 = 1.6;
+
             append_means.push(cur_means.clone() + samples.clone());
             append_rots.push(cur_rots.clone());
-            append_scales.push(cur_scale.clone() - 1.6f32.ln());
+            append_scales.push(cur_scale.clone() - scale_div.ln());
             append_coeffs.push(cur_coeff.clone());
             append_opac.push(cur_raw_opac.clone());
 
             append_means.push(cur_means - samples);
             append_rots.push(cur_rots);
-            append_scales.push(cur_scale - 1.6f32.ln());
+            append_scales.push(cur_scale - scale_div.ln());
             append_coeffs.push(cur_coeff);
             append_opac.push(cur_raw_opac);
         }
@@ -553,7 +562,24 @@ impl SplatTrainer {
 
         let refine_step = iter / self.config.refine_every;
         if refine_step % self.config.reset_alpha_every_refine == 0 {
-            self.reset_opacity(&mut splats, &mut record);
+            map_param(
+                &mut splats.raw_opacity,
+                &mut record,
+                |op| {
+                    Tensor::zeros_like(&op)
+                        + inverse_sigmoid(
+                            self.config.cull_opacity * 2.0 + self.config.opac_refine_subtract,
+                        )
+                },
+                |state| Tensor::zeros_like(&state),
+            );
+        } else if self.config.opac_refine_subtract > 0.0 {
+            map_param(
+                &mut splats.raw_opacity,
+                &mut record,
+                |op| op - self.config.opac_refine_subtract,
+                |state| state,
+            );
         }
 
         // Stats don't line up anymore so have to reset them.

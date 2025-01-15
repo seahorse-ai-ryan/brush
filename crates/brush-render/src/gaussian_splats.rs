@@ -110,9 +110,9 @@ impl<B: Backend> Splats<B> {
             let extents: Vec<_> = tree_pos
                 .iter()
                 .map(|p| {
-                    // Get average of 3 nearest squared distances.
-                    (tree.query().nn(p).take(3).skip(1).map(|x| x.1).sum::<f64>() / 4.0)
-                        .clamp(1e-12, 2.0)
+                    // Get average of 5 nearest distances.
+                    (tree.query().nn(p).skip(1).take(5).map(|x| x.1).sum::<f64>() / 5.0)
+                        .max(1e-12)
                         .ln() as f32
                 })
                 .collect();
@@ -138,7 +138,7 @@ impl<B: Backend> Splats<B> {
             Tensor::from_data(TensorData::new(raw_opacities.to_vec(), [n_splats]), device)
                 .require_grad()
         } else {
-            Tensor::ones(Shape::new([n_splats]), device) * inverse_sigmoid(0.1)
+            Tensor::ones(Shape::new([n_splats]), device) * inverse_sigmoid(0.25)
         };
 
         Self::from_tensor_data(
