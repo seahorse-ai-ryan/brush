@@ -11,7 +11,7 @@ use burn_fusion::client::FusionClient;
 use eframe::egui_wgpu::Renderer;
 use egui::epaint::mutex::RwLock as EguiRwLock;
 use egui::TextureId;
-use wgpu::{CommandEncoderDescriptor, ImageDataLayout, TextureViewDescriptor};
+use wgpu::{CommandEncoderDescriptor, TexelCopyBufferLayout, TextureViewDescriptor};
 
 type InnerWgpu = JitBackend<WgpuRuntime, f32, i32, u32>;
 
@@ -130,15 +130,15 @@ impl BurnTexture {
 
         // Now copy the buffer to the texture.
         encoder.copy_buffer_to_texture(
-            wgpu::ImageCopyBuffer {
+            wgpu::TexelCopyBufferInfo {
                 buffer: img_res_handle.resource().buffer.as_ref(),
-                layout: ImageDataLayout {
+                layout: TexelCopyBufferLayout {
                     offset: img_res_handle.resource().offset(),
                     bytes_per_row,
                     rows_per_image: None,
                 },
             },
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 #[allow(unused)]
 use brush_app::{App, AppCreateCb};
 
@@ -67,8 +69,8 @@ fn main() -> Result<(), clap::Error> {
                     panic!("Validation of args failed?");
                 };
 
-                let process =
-                    start_process(source, args.process, burn_wgpu::WgpuDevice::DefaultDevice);
+                let device = brush_render::burn_init_setup().await;
+                let process = start_process(source, args.process, device);
                 brush_cli::ui::process_ui(process).await;
             }
         });

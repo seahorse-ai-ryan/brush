@@ -1,32 +1,12 @@
+#![recursion_limit = "256"]
+
 use std::sync::Arc;
 
-use burn_wgpu::{RuntimeOptions, WgpuDevice};
 use eframe::egui_wgpu::WgpuConfiguration;
-use wgpu::{Adapter, Device, Features, Queue};
+use wgpu::{Adapter, Features};
 
 pub mod burn_texture;
 pub mod channel;
-
-pub fn create_wgpu_device(
-    adapter: Arc<Adapter>,
-    device: Arc<Device>,
-    queue: Arc<Queue>,
-) -> WgpuDevice {
-    let setup = burn_wgpu::WgpuSetup {
-        instance: Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor::default())), // unused... need to fix this in Burn.
-        adapter,
-        device,
-        queue,
-    };
-
-    burn_wgpu::init_device(
-        setup,
-        RuntimeOptions {
-            tasks_max: 64,
-            memory_config: burn_wgpu::MemoryConfiguration::ExclusivePages,
-        },
-    )
-}
 
 pub fn create_egui_options() -> WgpuConfiguration {
     WgpuConfiguration {

@@ -1,12 +1,16 @@
+#![recursion_limit = "256"]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::single_range_in_vec_init)]
+use std::sync::Arc;
+
 use burn::prelude::Tensor;
 use burn::tensor::ops::{FloatTensor, IntTensor};
 use burn::tensor::{ElementConversion, Int, TensorPrimitive};
 use burn_jit::JitBackend;
-use burn_wgpu::WgpuRuntime;
+use burn_wgpu::{AutoGraphicsApi, RuntimeOptions, WgpuDevice, WgpuRuntime};
 use camera::Camera;
 use shaders::helpers::TILE_WIDTH;
+use wgpu::{Adapter, Device, Queue};
 
 mod burn_glue;
 mod dim_check;
@@ -255,3 +259,43 @@ pub trait AutodiffBackend:
 }
 
 type BBase = JitBackend<WgpuRuntime, f32, i32, u32>;
+
+fn burn_options() -> RuntimeOptions {
+    RuntimeOptions {
+        tasks_max: 64,
+        memory_config: burn_wgpu::MemoryConfiguration::ExclusivePages,
+    }
+}
+
+fn set_hard_floats(adapter: &Adapter) {
+    let hard_floats = adapter
+        .features()
+        .contains(wgpu::Features::SHADER_FLOAT32_ATOMIC);
+
+    render::set_hard_floats_available(hard_floats);
+    log::info!("Running with native atomic floats: {hard_floats}");
+}
+
+pub fn burn_init_device(
+    adapter: Arc<Adapter>,
+    device: Arc<Device>,
+    queue: Arc<Queue>,
+) -> WgpuDevice {
+    set_hard_floats(&adapter);
+
+    let setup = burn_wgpu::WgpuSetup {
+        instance: Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor::default())), // unused... need to fix this in Burn.
+        adapter,
+        device,
+        queue,
+    };
+    burn_wgpu::init_device(setup, burn_options())
+}
+
+pub async fn burn_init_setup() -> WgpuDevice {
+    let setup =
+        burn_wgpu::init_setup_async::<AutoGraphicsApi>(&WgpuDevice::DefaultDevice, burn_options())
+            .await;
+    set_hard_floats(&setup.adapter);
+    WgpuDevice::DefaultDevice
+}

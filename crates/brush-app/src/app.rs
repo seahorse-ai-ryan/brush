@@ -1,4 +1,3 @@
-use core::f32;
 use std::ops::Range;
 use std::sync::{Arc, RwLock};
 
@@ -190,18 +189,11 @@ impl App {
             .wgpu_render_state
             .as_ref()
             .expect("No wgpu renderer enabled in egui");
-        let device = brush_ui::create_wgpu_device(
+        let device = brush_render::burn_init_device(
             state.adapter.clone(),
             state.device.clone(),
             state.queue.clone(),
         );
-
-        // brush_render::render::set_hard_floats_available(
-        //     state
-        //         .adapter
-        //         .features()
-        //         .contains(Features::SHADER_FLT32_ATOMIC),
-        // );
 
         if cfg!(feature = "tracing") {
             // TODO: In debug only?

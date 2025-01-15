@@ -57,8 +57,7 @@ log = "0.4.22"
 wasm-bindgen = "0.2.97"
 
 naga_oil = "0.16"
-wgpu = { version = "23.0.0", features = ["naga-ir"] }
-naga = "23.1.0"
+wgpu = { version = "23", features = ["naga-ir"] }
 
 env_logger = "0.10.2"
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
@@ -115,15 +114,14 @@ clap = { version = "4.5.23", features = ["derive"] }
 # burn-jit = { path = "../burn/crates/burn-jit" }
 # burn-wgpu = { path = "../burn/crates/burn-wgpu" }
 # burn-fusion = { path = "../burn/crates/burn-fusion" }
-# [patch."https://github.com/tracel-ai/cubecl"]
-# cubecl = { path = "../cubecl/crates/cubecl" }
-# cubecl-common = { path = "../cubecl/crates/cubecl-common" }
 
 [patch.crates-io]
-re_arrow2 = { git = "https://github.com/rerun-io/re_arrow2", rev = "4049468314caf5e67410539e0a1b72eb4b8d5b22" }
+# Use wgpu and naga at head
+wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "sg" }
+naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "sg" }
 
-# emath = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
-# ecolor = { git = "https://github.com/emilk/egui/", rev = "5bfff316c9818b3c140d02bb6cdc488556d46ab7" }
+# Patch naga_oil for wgpu-head
+naga_oil = { git = "https://github.com/ArthurBrussee/naga_oil", branch = "wgpu-head" }
 
 [profile.dev]
 opt-level = 0

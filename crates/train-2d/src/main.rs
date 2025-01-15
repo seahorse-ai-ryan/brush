@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use std::sync::Arc;
@@ -101,7 +102,7 @@ impl App {
             .wgpu_render_state
             .as_ref()
             .expect("No wgpu renderer enabled in egui");
-        let device = brush_ui::create_wgpu_device(
+        let device = brush_render::burn_init_device(
             state.adapter.clone(),
             state.device.clone(),
             state.queue.clone(),
