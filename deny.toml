@@ -67,6 +67,8 @@ skip = [
     { name = 'indexmap' },
 
     { name = 'ndk-sys' }, # Needed on Android.
+
+    { name = 'base64' }, # Old version from egui_extras
 ]
 
 [licenses]
