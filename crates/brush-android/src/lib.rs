@@ -47,10 +47,7 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
                 wgpu_options,
                 ..Default::default()
             },
-            Box::new(|cc| {
-                egui_extras::install_image_loaders(&cc.egui_ctx);
-                Ok(Box::new(brush_app::App::new(cc, send)))
-            }),
+            Box::new(|cc| Ok(Box::new(brush_app::App::new(cc, send)))),
         )
         .unwrap();
     });
