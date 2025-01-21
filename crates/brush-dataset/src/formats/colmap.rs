@@ -11,7 +11,7 @@ use crate::{
     splat_import::SplatMessage,
     stream_fut_parallel, Dataset, LoadDataseConfig,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_fn_stream::try_fn_stream;
 use brush_render::{
     camera::{self, Camera},
@@ -21,6 +21,7 @@ use brush_render::{
 };
 use brush_train::scene::SceneView;
 use glam::Vec3;
+use std::collections::HashMap;
 use tokio_stream::StreamExt;
 
 fn find_base_path(archive: &BrushVfs, search_path: &str) -> Option<PathBuf> {
@@ -38,31 +39,28 @@ fn find_base_path(archive: &BrushVfs, search_path: &str) -> Option<PathBuf> {
 }
 
 fn find_mask_and_img(vfs: &BrushVfs, paths: &[PathBuf]) -> Result<(PathBuf, Option<PathBuf>)> {
-    match paths {
-        // One path found - use it.
-        [path] => Ok((path.clone(), find_mask_path(vfs, path))),
-        // two paths found - check if one of them is a mask for another.
-        [path1, path2] => {
-            if let Some(mask) = find_mask_path(vfs, path1) {
-                if mask == *path2 {
-                    return Ok((path1.clone(), Some(mask)));
-                }
-            }
+    let mut path_masks = HashMap::new();
+    let mut masks = vec![];
 
-            if let Some(mask) = find_mask_path(vfs, path2) {
-                if mask == *path1 {
-                    return Ok((path2.clone(), Some(mask)));
-                }
-            }
-            anyhow::bail!("Couldn't decide which image is a view and which is a mask.")
-        }
-        _ => {
-            anyhow::bail!(
-                "Expected 1 or 2 candidate images, got {} {paths:?}",
-                paths.len()
-            )
+    // First pass: collect images & masks.
+    for path in paths {
+        let mask = find_mask_path(vfs, path);
+        path_masks.insert(path.clone(), mask.clone());
+        if let Some(mask_path) = mask {
+            masks.push(mask_path);
         }
     }
+
+    // Remove masks from candidates - shouldn't count as an input image.
+    for mask in masks {
+        path_masks.remove(&mask);
+    }
+
+    // Sort and return the first candidate (alphabetically).
+    path_masks
+        .into_iter()
+        .min_by_key(|kv| kv.0.clone())
+        .context("No candidates found")
 }
 
 async fn read_views(
