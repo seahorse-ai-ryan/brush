@@ -1,10 +1,13 @@
+use super::clamp_img_to_max_size;
+use super::find_mask_path;
+use super::load_image;
 use super::DataStream;
 use crate::brush_vfs::BrushVfs;
 use crate::splat_import::load_splat_from_ply;
 use crate::splat_import::SplatMessage;
 use crate::stream_fut_parallel;
+use crate::Dataset;
 use crate::LoadDataseConfig;
-use crate::{clamp_img_to_max_size, Dataset};
 use anyhow::Result;
 use async_fn_stream::try_fn_stream;
 use brush_render::camera::fov_to_focal;
@@ -12,7 +15,7 @@ use brush_render::camera::{focal_to_fov, Camera};
 use brush_render::Backend;
 use brush_train::scene::SceneView;
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
@@ -102,7 +105,7 @@ struct FrameData {
 
 fn read_transforms_file(
     scene: JsonScene,
-    transforms_path: PathBuf,
+    transforms_path: &Path,
     vfs: BrushVfs,
     load_args: &LoadDataseConfig,
 ) -> Vec<impl Future<Output = anyhow::Result<SceneView>>> {
@@ -113,7 +116,7 @@ fn read_transforms_file(
         .map(move |frame| {
             let mut archive = vfs.clone();
             let load_args = load_args.clone();
-            let transforms_path = transforms_path.clone();
+            let transforms_path = transforms_path.to_path_buf();
 
             async move {
                 // NeRF 'transform_matrix' is a camera-to-world transform
@@ -131,39 +134,21 @@ fn read_transforms_file(
                     .parent()
                     .expect("Transforms path must be a filename")
                     .join(&frame.file_path);
+
+                // Assume a default extension if none is specified.
                 if path.extension().is_none() {
                     path = path.with_extension("png");
                 }
 
-                let mut img_buffer = vec![];
-                archive
-                    .open_path(&path)
-                    .await?
-                    .read_to_end(&mut img_buffer)
-                    .await?;
-
-                let comp_span = tracing::trace_span!("Decompress image").entered();
-                drop(comp_span);
-
-                // Create a cursor from the buffer
-                let mut image = tracing::trace_span!("Decode image")
-                    .in_scope(|| image::load_from_memory(&img_buffer))?;
+                let mask_path = find_mask_path(&archive, &path);
+                let mut image = load_image(&mut archive, &path, mask_path.as_deref()).await?;
 
                 let w = frame.w.or(scene.w).unwrap_or(image.width() as f64) as u32;
                 let h = frame.h.or(scene.h).unwrap_or(image.height() as f64) as u32;
 
-                if let Some(max_resolution) = load_args.max_resolution {
-                    image = clamp_img_to_max_size(image, max_resolution);
+                if let Some(max) = load_args.max_resolution {
+                    image = clamp_img_to_max_size(image, max);
                 }
-
-                // let focal_x = frame
-                //     .fl_x
-                //     .or(scene.fl_x)
-                //     .or(scene.camera_angle_x.map(|fx| fov_to_focal(fx, w)))
-                //     .context("Must have a focal length of some kind.")?;
-
-                // // Read fov y or derive it from the input.
-                // let focal_y = frame.fl_y.or(scene.fl_y).unwrap_or(focal_x);
 
                 let fovx = frame
                     .camera_angle_x
@@ -216,8 +201,7 @@ pub async fn read_dataset<B: Backend>(
 
     let json_files: Vec<_> = vfs
         .file_names()
-        .filter(|&n| n.extension().is_some_and(|p| p == "json"))
-        .map(|x| x.to_path_buf())
+        .filter(|n| n.extension().is_some_and(|p| p == "json"))
         .collect();
 
     let transforms_path = if json_files.len() == 1 {
@@ -242,7 +226,7 @@ pub async fn read_dataset<B: Backend>(
 
     let mut train_handles = read_transforms_file(
         train_scene.clone(),
-        transforms_path.clone(),
+        &transforms_path,
         vfs.clone(),
         load_args,
     );
@@ -287,7 +271,7 @@ pub async fn read_dataset<B: Backend>(
             let val_scene = serde_json::from_str(&json_str)?;
             Some(read_transforms_file(
                 val_scene,
-                eval_trans_path.clone(),
+                eval_trans_path,
                 data_clone,
                 &load_args_clone,
             ))
@@ -345,6 +329,7 @@ pub async fn read_dataset<B: Backend>(
                 .parent()
                 .expect("Transforms path must be a filename")
                 .join(init);
+
             let ply_data = vfs.open_path(&init_path).await;
 
             if let Ok(ply_data) = ply_data {
