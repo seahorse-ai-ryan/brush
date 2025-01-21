@@ -245,58 +245,58 @@ pub fn build_modules(
         let mut types = HashMap::new();
 
         for t in module.types.iter() {
-            match &t.1.inner {
-                naga::TypeInner::Struct { members, span: _ } => {
-                    if members.is_empty() {
-                        continue;
-                    }
-
-                    let mangled_name = t.1.name.as_ref().unwrap();
-
-                    // Ignore some builtins.
-                    if mangled_name.contains("__atomic_compare_exchange_result") {
-                        continue;
-                    }
-
-                    let (m, name) = mod_name_from_mangled(mangled_name);
-
-                    let max_align = members
-                        .iter()
-                        .map(|x| alignment_of(x.ty, ctx))
-                        .max()
-                        .unwrap();
-
-                    let mut struct_str = vec![format!("#[repr(C, align({max_align}))]")];
-                    struct_str.push("#[derive(bytemuck::Pod, bytemuck::Zeroable, Debug, PartialEq, Clone, Copy)]".to_owned());
-                    struct_str.push(format!("pub(crate) struct {name} {{"));
-                    for member in members {
-                        let rust_name = rust_type_name(member.ty, ctx);
-
-                        struct_str.push(
-                            format!(
-                                "    pub(crate) {}: {},",
-                                member.name.as_ref().unwrap(),
-                                rust_name
-                            )
-                            .to_owned(),
-                        );
-                    }
-                    struct_str.push("}".to_owned());
-
-                    let map = if m == mod_name || m.is_empty() {
-                        &mut types
-                    } else {
-                        match modules.get_mut(&m).unwrap() {
-                            ModuleInfo::Include {
-                                constants: _,
-                                types,
-                            } => types,
-                            ModuleInfo::File { .. } => panic!("Unsupported export type"),
-                        }
-                    };
-                    map.insert(name.clone(), struct_str);
+            if let naga::TypeInner::Struct { members, span: _ } = &t.1.inner {
+                if members.is_empty() {
+                    continue;
                 }
-                _ => continue,
+
+                let mangled_name = t.1.name.as_ref().unwrap();
+
+                // Ignore some builtins.
+                if mangled_name.contains("__atomic_compare_exchange_result") {
+                    continue;
+                }
+
+                let (m, name) = mod_name_from_mangled(mangled_name);
+
+                let max_align = members
+                    .iter()
+                    .map(|x| alignment_of(x.ty, ctx))
+                    .max()
+                    .unwrap();
+
+                let mut struct_str = vec![format!("#[repr(C, align({max_align}))]")];
+                struct_str.push(
+                    "#[derive(bytemuck::Pod, bytemuck::Zeroable, Debug, PartialEq, Clone, Copy)]"
+                        .to_owned(),
+                );
+                struct_str.push(format!("pub(crate) struct {name} {{"));
+                for member in members {
+                    let rust_name = rust_type_name(member.ty, ctx);
+
+                    struct_str.push(
+                        format!(
+                            "    pub(crate) {}: {},",
+                            member.name.as_ref().unwrap(),
+                            rust_name
+                        )
+                        .to_owned(),
+                    );
+                }
+                struct_str.push("}".to_owned());
+
+                let map = if m == mod_name || m.is_empty() {
+                    &mut types
+                } else {
+                    match modules.get_mut(&m).unwrap() {
+                        ModuleInfo::Include {
+                            constants: _,
+                            types,
+                        } => types,
+                        ModuleInfo::File { .. } => panic!("Unsupported export type"),
+                    }
+                };
+                map.insert(name.clone(), struct_str);
             }
         }
 

@@ -198,7 +198,7 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
                 Some("z") => Some(Vec3::Z),
                 _ => None,
             })
-            .last();
+            .next_back();
 
         let frame_count = header
             .elements
