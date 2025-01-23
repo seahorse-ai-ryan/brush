@@ -1,11 +1,8 @@
-use std::ops::Range;
 use std::sync::{Arc, RwLock};
 
+use crate::orbit_controls::CameraController;
 use crate::panels::SettingsPanel;
-use crate::{
-    orbit_controls::OrbitControls,
-    panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel},
-};
+use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
 use brush_dataset::Dataset;
 use brush_process::data_source::DataSource;
 use brush_process::process_loop::{
@@ -17,7 +14,7 @@ use burn_wgpu::WgpuDevice;
 use eframe::egui;
 use egui_tiles::SimplificationOptions;
 use egui_tiles::{Container, Tile, TileId, Tiles};
-use glam::{Affine3A, Quat, Vec3, Vec3A};
+use glam::{Affine3A, Quat, Vec3};
 use std::collections::HashMap;
 
 pub(crate) trait AppPanel {
@@ -87,8 +84,8 @@ pub struct App {
 pub struct AppContext {
     pub dataset: Dataset,
     pub camera: Camera,
-    pub controls: OrbitControls,
-    pub model_transform: Affine3A,
+    pub controls: CameraController,
+    pub model_local_to_world: Affine3A,
     pub device: WgpuDevice,
     ctx: egui::Context,
     running_process: Option<RunningProcess>,
@@ -97,21 +94,13 @@ pub struct AppContext {
 struct CameraSettings {
     focal: f64,
     radius: f32,
-    yaw_range: Range<f32>,
-    pitch_range: Range<f32>,
-    radius_range: Range<f32>,
 }
 
 impl AppContext {
-    fn new(device: WgpuDevice, ctx: egui::Context, cam_settings: CameraSettings) -> Self {
+    fn new(device: WgpuDevice, ctx: egui::Context, cam_settings: &CameraSettings) -> Self {
         let model_transform = Affine3A::IDENTITY;
 
-        let controls = OrbitControls::new(
-            cam_settings.radius,
-            cam_settings.radius_range,
-            cam_settings.yaw_range,
-            cam_settings.pitch_range,
-        );
+        let controls = CameraController::new(cam_settings.radius);
 
         // Camera position will be controlled by the orbit controls.
         let camera = Camera::new(
@@ -125,7 +114,7 @@ impl AppContext {
         Self {
             camera,
             controls,
-            model_transform,
+            model_local_to_world: model_transform,
             device,
             ctx,
             dataset: Dataset::empty(),
@@ -133,29 +122,25 @@ impl AppContext {
         }
     }
 
-    fn update_control_positions(&mut self) {
-        // set the controls transform.
-        let cam_transform =
-            Affine3A::from_rotation_translation(self.camera.rotation, self.camera.position);
-        let transform = self.model_transform.inverse() * cam_transform;
-        let (_, rotation, position) = transform.to_scale_rotation_translation();
-        self.controls.position = position.into();
-        self.controls.rotation = rotation;
-        self.controls.dirty = true;
-    }
-
-    pub fn set_up_axis(&mut self, up_axis: Vec3) {
+    pub fn set_model_up(&mut self, up_axis: Vec3) {
         let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
-        let model_transform = Affine3A::from_rotation_translation(rotation, Vec3::ZERO).inverse();
-        self.model_transform = model_transform;
-        self.update_control_positions();
+
+        let object_from_cam = self.model_local_to_world.inverse() * self.camera.local_to_world();
+
+        let transform = Affine3A::from_rotation_translation(rotation, Vec3::ZERO);
+
+        self.model_local_to_world = transform;
+        let cam = self.model_local_to_world * object_from_cam;
+
+        self.controls.position = cam.translation.into();
+        self.controls.rotation = Quat::from_mat3a(&cam.matrix3);
     }
 
-    pub fn focus_view(&mut self, cam: &Camera) {
-        self.camera = cam.clone();
-        self.update_control_positions();
-        self.controls.focus = self.controls.position
-            + self.controls.rotation * Vec3A::Z * self.dataset.train.bounds().extent.length() * 0.5;
+    pub fn focus_view(&mut self, view_cam: &Camera) {
+        self.camera = view_cam.clone();
+        let transform = self.model_local_to_world.inverse() * self.camera.local_to_world();
+        self.controls.position = transform.translation.into();
+        self.controls.rotation = Quat::from_mat3a(&transform.matrix3);
     }
 
     pub fn connect_to(&mut self, process: RunningProcess) {
@@ -238,48 +223,14 @@ impl App {
         let focal = search_params
             .get("focal")
             .and_then(|f| f.parse().ok())
-            .unwrap_or(0.5);
+            .unwrap_or(0.8);
         let radius = search_params
             .get("radius")
             .and_then(|f| f.parse().ok())
             .unwrap_or(4.0);
 
-        let min_radius = search_params
-            .get("min_radius")
-            .and_then(|f| f.parse().ok())
-            .unwrap_or(0.5);
-        let max_radius = search_params
-            .get("max_radius")
-            .and_then(|f| f.parse().ok())
-            .unwrap_or(100.0);
-
-        let min_yaw = search_params
-            .get("min_yaw")
-            .and_then(|f| f.parse::<f32>().ok())
-            .map_or(f32::MIN, |d| d.to_radians());
-        let max_yaw = search_params
-            .get("max_yaw")
-            .and_then(|f| f.parse::<f32>().ok())
-            .map_or(f32::MAX, |d| d.to_radians());
-
-        let min_pitch = search_params
-            .get("min_pitch")
-            .and_then(|f| f.parse::<f32>().ok())
-            .map_or(f32::MIN, |d| d.to_radians());
-        let max_pitch = search_params
-            .get("max_pitch")
-            .and_then(|f| f.parse::<f32>().ok())
-            .map_or(f32::MAX, |d| d.to_radians());
-
-        let settings = CameraSettings {
-            focal,
-            radius,
-            radius_range: min_radius..max_radius,
-            yaw_range: min_yaw..max_yaw,
-            pitch_range: min_pitch..max_pitch,
-        };
-
-        let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), settings);
+        let settings = CameraSettings { focal, radius };
+        let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), &settings);
 
         let mut tiles: Tiles<PaneType> = Tiles::default();
         let scene_pane = ScenePanel::new(

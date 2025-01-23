@@ -5,7 +5,7 @@ use brush_ui::burn_texture::BurnTexture;
 use burn_wgpu::Wgpu;
 use core::f32;
 use egui::epaint::mutex::RwLock as EguiRwLock;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use brush_render::{
     camera::{focal_to_fov, fov_to_focal},
@@ -13,12 +13,19 @@ use brush_render::{
 };
 use eframe::egui_wgpu::Renderer;
 use egui::{Color32, Rect};
-use glam::{Quat, Vec2};
+use glam::{Quat, UVec2, Vec3};
 use tokio_with_wasm::alias as tokio_wasm;
 use tracing::trace_span;
 use web_time::Instant;
 
 use crate::app::{AppContext, AppPanel};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RenderState {
+    size: UVec2,
+    cam_pos: Vec3,
+    cam_rot: Quat,
+}
 
 pub(crate) struct ScenePanel {
     pub(crate) backbuffer: BurnTexture,
@@ -36,7 +43,8 @@ pub(crate) struct ScenePanel {
     live_update: bool,
     paused: bool,
 
-    last_size: glam::UVec2,
+    last_state: Option<RenderState>,
+
     dirty: bool,
     renderer: Arc<EguiRwLock<Renderer>>,
     zen: bool,
@@ -58,7 +66,7 @@ impl ScenePanel {
             live_update: true,
             paused: false,
             dirty: true,
-            last_size: glam::UVec2::ZERO,
+            last_state: None,
             is_loading: false,
             is_training: false,
             renderer,
@@ -72,7 +80,6 @@ impl ScenePanel {
         ui: &mut egui::Ui,
         context: &mut AppContext,
         splats: &Splats<Wgpu>,
-        delta_time: web_time::Duration,
     ) {
         let mut size = brush_ui::size_for_splat_view(ui);
 
@@ -100,48 +107,34 @@ impl ScenePanel {
             egui::Sense::drag(),
         );
 
-        let mouse_delta = glam::vec2(response.drag_delta().x, response.drag_delta().y);
+        context.controls.tick(&response, ui);
 
-        let (pan, rotate) = if response.dragged_by(egui::PointerButton::Primary) {
-            (Vec2::ZERO, mouse_delta)
-        } else if response.dragged_by(egui::PointerButton::Secondary)
-            || response.dragged_by(egui::PointerButton::Middle)
-        {
-            (mouse_delta, Vec2::ZERO)
-        } else {
-            (Vec2::ZERO, Vec2::ZERO)
+        let camera = &mut context.camera;
+
+        // Create a camera that incorporates the model transform.
+        let total_transform =
+            context.model_local_to_world.inverse() * context.controls.local_to_world();
+        camera.position = total_transform.translation.into();
+        camera.rotation = Quat::from_mat3a(&total_transform.matrix3);
+
+        let state = RenderState {
+            size: glam::uvec2(size.x, size.y),
+            cam_pos: camera.position,
+            cam_rot: camera.rotation,
         };
 
-        let scrolled = ui.input(|r| {
-            r.smooth_scroll_delta.y
-                + r.multi_touch().map_or(0.0, |t| {
-                    (t.zoom_delta - 1.0) * context.controls.radius() * 5.0
-                })
-        });
-
-        self.dirty |= context.controls.pan_orbit_camera(
-            pan * 5.0,
-            rotate * 5.0,
-            scrolled * 0.01,
-            glam::vec2(rect.size().x, rect.size().y),
-            delta_time.as_secs_f32(),
-        );
-
-        let total_transform = context.model_transform * context.controls.transform();
-        context.camera.position = total_transform.translation.into();
-        context.camera.rotation = Quat::from_mat3a(&total_transform.matrix3);
-
-        context.controls.dirty = false;
-
-        self.dirty |= self.last_size != size;
+        if self.last_state != Some(state) {
+            self.dirty = true;
+            self.last_state = Some(state);
+        }
 
         // If this viewport is re-rendering.
         if ui.ctx().has_requested_repaint() && size.x > 0 && size.y > 0 && self.dirty {
             let _span = trace_span!("Render splats").entered();
+
             let (img, _) = splats.render(&context.camera, size, true);
             self.backbuffer.update_texture(img, &self.renderer);
             self.dirty = false;
-            self.last_size = size;
         }
 
         if let Some(id) = self.backbuffer.id() {
@@ -181,17 +174,15 @@ impl AppPanel for ScenePanel {
     }
 
     fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
-        if self.live_update {
-            self.dirty = true;
-        }
-
         match message {
             ProcessMessage::NewSource => {
                 self.view_splats = vec![];
                 self.paused = false;
                 self.is_loading = false;
                 self.is_training = false;
+                self.live_update = true;
                 self.err = None;
+                self.dirty = true;
             }
             ProcessMessage::DoneLoading { training: _ } => {
                 self.is_loading = false;
@@ -207,7 +198,7 @@ impl AppPanel for ScenePanel {
                 total_frames,
             } => {
                 if let Some(up_axis) = up_axis {
-                    context.set_up_axis(*up_axis);
+                    context.set_model_up(*up_axis);
                 }
 
                 if self.live_update {
@@ -215,6 +206,7 @@ impl AppPanel for ScenePanel {
                     self.view_splats.push(*splats.clone());
                 }
                 self.frame_count = *total_frames;
+                self.dirty = true;
             }
             ProcessMessage::TrainStep {
                 splats,
@@ -222,6 +214,10 @@ impl AppPanel for ScenePanel {
                 iter: _,
                 timestamp: _,
             } => {
+                if self.live_update {
+                    self.dirty = true;
+                }
+
                 let splats = *splats.clone();
 
                 if self.live_update {
@@ -237,9 +233,6 @@ impl AppPanel for ScenePanel {
 
     fn ui(&mut self, ui: &mut egui::Ui, context: &mut AppContext) {
         let cur_time = Instant::now();
-        let delta_time = self
-            .last_draw
-            .map_or(Duration::from_millis(10), |last| cur_time - last);
 
         self.last_draw = Some(cur_time);
 
@@ -280,7 +273,7 @@ For bigger training runs consider using the native app."#,
             const FPS: f32 = 24.0;
 
             if !self.paused {
-                self.frame += delta_time.as_secs_f32();
+                self.frame += ui.input(|r| r.predicted_dt);
             }
 
             if self.view_splats.len() != self.frame_count {
@@ -293,7 +286,7 @@ For bigger training runs consider using the native app."#,
                 .floor() as usize;
             let splats = self.view_splats[frame].clone();
 
-            self.draw_splats(ui, context, &splats, delta_time);
+            self.draw_splats(ui, context, &splats);
 
             if self.is_loading {
                 ui.horizontal(|ui| {
