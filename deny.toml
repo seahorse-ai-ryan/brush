@@ -35,7 +35,6 @@ skip = [
     { name = "bit-set" },
     { name = "bit-vec" },
     { name = "bitflags" },
-    { name = 'cfg_aliases' },
     { name = 'itertools' },
     { name = 'derive-new' },
 

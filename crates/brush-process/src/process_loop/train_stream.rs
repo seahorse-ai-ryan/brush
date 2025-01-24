@@ -35,10 +35,7 @@ pub(crate) fn train_stream(
 
         let train_scene = dataset.train.clone();
 
-        // TODO: Not really supported atm.
-        let batch_size = 1;
-
-        let mut dataloader = SceneLoader::new(&train_scene, batch_size, 42, &device);
+        let mut dataloader = SceneLoader::new(&train_scene, 42, &device);
         let mut trainer = SplatTrainer::new(&splats, &config, &device);
 
         let mut iter = 0;
@@ -50,7 +47,6 @@ pub(crate) fn train_stream(
 
             let (new_splats, stats) = trainer.step(iter, batch, splats);
             let (new_splats, refine) = trainer.refine_if_needed(iter, new_splats, extent).await;
-            iter += 1;
             splats = new_splats;
 
             emitter
@@ -70,6 +66,8 @@ pub(crate) fn train_stream(
                     })
                     .await;
             }
+
+            iter += 1;
         }
     })
 }

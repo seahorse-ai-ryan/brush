@@ -10,6 +10,7 @@ use anyhow::Result;
 
 #[cfg(not(target_family = "wasm"))]
 use brush_rerun::BurnToRerun;
+use burn_jit::cubecl::MemoryUsage;
 
 pub struct VisualizeTools {
     #[cfg(not(target_family = "wasm"))]
@@ -36,10 +37,12 @@ impl VisualizeTools {
     }
 
     #[allow(unused_variables)]
-    pub async fn log_splats<B: Backend>(&self, splats: Splats<B>) -> Result<()> {
+    pub async fn log_splats<B: Backend>(&self, iter: u32, splats: Splats<B>) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         if let Some(rec) = self.rec.as_ref() {
             if rec.is_enabled() {
+                rec.set_time_sequence("iterations", iter);
+
                 let means = splats
                     .means
                     .val()
@@ -200,10 +203,12 @@ impl VisualizeTools {
     }
 
     #[allow(unused_variables)]
-    pub fn log_splat_stats<B: Backend>(&self, splats: &Splats<B>) -> Result<()> {
+    pub fn log_splat_stats<B: Backend>(&self, iter: u32, splats: &Splats<B>) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         if let Some(rec) = self.rec.clone() {
             if rec.is_enabled() {
+                rec.set_time_sequence("iterations", iter);
+
                 let num = splats.num_splats();
                 rec.log("splats/num_splats", &rerun::Scalar::new(num as f64))?;
             }
@@ -227,27 +232,31 @@ impl VisualizeTools {
                 rec.log("lr/coeffs", &rerun::Scalar::new(stats.lr_coeffs))?;
                 rec.log("lr/opac", &rerun::Scalar::new(stats.lr_opac))?;
 
-                let [batch_size, img_h, img_w, _] = stats.pred_images.dims();
-                let pred_rgb =
-                    stats
-                        .pred_images
-                        .clone()
-                        .slice([0..batch_size, 0..img_h, 0..img_w, 0..3]);
-                let gt_rgb =
-                    stats
-                        .gt_images
-                        .clone()
-                        .slice([0..batch_size, 0..img_h, 0..img_w, 0..3]);
+                rec.log(
+                    "splats/num_intersects",
+                    &rerun::Scalar::new(
+                        stats
+                            .num_intersections
+                            .into_scalar_async()
+                            .await
+                            .elem::<f64>(),
+                    ),
+                )?;
+                rec.log(
+                    "splats/splats_visible",
+                    &rerun::Scalar::new(stats.num_visible.into_scalar_async().await.elem::<f64>()),
+                )?;
+
+                let [img_h, img_w, _] = stats.pred_image.dims();
+                let pred_rgb = stats.pred_image.clone().slice([0..img_h, 0..img_w, 0..3]);
+                let gt_rgb = stats.gt_images.clone().slice([0..img_h, 0..img_w, 0..3]);
                 let mse = (pred_rgb.clone() - gt_rgb.clone()).powf_scalar(2.0).mean();
                 let psnr = mse.recip().log() * 10.0 / std::f32::consts::LN_10;
                 rec.log(
                     "losses/main",
                     &rerun::Scalar::new(stats.loss.clone().into_scalar_async().await.elem::<f64>()),
                 )?;
-                rec.log(
-                    "psnr/train",
-                    &rerun::Scalar::new(psnr.into_scalar_async().await.elem::<f64>()),
-                )?;
+
                 let device = gt_rgb.device();
 
                 // TODO: Bit annoyingly expensive to recalculate this here. Idk if train stats should be split into
@@ -259,27 +268,6 @@ impl VisualizeTools {
                 rec.log(
                     "ssim/train",
                     &rerun::Scalar::new(ssim.into_scalar_async().await.elem::<f64>()),
-                )?;
-
-                // Not sure what's best here, atm let's just log the first batch render only.
-                // Maybe could do an average instead?
-                let main_aux = stats.auxes[0].clone();
-
-                rec.log(
-                    "splats/num_intersects",
-                    &rerun::Scalar::new(
-                        main_aux
-                            .num_intersections
-                            .into_scalar_async()
-                            .await
-                            .elem::<f64>(),
-                    ),
-                )?;
-                rec.log(
-                    "splats/splats_visible",
-                    &rerun::Scalar::new(
-                        main_aux.num_visible.into_scalar_async().await.elem::<f64>(),
-                    ),
                 )?;
             }
         }
@@ -309,6 +297,33 @@ impl VisualizeTools {
                 let _ = rec.log(
                     "refine/num_scale_pruned",
                     &rerun::Scalar::new(refine.num_scale_pruned as f64),
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    #[allow(unused_variables)]
+    pub fn log_memory(&self, iter: u32, memory: &MemoryUsage) -> Result<()> {
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(rec) = self.rec.as_ref() {
+            if rec.is_enabled() {
+                rec.set_time_sequence("iterations", iter);
+
+                let _ = rec.log(
+                    "memory/used",
+                    &rerun::Scalar::new(memory.bytes_in_use as f64),
+                );
+
+                let _ = rec.log(
+                    "memory/reserved",
+                    &rerun::Scalar::new(memory.bytes_reserved as f64),
+                );
+
+                let _ = rec.log(
+                    "memory/allocs",
+                    &rerun::Scalar::new(memory.number_allocs as f64),
                 );
             }
         }

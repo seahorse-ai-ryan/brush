@@ -1,3 +1,4 @@
+use burn_jit::cubecl::Runtime;
 use web_time::Instant;
 
 use crate::{data_source::DataSource, rerun_tools::VisualizeTools};
@@ -8,7 +9,7 @@ use brush_train::{
     train::{RefineStats, TrainStepStats},
 };
 use burn::{backend::Autodiff, module::AutodiffModule, prelude::Backend};
-use burn_wgpu::{Wgpu, WgpuDevice};
+use burn_wgpu::{Wgpu, WgpuDevice, WgpuRuntime};
 use glam::Vec3;
 use rand::SeedableRng;
 use tokio::sync::mpsc::{channel, UnboundedSender};
@@ -298,7 +299,12 @@ async fn train_process_loop(
                 iter,
                 timestamp,
             } => {
-                if iter % process_config.eval_every == 0 {
+                // We just finished iter 'iter', now starting iter + 1.
+                let next_iter = iter + 1;
+
+                // Check if we want to evaluate _next iteration_. Small detail, but this ensures we evaluate
+                // before doing a refine.
+                if next_iter % process_config.eval_every == 0 {
                     if let Some(eval_scene) = eval_scene.as_ref() {
                         let eval = brush_train::eval::eval_stats(
                             *splats.clone(),
@@ -309,10 +315,13 @@ async fn train_process_loop(
                         )
                         .await;
 
-                        visualize.log_eval_stats(iter, &eval).await?;
+                        visualize.log_eval_stats(next_iter, &eval).await?;
 
                         if output
-                            .send(ProcessMessage::EvalResult { iter, eval })
+                            .send(ProcessMessage::EvalResult {
+                                iter: next_iter,
+                                eval,
+                            })
                             .await
                             .is_err()
                         {
@@ -321,12 +330,15 @@ async fn train_process_loop(
                     }
                 }
 
+                let client = WgpuRuntime::client(&device);
+                visualize.log_memory(iter, &client.memory_usage())?;
+
                 let total_steps = process_args.train_config.total_steps;
 
                 // TODO: Support this on WASM somehow. Maybe have user pick a file once,
                 // and write to it repeatedly?
                 #[cfg(not(target_family = "wasm"))]
-                if iter % process_config.export_every == 0 || iter == total_steps - 1 {
+                if iter % process_config.export_every == 0 && iter > 0 || iter == total_steps - 1 {
                     let splats = *splats.clone();
                     let output_send = output.clone();
 
@@ -355,11 +367,11 @@ async fn train_process_loop(
 
                 if let Some(every) = process_args.rerun_config.rerun_log_splats_every {
                     if iter % every == 0 {
-                        visualize.log_splats(*splats.clone()).await?;
+                        visualize.log_splats(iter, *splats.clone()).await?;
                     }
                 }
 
-                visualize.log_splat_stats(&splats)?;
+                visualize.log_splat_stats(iter, &splats)?;
 
                 // Log out train stats.
                 if iter % process_args.rerun_config.rerun_log_train_stats_every == 0 {

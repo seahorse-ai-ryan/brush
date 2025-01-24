@@ -39,10 +39,10 @@ impl<B: Backend> Ssim<B> {
         Self { weights }
     }
 
-    pub fn ssim(&self, img1: Tensor<B, 4>, img2: Tensor<B, 4>) -> Tensor<B, 4> {
-        // Images are [N, H, W, C], need them as [N, C, H, W].
-        let img1 = img1.permute([0, 3, 1, 2]);
-        let img2 = img2.permute([0, 3, 1, 2]);
+    pub fn ssim(&self, img1: Tensor<B, 3>, img2: Tensor<B, 3>) -> Tensor<B, 3> {
+        // Images are [H, W, C], need them as [N, C, H, W].
+        let img1 = img1.permute([2, 0, 1]).unsqueeze();
+        let img2 = img2.permute([2, 0, 1]).unsqueeze();
 
         let [channels, _, _, window_size] = self.weights.dims();
         let padding = window_size / 2;
@@ -53,6 +53,7 @@ impl<B: Backend> Ssim<B> {
             None,
             conv_options.clone(),
         );
+
         let mu_y = conv2d(
             img2.clone(),
             self.weights.clone(),
@@ -60,15 +61,10 @@ impl<B: Backend> Ssim<B> {
             conv_options.clone(),
         );
 
-        // let mu1 = gaussian_blur(img1.clone(), window.clone());
-        // let mu2 = gaussian_blur(img1.clone(), window.clone());
         let mu_xx = mu_x.clone() * mu_x.clone();
         let mu_yy = mu_y.clone() * mu_y.clone();
         let mu_xy = mu_x * mu_y;
 
-        // let sigma1_sq = gaussian_blur(img1.clone().powf_scalar(2.0), window.clone()) - mu1_sq.clone();
-        // let sigma2_sq = gaussian_blur(img2.clone().powf_scalar(2.0), window.clone()) - mu2_sq.clone();
-        // let sigma12 = gaussian_blur(img1.clone() * img2.clone(), window) - mu1_mu2.clone();
         let sigma_xx = conv2d(
             img1.clone() * img1.clone(),
             self.weights.clone(),
@@ -76,15 +72,12 @@ impl<B: Backend> Ssim<B> {
             conv_options.clone(),
         ) - mu_xx.clone();
 
-        let sigma_xx = sigma_xx.clamp_min(0.0);
-
         let sigma_yy = conv2d(
             img2.clone() * img2.clone(),
             self.weights.clone(),
             None,
             conv_options.clone(),
         ) - mu_yy.clone();
-        let sigma_yy = sigma_yy.clamp_min(0.0);
 
         let sigma_xy =
             conv2d(img1 * img2, self.weights.clone(), None, conv_options) - mu_xy.clone();
@@ -95,6 +88,7 @@ impl<B: Backend> Ssim<B> {
         let ssim = ((mu_xy * 2.0 + c1) * (sigma_xy * 2.0 + c2))
             / ((mu_xx + mu_yy + c1) * (sigma_xx + sigma_yy + c2));
 
-        ssim.permute([0, 2, 3, 1])
+        let ssim = ssim.squeeze(0);
+        ssim.permute([1, 2, 0])
     }
 }

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use brush_render::gaussian_splats::{inverse_sigmoid, Splats};
 use brush_render::render::sh_coeffs_for_degree;
-use brush_render::{AutodiffBackend, Backend, RenderAux};
+use brush_render::{AutodiffBackend, Backend};
 use burn::backend::wgpu::WgpuDevice;
 use burn::backend::{Autodiff, Wgpu};
 use burn::lr_scheduler::exponential::{ExponentialLrScheduler, ExponentialLrSchedulerConfig};
@@ -11,7 +11,7 @@ use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::record::AdaptorRecord;
 use burn::optim::Optimizer;
 use burn::tensor::activation::sigmoid;
-use burn::tensor::{Bool, Distribution};
+use burn::tensor::{Bool, Distribution, Int};
 use burn::{config::Config, optim::GradientsParams, tensor::Tensor};
 use hashbrown::HashMap;
 use tracing::trace_span;
@@ -33,10 +33,12 @@ pub struct TrainConfig {
     #[config(default = 0.2)]
     #[clap(long, help_heading = "Training options", default_value = "0.2")]
     ssim_weight: f32,
+
     /// SSIM window size
     #[config(default = 11)]
     #[clap(long, help_heading = "Training options", default_value = "11")]
     ssim_window_size: usize,
+
     /// Start learning rate for the mean.
     #[config(default = 1e-4)]
     #[arg(long, help_heading = "Training options", default_value = "1e-4")]
@@ -74,18 +76,18 @@ pub struct TrainConfig {
     opac_loss_weight: f32,
 
     /// How much opacity to subtrat every refine step.
-    #[config(default = 0.0)]
-    #[arg(long, help_heading = "Training options", default_value = "0.0")]
+    #[config(default = 0.0075)]
+    #[arg(long, help_heading = "Training options", default_value = "0.0075")]
     opac_refine_subtract: f32,
 
     /// GSs with opacity below this value will be pruned
-    #[config(default = 0.004)]
-    #[arg(long, help_heading = "Refine options", default_value = "0.004")]
+    #[config(default = 0.002)]
+    #[arg(long, help_heading = "Refine options", default_value = "0.002")]
     cull_opacity: f32,
 
     /// Threshold for positional gradient norm
-    #[config(default = 0.0002)]
-    #[arg(long, help_heading = "Refine options", default_value = "0.0002")]
+    #[config(default = 0.00025)]
+    #[arg(long, help_heading = "Refine options", default_value = "0.00025")]
     densify_grad_thresh: f32,
 
     /// Gaussians bigger than this size in screenspace radius are split
@@ -128,8 +130,8 @@ type B = Autodiff<Wgpu>;
 
 #[derive(Clone, Debug)]
 pub struct SceneBatch<B: Backend> {
-    pub gt_images: Tensor<B, 4>,
-    pub gt_views: Vec<SceneView>,
+    pub gt_image: Tensor<B, 3>,
+    pub gt_view: SceneView,
     pub scene_extent: f32,
 }
 
@@ -143,11 +145,15 @@ pub struct RefineStats {
 
 #[derive(Clone)]
 pub struct TrainStepStats<B: AutodiffBackend> {
-    pub pred_images: Tensor<B, 4>,
-    pub gt_images: Tensor<B, 4>,
-    pub gt_views: Vec<SceneView>,
-    pub auxes: Vec<RenderAux<B>>,
+    pub pred_image: Tensor<B, 3>,
+    pub gt_images: Tensor<B, 3>,
+    pub gt_views: SceneView,
+
+    pub num_intersections: Tensor<B, 1, Int>,
+    pub num_visible: Tensor<B, 1, Int>,
+
     pub loss: Tensor<B, 1>,
+
     pub lr_mean: f64,
     pub lr_rotation: f64,
     pub lr_scale: f64,
@@ -239,49 +245,25 @@ impl SplatTrainer {
         batch: SceneBatch<B>,
         splats: Splats<B>,
     ) -> (Splats<B>, TrainStepStats<B>) {
-        assert!(
-            batch.gt_views.len() == 1,
-            "Bigger batches aren't yet supported"
-        );
-
         let mut splats = splats;
 
-        let [batch_size, img_h, img_w, _] = batch.gt_images.dims();
+        let [img_h, img_w, _] = batch.gt_image.dims();
 
-        let (pred_images, auxes, loss) = {
-            let mut renders = vec![];
-            let mut auxes = vec![];
+        let (pred_image, aux, loss) = {
+            let camera = &batch.gt_view.camera;
 
-            for i in 0..batch.gt_views.len() {
-                let camera = &batch.gt_views[i].camera;
-
-                let (pred_image, aux) =
-                    splats.render(camera, glam::uvec2(img_w as u32, img_h as u32), false);
-
-                renders.push(pred_image);
-                auxes.push(aux);
-            }
-
-            let pred_images = Tensor::stack(renders, 0);
+            let (pred_image, aux) =
+                splats.render(camera, glam::uvec2(img_w as u32, img_h as u32), false);
 
             let _span = trace_span!("Calculate losses", sync_burn = true).entered();
 
-            let pred_rgb = pred_images
-                .clone()
-                .slice([0..batch_size, 0..img_h, 0..img_w, 0..3]);
-            let gt_rgb = batch
-                .gt_images
-                .clone()
-                .slice([0..batch_size, 0..img_h, 0..img_w, 0..3]);
+            let pred_rgb = pred_image.clone().slice([0..img_h, 0..img_w, 0..3]);
+            let gt_rgb = batch.gt_image.clone().slice([0..img_h, 0..img_w, 0..3]);
 
             let l1_rgb = (pred_rgb.clone() - gt_rgb).abs();
 
             let total_err = if self.config.ssim_weight > 0.0 {
-                let gt_rgb =
-                    batch
-                        .gt_images
-                        .clone()
-                        .slice([0..batch_size, 0..img_h, 0..img_w, 0..3]);
+                let gt_rgb = batch.gt_image.clone().slice([0..img_h, 0..img_w, 0..3]);
 
                 let ssim_err = -self.ssim.ssim(pred_rgb, gt_rgb);
                 l1_rgb * (1.0 - self.config.ssim_weight) + ssim_err * self.config.ssim_weight
@@ -289,22 +271,15 @@ impl SplatTrainer {
                 l1_rgb
             };
 
-            let mut loss = if batch.gt_views[0].image.color().has_alpha() {
-                let alpha_input =
-                    batch
-                        .gt_images
-                        .clone()
-                        .slice([0..batch_size, 0..img_h, 0..img_w, 3..4]);
+            let mut loss = if batch.gt_view.image.color().has_alpha() {
+                let alpha_input = batch.gt_image.clone().slice([0..img_h, 0..img_w, 3..4]);
 
-                match batch.gt_views[0].img_type {
+                match batch.gt_view.img_type {
                     // In masked mode, weigh the errors by the alpha channel.
                     ViewImageType::Masked => (total_err * alpha_input).mean(),
                     // In alpha mode, add the l1 error of the alpha channel to the total error.
                     ViewImageType::Alpha => {
-                        let pred_alpha =
-                            pred_images
-                                .clone()
-                                .slice([0..batch_size, 0..img_h, 0..img_w, 3..4]);
+                        let pred_alpha = pred_image.clone().slice([0..img_h, 0..img_w, 3..4]);
                         total_err.mean() + (alpha_input - pred_alpha).abs().mean()
                     }
                 }
@@ -318,7 +293,7 @@ impl SplatTrainer {
                 loss = loss + opac_loss * self.config.opac_loss_weight;
             }
 
-            (pred_images, auxes, loss)
+            (pred_image, aux, loss)
         };
 
         let mut grads = trace_span!("Backward pass", sync_burn = true).in_scope(|| loss.backward());
@@ -333,54 +308,34 @@ impl SplatTrainer {
             self.config.lr_opac,
         );
 
-        trace_span!("Housekeeping", sync_burn = true).in_scope(|| {
-            // TODO: Burn really should implement +=
-            if iter > self.config.refine_start_iter {
-                // Get the xy gradient norm from the dummy tensor.
-                let xys_grad = splats
-                    .xys_dummy
-                    .grad_remove(&mut grads)
-                    .expect("XY gradients need to be calculated.");
-
-                let aux = auxes[0].clone();
-                self.refine_record.gather_stats(xys_grad, aux);
-            }
-        });
-
         splats = trace_span!("Optimizer step", sync_burn = true).in_scope(|| {
-            splats = trace_span!("Mean step", sync_burn = true).in_scope(|| {
-                let grad_means =
-                    GradientsParams::from_params(&mut grads, &splats, &[splats.means.id]);
-                self.optim.step(lr_mean, splats, grad_means)
-            });
-
-            splats = trace_span!("Opacity step", sync_burn = true).in_scope(|| {
-                let grad_opac =
-                    GradientsParams::from_params(&mut grads, &splats, &[splats.raw_opacity.id]);
-                self.optim.step(lr_opac, splats, grad_opac)
-            });
-
             splats = trace_span!("SH Coeffs step", sync_burn = true).in_scope(|| {
                 let grad_coeff =
                     GradientsParams::from_params(&mut grads, &splats, &[splats.sh_coeffs.id]);
 
-                let coeff_count = sh_coeffs_for_degree(splats.sh_degree()) as i32;
-                let sh_size = coeff_count;
-                let mut sh_lr_scales = vec![1.0];
-                for _ in 1..sh_size {
-                    sh_lr_scales.push(1.0 / self.config.lr_coeffs_sh_scale);
-                }
-                let sh_lr_scales =
-                    Tensor::<_, 1>::from_floats(sh_lr_scales.as_slice(), &splats.means.device())
-                        .reshape([1, coeff_count, 1]);
-
                 let mut record = self.optim.to_record();
                 let mut param_record = record.get_mut(&splats.sh_coeffs.id);
+
                 if let Some(param) = param_record.as_mut() {
                     let mut state = param.clone().into_state();
-                    state.scaling = Some(sh_lr_scales);
-                    record.insert(splats.sh_coeffs.id, AdaptorRecord::from_state(state));
-                    self.optim = self.optim.clone().load_record(record);
+
+                    if state.scaling.is_none() {
+                        let coeff_count = sh_coeffs_for_degree(splats.sh_degree()) as i32;
+                        let sh_size = coeff_count;
+                        let mut sh_lr_scales = vec![1.0];
+                        for _ in 1..sh_size {
+                            sh_lr_scales.push(1.0 / self.config.lr_coeffs_sh_scale);
+                        }
+                        let sh_lr_scales = Tensor::<_, 1>::from_floats(
+                            sh_lr_scales.as_slice(),
+                            &splats.means.device(),
+                        )
+                        .reshape([1, coeff_count, 1]);
+
+                        state.scaling = Some(sh_lr_scales);
+                        record.insert(splats.sh_coeffs.id, AdaptorRecord::from_state(state));
+                        self.optim = self.optim.clone().load_record(record);
+                    }
                 }
 
                 self.optim.step(lr_coeffs, splats, grad_coeff)
@@ -398,15 +353,45 @@ impl SplatTrainer {
                 self.optim.step(lr_scale, splats, grad_scale)
             });
 
+            splats = trace_span!("Mean step", sync_burn = true).in_scope(|| {
+                let grad_means =
+                    GradientsParams::from_params(&mut grads, &splats, &[splats.means.id]);
+                self.optim.step(lr_mean, splats, grad_means)
+            });
+
+            splats = trace_span!("Opacity step", sync_burn = true).in_scope(|| {
+                let grad_opac =
+                    GradientsParams::from_params(&mut grads, &splats, &[splats.raw_opacity.id]);
+                self.optim.step(lr_opac, splats, grad_opac)
+            });
+
             // Make sure rotations are still valid after optimization step.
             splats
         });
 
+        let num_visible = aux.num_visible.clone();
+        let num_intersections = aux.num_intersections.clone();
+
+        trace_span!("Housekeeping", sync_burn = true).in_scope(|| {
+            // TODO: Burn really should implement +=
+            if iter > self.config.refine_start_iter {
+                // Get the xy gradient norm from the dummy tensor.
+                let xys_grad = splats
+                    .xys_dummy
+                    .grad_remove(&mut grads)
+                    .expect("XY gradients need to be calculated.");
+
+                let aux = aux.clone();
+                self.refine_record.gather_stats(xys_grad, aux);
+            }
+        });
+
         let stats = TrainStepStats {
-            pred_images,
-            gt_images: batch.gt_images,
-            gt_views: batch.gt_views,
-            auxes,
+            pred_image,
+            gt_images: batch.gt_image,
+            gt_views: batch.gt_view,
+            num_visible,
+            num_intersections,
             loss,
             lr_mean,
             lr_rotation,
@@ -426,7 +411,7 @@ impl SplatTrainer {
     ) -> (Splats<B>, Option<RefineStats>) {
         let do_refine = iter < self.config.refine_stop_iter
             && iter >= self.config.refine_start_iter
-            && iter % self.config.refine_every == 1;
+            && iter % self.config.refine_every == 0;
 
         if do_refine {
             // If not refining, update splat to step with gradients applied.
@@ -550,11 +535,22 @@ impl SplatTrainer {
 
         // Do some more processing. Important to do this last as otherwise you might mess up the correspondence
         // of gradient <-> splat.
-        let start_count = splats.num_splats();
+
         // Remove barely visible gaussians.
+        let start_count = splats.num_splats();
         let alpha_mask = splats.opacity().lower_elem(self.config.cull_opacity);
         prune_points(&mut splats, &mut record, alpha_mask).await;
         let alpha_pruned = start_count - splats.num_splats();
+
+        // Slowly lower opacity.
+        if self.config.opac_refine_subtract > 0.0 {
+            map_param(
+                &mut splats.raw_opacity,
+                &mut record,
+                |op| inv_sigmoid((sigmoid(op) - self.config.opac_refine_subtract).clamp_min(1e-3)),
+                |state| state,
+            );
+        }
 
         // Delete Gaussians with too large of a radius in world-units.
         let scale_big = splats
@@ -595,13 +591,6 @@ impl SplatTrainer {
                 &mut record,
                 |op| op.clamp_max(inverse_sigmoid(0.01)),
                 |state| Tensor::zeros_like(&state),
-            );
-        } else if self.config.opac_refine_subtract > 0.0 {
-            map_param(
-                &mut splats.raw_opacity,
-                &mut record,
-                |op| inv_sigmoid((sigmoid(op) - self.config.opac_refine_subtract).clamp_min(1e-3)),
-                |state| state,
             );
         }
 

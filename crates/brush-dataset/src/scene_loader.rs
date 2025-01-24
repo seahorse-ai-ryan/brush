@@ -2,7 +2,6 @@ use brush_render::Backend;
 use brush_train::image::view_to_sample;
 use brush_train::scene::Scene;
 use brush_train::train::SceneBatch;
-use burn::tensor::Tensor;
 use rand::{seq::SliceRandom, SeedableRng};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
@@ -27,7 +26,7 @@ fn estimate_scene_extent(scene: &Scene) -> f32 {
 }
 
 impl<B: Backend> SceneLoader<B> {
-    pub fn new(scene: &Scene, batch_size: usize, seed: u64, device: &B::Device) -> Self {
+    pub fn new(scene: &Scene, seed: u64, device: &B::Device) -> Self {
         let scene = scene.clone();
         // The bounded size == number of batches to prefetch.
         let (tx, rx) = mpsc::channel(5);
@@ -41,26 +40,21 @@ impl<B: Backend> SceneLoader<B> {
             let mut shuf_indices = vec![];
 
             loop {
-                let (selected_tensors, gt_views) = (0..batch_size)
-                    .map(|_| {
-                        let index = shuf_indices.pop().unwrap_or_else(|| {
-                            shuf_indices = (0..scene.views.len()).collect();
-                            shuf_indices.shuffle(&mut rng);
-                            shuf_indices
-                                .pop()
-                                .expect("Need at least one view in dataset")
-                        });
-                        let view = scene.views[index].clone();
-
-                        (view_to_sample(&view, &device), view)
-                    })
-                    .unzip();
-
-                let batch_tensor = Tensor::stack(selected_tensors, 0);
+                let (gt_image, gt_view) = {
+                    let index = shuf_indices.pop().unwrap_or_else(|| {
+                        shuf_indices = (0..scene.views.len()).collect();
+                        shuf_indices.shuffle(&mut rng);
+                        shuf_indices
+                            .pop()
+                            .expect("Need at least one view in dataset")
+                    });
+                    let view = scene.views[index].clone();
+                    (view_to_sample(&view, &device), view)
+                };
 
                 let scene_batch = SceneBatch {
-                    gt_images: batch_tensor,
-                    gt_views,
+                    gt_image,
+                    gt_view,
                     scene_extent,
                 };
 

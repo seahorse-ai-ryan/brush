@@ -31,7 +31,7 @@ struct TrainStep {
 }
 
 fn spawn_train_loop(
-    view: SceneView,
+    gt_view: SceneView,
     config: TrainConfig,
     device: WgpuDevice,
     ctx: egui::Context,
@@ -57,8 +57,8 @@ fn spawn_train_loop(
 
         // One batch of training data, it's the same every step so can just cosntruct it once.
         let batch = SceneBatch {
-            gt_images: view_to_sample(&view, &device).unsqueeze(),
-            gt_views: vec![view],
+            gt_image: view_to_sample(&gt_view, &device).unsqueeze(),
+            gt_view,
             scene_extent: 1.0,
         };
 

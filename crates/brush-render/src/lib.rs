@@ -1,7 +1,6 @@
 #![recursion_limit = "256"]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::single_range_in_vec_init)]
-use std::sync::Arc;
 
 use burn::prelude::Tensor;
 use burn::tensor::ops::{FloatTensor, IntTensor};
