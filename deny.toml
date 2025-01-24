@@ -38,10 +38,14 @@ skip = [
     { name = 'itertools' },
     { name = 'derive-new' },
 
+
     #
     { name = 'thiserror' },
     { name = 'thiserror-impl' },
     { name = 'unicode-width' },
+
+    # Old version from cubecl.
+    { name = 'syn' },
 
     # Custom ply fork.
     { name = "ply-rs" },         # Custom fork & rerun version.
