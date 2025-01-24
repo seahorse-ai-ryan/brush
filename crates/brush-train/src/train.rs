@@ -44,30 +44,30 @@ pub struct TrainConfig {
     #[arg(long, help_heading = "Training options", default_value = "1e-4")]
     lr_mean: f64,
 
-    /// Learning rate decay for the mean lr.
-    #[config(default = 1e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "1e-3")]
-    lr_mean_decay: f64,
+    /// Start learning rate for the mean.
+    #[config(default = 1e-6)]
+    #[arg(long, help_heading = "Training options", default_value = "1e-6")]
+    lr_mean_end: f64,
 
     /// Learning rate for the basic coefficients.
-    #[config(default = 4e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "4e-3")]
+    #[config(default = 3e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "3e-3")]
     lr_coeffs_dc: f64,
     /// How much to divide the learning rate by for higher SH orders.
-    #[config(default = 20.0)]
+    #[config(default = 25.0)]
     #[arg(long, help_heading = "Training options", default_value = "20.0")]
     lr_coeffs_sh_scale: f32,
     /// Learning rate for the opacity.
-    #[config(default = 2e-2)]
-    #[arg(long, help_heading = "Training options", default_value = "2e-2")]
+    #[config(default = 3e-2)]
+    #[arg(long, help_heading = "Training options", default_value = "3e-2")]
     lr_opac: f64,
     /// Learning rate for the scale.
-    #[config(default = 8e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "8e-3")]
+    #[config(default = 5e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "5e-3")]
     lr_scale: f64,
     /// Learning rate for the rotation.
-    #[config(default = 4e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "4e-3")]
+    #[config(default = 1e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "1e-3")]
     lr_rotation: f64,
 
     /// Weight of mean-opacity loss.
@@ -76,8 +76,8 @@ pub struct TrainConfig {
     opac_loss_weight: f32,
 
     /// How much opacity to subtrat every refine step.
-    #[config(default = 0.0075)]
-    #[arg(long, help_heading = "Training options", default_value = "0.0075")]
+    #[config(default = 0.005)]
+    #[arg(long, help_heading = "Training options", default_value = "0.005")]
     opac_refine_subtract: f32,
 
     /// GSs with opacity below this value will be pruned
@@ -86,8 +86,8 @@ pub struct TrainConfig {
     cull_opacity: f32,
 
     /// Threshold for positional gradient norm
-    #[config(default = 0.00025)]
-    #[arg(long, help_heading = "Refine options", default_value = "0.00025")]
+    #[config(default = 0.0002)]
+    #[arg(long, help_heading = "Refine options", default_value = "0.0002")]
     densify_grad_thresh: f32,
 
     /// Gaussians bigger than this size in screenspace radius are split
@@ -227,7 +227,7 @@ impl SplatTrainer {
 
         let ssim = Ssim::new(config.ssim_window_size, 3, device);
 
-        let decay = config.lr_mean_decay.powf(1.0 / config.total_steps as f64);
+        let decay = (config.lr_mean_end / config.lr_mean).powf(1.0 / config.total_steps as f64);
         let lr_mean = ExponentialLrSchedulerConfig::new(config.lr_mean, decay);
 
         Self {
