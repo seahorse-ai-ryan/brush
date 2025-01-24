@@ -93,8 +93,8 @@ fn main(
             }
 
             let vis = alpha * T;
-            // let clamped_rgb = max(color.rgb, vec3f(0.0));
-            pix_out += color.rgb * vis;
+            let clamped_rgb = max(color.rgb, vec3f(0.0));
+            pix_out += clamped_rgb * vis;
             T = next_T;
 
             let isect_id = batch_start + t;
