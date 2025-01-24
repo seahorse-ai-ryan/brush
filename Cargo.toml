@@ -131,8 +131,8 @@ ecolor = { git = "https://github.com/emilk/egui", rev = "5b740f97acc3e0c24023609
 # Uncomment this to use local burn.
 # cubecl = { path = "../cubecl/crates/cubecl" }
 # cubecl-common = { path = "../cubecl/crates/cubecl-common" }
-cubecl = { git = "https://github.com/ArthurBrussee/cubecl", branch = "mem-partt-2" }
-cubecl-common = { git = "https://github.com/ArthurBrussee/cubecl", branch = "mem-partt-2" }
+cubecl = { git = "https://github.com/ArthurBrussee/cubecl", branch = "patched" }
+cubecl-common = { git = "https://github.com/ArthurBrussee/cubecl", branch = "patched" }
 
 [profile.dev]
 opt-level = 1

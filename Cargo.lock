@@ -2019,7 +2019,7 @@ dependencies = [
 [[package]]
 name = "cubecl"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "cubecl-core",
  "cubecl-cuda",
@@ -2034,7 +2034,7 @@ dependencies = [
 [[package]]
 name = "cubecl-common"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "bytemuck",
  "derive-new 0.6.0",
@@ -2055,7 +2055,7 @@ dependencies = [
 [[package]]
 name = "cubecl-core"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "bitflags 2.8.0",
  "bytemuck",
@@ -2076,7 +2076,7 @@ dependencies = [
 [[package]]
 name = "cubecl-cpp"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "bytemuck",
  "cubecl-common",
@@ -2090,7 +2090,7 @@ dependencies = [
 [[package]]
 name = "cubecl-cuda"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "bytemuck",
  "cubecl-common",
@@ -2106,7 +2106,7 @@ dependencies = [
 [[package]]
 name = "cubecl-hip"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "bytemuck",
  "cubecl-common",
@@ -2132,7 +2132,7 @@ dependencies = [
 [[package]]
 name = "cubecl-ir"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "cubecl-common",
  "float-ord",
@@ -2145,7 +2145,7 @@ dependencies = [
 [[package]]
 name = "cubecl-linalg"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "bytemuck",
  "cubecl-core",
@@ -2157,7 +2157,7 @@ dependencies = [
 [[package]]
 name = "cubecl-macros"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "cubecl-common",
  "darling",
@@ -2172,7 +2172,7 @@ dependencies = [
 [[package]]
 name = "cubecl-reduce"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "cubecl-core",
  "cubecl-runtime",
@@ -2182,7 +2182,7 @@ dependencies = [
 [[package]]
 name = "cubecl-runtime"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "async-channel",
  "async-lock",
@@ -2204,7 +2204,7 @@ dependencies = [
 [[package]]
 name = "cubecl-wgpu"
 version = "0.5.0"
-source = "git+https://github.com/ArthurBrussee/cubecl?branch=mem-partt-2#21422e3c69081d5189711f67b5ccbea2360c57b3"
+source = "git+https://github.com/ArthurBrussee/cubecl?branch=patched#8dfcdaaa3793f43b4e19184c7c191e5a03506946"
 dependencies = [
  "async-channel",
  "bytemuck",
