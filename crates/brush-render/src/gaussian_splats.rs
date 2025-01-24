@@ -33,6 +33,10 @@ pub struct Splats<B: Backend> {
     pub xys_dummy: Tensor<B, 2>,
 }
 
+fn norm_vec<B: Backend>(vec: Tensor<B, 2>) -> Tensor<B, 2> {
+    vec.clone() / Tensor::clamp_min(Tensor::sum_dim(vec.powf_scalar(2.0), 1).sqrt(), 1e-12)
+}
+
 pub fn inverse_sigmoid(x: f32) -> f32 {
     (x / (1.0 - x)).ln()
 }
@@ -246,10 +250,12 @@ impl<B: Backend> Splats<B> {
         self.means.dims()[0]
     }
 
+    pub fn rotations_normed(&self) -> Tensor<B, 2> {
+        norm_vec(self.rotation.val())
+    }
+
     pub fn norm_rotations(&mut self) {
-        Self::map_param(&mut self.rotation, |x| {
-            x.clone() / Tensor::clamp_min(Tensor::sum_dim(x.powf_scalar(2.0), 1).sqrt(), 1e-6)
-        });
+        self.rotation = self.rotation.clone().map(|r| norm_vec(r));
     }
 
     pub fn from_safetensors(tensors: &SafeTensors, device: &B::Device) -> anyhow::Result<Self> {

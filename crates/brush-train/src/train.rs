@@ -468,7 +468,7 @@ impl SplatTrainer {
         if clone_count > 0 {
             let clone_inds = clone_inds.squeeze(1);
             let cur_means = splats.means.val().select(0, clone_inds.clone());
-            let cur_rots = splats.rotation.val().select(0, clone_inds.clone());
+            let cur_rots = splats.rotations_normed().select(0, clone_inds.clone());
             let cur_scale = splats.log_scales.val().select(0, clone_inds.clone());
 
             let cur_coeff = splats.sh_coeffs.val().select(0, clone_inds.clone());
@@ -513,7 +513,7 @@ impl SplatTrainer {
             let cur_means = splats.means.val().select(0, split_inds.clone());
             let cur_coeff = splats.sh_coeffs.val().select(0, split_inds.clone());
             let cur_raw_opac = splats.raw_opacity.val().select(0, split_inds.clone());
-            let cur_rots = splats.rotation.val().select(0, split_inds.clone());
+            let cur_rots = splats.rotations_normed().select(0, split_inds.clone());
             let cur_scale = splats.log_scales.val().select(0, split_inds);
 
             let samples = quaternion_vec_multiply(
