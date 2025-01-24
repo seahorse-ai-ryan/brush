@@ -474,13 +474,11 @@ impl SplatTrainer {
             let cur_coeff = splats.sh_coeffs.val().select(0, clone_inds.clone());
             let cur_raw_opac = splats.raw_opacity.val().select(0, clone_inds);
 
-            // let alpha = sigmoid(cur_raw_opac);
-            // let new_alpha = -(-alpha + 1.0).sqrt() + 1.0;
-            // let new_raw_opacity = inverse_sigmoid_tensor(new_alpha);
             let samples = quaternion_vec_multiply(
                 cur_rots.clone(),
-                Tensor::random([clone_count, 3], Distribution::Normal(0.0, 1.0), &device),
-            ) * cur_scale.clone().exp();
+                Tensor::random([clone_count, 3], Distribution::Normal(0.0, 1.0), &device)
+                    * cur_scale.clone().exp(),
+            );
 
             append_means.push(cur_means + samples);
             append_rots.push(cur_rots);
@@ -520,8 +518,9 @@ impl SplatTrainer {
 
             let samples = quaternion_vec_multiply(
                 cur_rots.clone(),
-                Tensor::random([split_count, 3], Distribution::Normal(0.0, 1.0), &device),
-            ) * cur_scale.clone().exp();
+                Tensor::random([split_count, 3], Distribution::Normal(0.0, 1.0), &device)
+                    * cur_scale.clone().exp(),
+            );
 
             let scale_div: f32 = 1.6;
 
