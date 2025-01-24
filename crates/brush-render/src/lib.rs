@@ -276,15 +276,11 @@ fn set_hard_floats(adapter: &Adapter) {
     log::info!("Running with native atomic floats: {hard_floats}");
 }
 
-pub fn burn_init_device(
-    adapter: Arc<Adapter>,
-    device: Arc<Device>,
-    queue: Arc<Queue>,
-) -> WgpuDevice {
+pub fn burn_init_device(adapter: Adapter, device: Device, queue: Queue) -> WgpuDevice {
     set_hard_floats(&adapter);
 
     let setup = burn_wgpu::WgpuSetup {
-        instance: Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor::default())), // unused... need to fix this in Burn.
+        instance: wgpu::Instance::new(&wgpu::InstanceDescriptor::default()), // unused... need to fix this in Burn.
         adapter,
         device,
         queue,

@@ -1,6 +1,6 @@
 #import grads;
 
-@group(0) @binding(0) var<storage, read> uniforms: helpers::RenderUniforms;
+@group(0) @binding(0) var<uniform> uniforms: helpers::RenderUniforms;
 @group(0) @binding(1) var<storage, read> global_from_compact_gid: array<i32>;
 
 @group(0) @binding(2) var<storage, read> raw_opacities: array<f32>;

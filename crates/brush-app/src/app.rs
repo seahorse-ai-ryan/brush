@@ -234,8 +234,8 @@ impl App {
 
         let mut tiles: Tiles<PaneType> = Tiles::default();
         let scene_pane = ScenePanel::new(
-            state.queue.clone(),
             state.device.clone(),
+            state.queue.clone(),
             state.renderer.clone(),
             zen,
         );

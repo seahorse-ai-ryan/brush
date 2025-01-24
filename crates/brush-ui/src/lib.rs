@@ -10,18 +10,20 @@ pub mod channel;
 
 pub fn create_egui_options() -> WgpuConfiguration {
     WgpuConfiguration {
-        wgpu_setup: eframe::egui_wgpu::WgpuSetup::CreateNew {
-            supported_backends: wgpu::Backends::all(),
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            device_descriptor: Arc::new(|adapter: &Adapter| wgpu::DeviceDescriptor {
-                label: Some("egui+burn"),
-                required_features: adapter
-                    .features()
-                    .difference(Features::MAPPABLE_PRIMARY_BUFFERS),
-                required_limits: adapter.limits(),
-                memory_hints: wgpu::MemoryHints::Performance,
-            }),
-        },
+        wgpu_setup: eframe::egui_wgpu::WgpuSetup::CreateNew(
+            eframe::egui_wgpu::WgpuSetupCreateNew {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                device_descriptor: Arc::new(|adapter: &Adapter| wgpu::DeviceDescriptor {
+                    label: Some("egui+burn"),
+                    required_features: adapter
+                        .features()
+                        .difference(Features::MAPPABLE_PRIMARY_BUFFERS),
+                    required_limits: adapter.limits(),
+                    memory_hints: wgpu::MemoryHints::MemoryUsage,
+                }),
+                ..Default::default()
+            },
+        ),
         ..Default::default()
     }
 }

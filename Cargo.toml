@@ -57,7 +57,7 @@ log = "0.4.22"
 wasm-bindgen = "0.2.97"
 
 naga_oil = "0.16"
-wgpu = { version = "23", features = ["naga-ir"] }
+wgpu = { version = "24", features = ["naga-ir"] }
 
 env_logger = "0.10.2"
 parking_lot = { version = "0.12.3", features = ["arc_lock"] }
@@ -106,7 +106,6 @@ urlencoding = "2.1"
 hashbrown = "0.15"
 clap = { version = "4.5.23", features = ["derive"] }
 
-
 # [patch."https://github.com/tracel-ai/burn"]
 # # Uncomment this to use local burn.
 # burn = { path = "../burn/crates/burn" }
@@ -116,14 +115,27 @@ clap = { version = "4.5.23", features = ["derive"] }
 
 [patch.crates-io]
 # Use wgpu and naga at head
-wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "sg" }
-naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "sg" }
+wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
+naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
 
 # Patch naga_oil for wgpu-head
 naga_oil = { git = "https://github.com/ArthurBrussee/naga_oil", branch = "wgpu-head" }
 
+# Path egui with upgraded wgpu
+egui = { git = "https://github.com/emilk/egui", rev = "5b740f97acc3e0c24023609948ceeac415ee1c10" }
+eframe = { git = "https://github.com/emilk/egui", rev = "5b740f97acc3e0c24023609948ceeac415ee1c10" }
+emath = { git = "https://github.com/emilk/egui", rev = "5b740f97acc3e0c24023609948ceeac415ee1c10" }
+ecolor = { git = "https://github.com/emilk/egui", rev = "5b740f97acc3e0c24023609948ceeac415ee1c10" }
+
+[patch."https://github.com/tracel-ai/cubecl"]
+# Uncomment this to use local burn.
+# cubecl = { path = "../cubecl/crates/cubecl" }
+# cubecl-common = { path = "../cubecl/crates/cubecl-common" }
+cubecl = { git = "https://github.com/ArthurBrussee/cubecl", branch = "mem-partt-2" }
+cubecl-common = { git = "https://github.com/ArthurBrussee/cubecl", branch = "mem-partt-2" }
+
 [profile.dev]
-opt-level = 0
+opt-level = 1
 debug = true
 
 # Optimize dependencies even in debug builds (does not affect workspace packages):

@@ -52,8 +52,8 @@ pub(crate) struct ScenePanel {
 
 impl ScenePanel {
     pub(crate) fn new(
-        queue: Arc<wgpu::Queue>,
-        device: Arc<wgpu::Device>,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
         renderer: Arc<EguiRwLock<Renderer>>,
         zen: bool,
     ) -> Self {

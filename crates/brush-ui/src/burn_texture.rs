@@ -22,8 +22,8 @@ struct TextureState {
 
 pub struct BurnTexture {
     state: Option<TextureState>,
-    device: Arc<wgpu::Device>,
-    queue: Arc<wgpu::Queue>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
 }
 
 fn create_texture(size: glam::UVec2, device: &wgpu::Device) -> wgpu::Texture {
@@ -44,7 +44,7 @@ fn create_texture(size: glam::UVec2, device: &wgpu::Device) -> wgpu::Texture {
 }
 
 impl BurnTexture {
-    pub fn new(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> Self {
+    pub fn new(device: wgpu::Device, queue: wgpu::Queue) -> Self {
         Self {
             state: None,
             device,
@@ -131,7 +131,7 @@ impl BurnTexture {
         // Now copy the buffer to the texture.
         encoder.copy_buffer_to_texture(
             wgpu::TexelCopyBufferInfo {
-                buffer: img_res_handle.resource().buffer.as_ref(),
+                buffer: &img_res_handle.resource().buffer,
                 layout: TexelCopyBufferLayout {
                     offset: img_res_handle.resource().offset(),
                     bytes_per_row,
