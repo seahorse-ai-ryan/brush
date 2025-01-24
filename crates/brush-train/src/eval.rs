@@ -71,7 +71,9 @@ pub async fn eval_stats<B: Backend>(
         let psnr = psnr.into_scalar_async().await.elem::<f32>();
 
         let ssim_measure = Ssim::new(11, 3, device);
-        let ssim = ssim_measure.ssim(render_rgb.clone().unsqueeze(), gt_rgb.unsqueeze());
+        let ssim = ssim_measure
+            .ssim(render_rgb.clone().unsqueeze(), gt_rgb.unsqueeze())
+            .mean();
         let ssim = ssim.into_scalar_async().await.elem::<f32>();
 
         ret.push(EvalView {

@@ -253,7 +253,9 @@ impl VisualizeTools {
                 // TODO: Bit annoyingly expensive to recalculate this here. Idk if train stats should be split into
                 // "very cheap" and somewhat more expensive stats.
                 let ssim_measure = Ssim::new(11, 3, &device);
-                let ssim = ssim_measure.ssim(pred_rgb.clone().unsqueeze(), gt_rgb.unsqueeze());
+                let ssim = ssim_measure
+                    .ssim(pred_rgb.clone().unsqueeze(), gt_rgb.unsqueeze())
+                    .mean();
                 rec.log(
                     "ssim/train",
                     &rerun::Scalar::new(ssim.into_scalar_async().await.elem::<f64>()),
