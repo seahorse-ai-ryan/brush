@@ -9,7 +9,7 @@ use ball_tree::BallTree;
 use burn::{
     config::Config,
     module::{Module, Param, ParamId},
-    tensor::{activation::sigmoid, Shape, Tensor, TensorData, TensorPrimitive},
+    tensor::{activation::sigmoid, Tensor, TensorData, TensorPrimitive},
 };
 use glam::{Quat, Vec3};
 use rand::Rng;
@@ -94,9 +94,11 @@ impl<B: Backend> Splats<B> {
                 .collect();
             Tensor::from_data(TensorData::new(rotations, [n_splats, 4]), device)
         } else {
-            Tensor::<_, 1>::from_floats([1.0, 0.0, 0.0, 0.0], device)
-                .unsqueeze::<2>()
-                .repeat_dim(0, n_splats)
+            norm_vec(Tensor::random(
+                [n_splats, 4],
+                burn::tensor::Distribution::Normal(0.0, 1.0),
+                device,
+            ))
         };
 
         let log_scales = if let Some(log_scales) = log_scales {
@@ -142,7 +144,14 @@ impl<B: Backend> Splats<B> {
             Tensor::from_data(TensorData::new(raw_opacities.to_vec(), [n_splats]), device)
                 .require_grad()
         } else {
-            Tensor::ones(Shape::new([n_splats]), device) * inverse_sigmoid(0.25)
+            Tensor::random(
+                [n_splats],
+                burn::tensor::Distribution::Uniform(
+                    inverse_sigmoid(0.1) as f64,
+                    inverse_sigmoid(0.25) as f64,
+                ),
+                device,
+            )
         };
 
         Self::from_tensor_data(

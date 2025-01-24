@@ -10,6 +10,7 @@ use burn::module::{Param, ParamId};
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::record::AdaptorRecord;
 use burn::optim::Optimizer;
+use burn::tensor::activation::sigmoid;
 use burn::tensor::{Bool, Distribution};
 use burn::{config::Config, optim::GradientsParams, tensor::Tensor};
 use hashbrown::HashMap;
@@ -37,33 +38,34 @@ pub struct TrainConfig {
     #[clap(long, help_heading = "Training options", default_value = "11")]
     ssim_window_size: usize,
     /// Start learning rate for the mean.
-    #[config(default = 2.0e-4)]
-    #[arg(long, help_heading = "Training options", default_value = "2.5e-4")]
+    #[config(default = 1e-4)]
+    #[arg(long, help_heading = "Training options", default_value = "1e-4")]
     lr_mean: f64,
+
     /// Learning rate decay for the mean lr.
-    #[config(default = 1e-2)]
-    #[arg(long, help_heading = "Training options", default_value = "1e-2")]
+    #[config(default = 1e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "1e-3")]
     lr_mean_decay: f64,
 
     /// Learning rate for the basic coefficients.
-    #[config(default = 2.5e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "2.5e-3")]
+    #[config(default = 4e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "4e-3")]
     lr_coeffs_dc: f64,
     /// How much to divide the learning rate by for higher SH orders.
     #[config(default = 20.0)]
     #[arg(long, help_heading = "Training options", default_value = "20.0")]
     lr_coeffs_sh_scale: f32,
     /// Learning rate for the opacity.
-    #[config(default = 5e-2)]
-    #[arg(long, help_heading = "Training options", default_value = "5e-2")]
+    #[config(default = 2e-2)]
+    #[arg(long, help_heading = "Training options", default_value = "2e-2")]
     lr_opac: f64,
     /// Learning rate for the scale.
-    #[config(default = 5e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "5e-3")]
+    #[config(default = 8e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "8e-3")]
     lr_scale: f64,
     /// Learning rate for the rotation.
-    #[config(default = 1e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "1e-3")]
+    #[config(default = 4e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "4e-3")]
     lr_rotation: f64,
 
     /// Weight of mean-opacity loss.
@@ -72,13 +74,13 @@ pub struct TrainConfig {
     opac_loss_weight: f32,
 
     /// How much opacity to subtrat every refine step.
-    #[config(default = 0.025)]
-    #[arg(long, help_heading = "Training options", default_value = "0.025")]
+    #[config(default = 0.0)]
+    #[arg(long, help_heading = "Training options", default_value = "0.0")]
     opac_refine_subtract: f32,
 
     /// GSs with opacity below this value will be pruned
-    #[config(default = 0.005)]
-    #[arg(long, help_heading = "Refine options", default_value = "0.005")]
+    #[config(default = 0.004)]
+    #[arg(long, help_heading = "Refine options", default_value = "0.004")]
     cull_opacity: f32,
 
     /// Threshold for positional gradient norm
@@ -97,22 +99,25 @@ pub struct TrainConfig {
     densify_size_threshold: f32,
 
     /// Gaussians bigger than this size in percent of the scene extent are culled
-    #[config(default = 0.5)]
-    #[arg(long, help_heading = "Refine options", default_value = "0.5")]
+    #[config(default = 0.8)]
+    #[arg(long, help_heading = "Refine options", default_value = "0.8")]
     cull_scale3d_percentage_threshold: f32,
 
     /// Period before refinement starts.
     #[config(default = 500)]
     #[arg(long, help_heading = "Refine options", default_value = "500")]
     refine_start_iter: u32,
+
     /// Period after which refinement stops.
     #[config(default = 15000)]
     #[arg(long, help_heading = "Refine options", default_value = "15000")]
     refine_stop_iter: u32,
+
     /// Every this many refinement steps, reset the alpha
     #[config(default = 30)]
     #[arg(long, help_heading = "Refine options", default_value = "30")]
     reset_alpha_every_refine: u32,
+
     /// Period of steps where gaussians are culled and densified
     #[config(default = 100)]
     #[arg(long, help_heading = "Refine options", default_value = "100")]
@@ -204,6 +209,10 @@ fn quaternion_vec_multiply<B: Backend>(
         + (xz * vx.clone() + yz * vy.clone() + wx * vy - wy * vx) * 2.0;
 
     Tensor::cat(vec![x, y, z], 1)
+}
+
+pub fn inv_sigmoid<B: Backend>(x: Tensor<B, 1>) -> Tensor<B, 1> {
+    (x.clone() / (-x + 1.0)).log()
 }
 
 impl SplatTrainer {
@@ -584,19 +593,14 @@ impl SplatTrainer {
             map_param(
                 &mut splats.raw_opacity,
                 &mut record,
-                |op| {
-                    Tensor::zeros_like(&op)
-                        + inverse_sigmoid(
-                            self.config.cull_opacity * 2.0 + self.config.opac_refine_subtract,
-                        )
-                },
+                |op| op.clamp_max(inverse_sigmoid(0.01)),
                 |state| Tensor::zeros_like(&state),
             );
         } else if self.config.opac_refine_subtract > 0.0 {
             map_param(
                 &mut splats.raw_opacity,
                 &mut record,
-                |op| op - self.config.opac_refine_subtract,
+                |op| inv_sigmoid((sigmoid(op) - self.config.opac_refine_subtract).clamp_min(1e-3)),
                 |state| state,
             );
         }
