@@ -108,8 +108,7 @@ def execute_test(means, log_scales, quats, coeffs, opacities, name: str):
     dirs = dirs.detach()
     
     colors = spherical_harmonics(3, dirs, coeffs[None], masks=None)  # [C, N, 3]
-    colors = colors + 0.5
-    # colors = colors.clamp(min=0.0)
+    colors = (colors + 0.5).clamp(min=0.0)
 
     quat_norms = torch.nn.functional.normalize(quats, dim=1)
 
