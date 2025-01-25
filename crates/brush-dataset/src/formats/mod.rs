@@ -26,18 +26,30 @@ pub async fn load_dataset<B: Backend>(
     load_args: &LoadDataseConfig,
     device: &B::Device,
 ) -> anyhow::Result<(DataStream<SplatMessage<B>>, DataStream<Dataset>)> {
+    let mut err_context = anyhow::anyhow!("Attempting to load dataset.");
+
     let stream = nerfstudio::read_dataset(vfs.clone(), load_args, device).await;
 
     let stream = match stream {
         Ok(s) => Ok(s),
-        Err(_) => colmap::load_dataset::<B>(vfs.clone(), load_args, device).await,
+        Err(e) => {
+            err_context = err_context
+                .context(e)
+                .context("Failed to load as json format.");
+
+            colmap::load_dataset::<B>(vfs.clone(), load_args, device).await
+        }
     };
 
     let stream = match stream {
         Ok(stream) => stream,
-        Err(e) => anyhow::bail!(
-            "Couldn't parse dataset as any format. Only some formats are supported. {e}"
-        ),
+        Err(e) => {
+            err_context = err_context
+                .context(e)
+                .context("Failed to load as COLMAP format.");
+
+            Err(err_context.context("Failed to load dataset as any format."))?
+        }
     };
 
     // If there's an initial ply file, override the init stream with that.

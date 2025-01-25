@@ -8,6 +8,7 @@ use crate::splat_import::SplatMessage;
 use crate::stream_fut_parallel;
 use crate::Dataset;
 use crate::LoadDataseConfig;
+use anyhow::Context;
 use anyhow::Result;
 use async_fn_stream::try_fn_stream;
 use brush_render::camera::fov_to_focal;
@@ -141,8 +142,9 @@ fn read_transforms_file(
                 }
 
                 let mask_path = find_mask_path(&archive, &path);
-                let (mut image, img_type) =
-                    load_image(&mut archive, &path, mask_path.as_deref()).await?;
+                let (mut image, img_type) = load_image(&mut archive, &path, mask_path.as_deref())
+                    .await
+                    .with_context(|| format!("Failed to load image {}", frame.file_path))?;
 
                 let w = frame.w.or(scene.w).unwrap_or(image.width() as f64) as u32;
                 let h = frame.h.or(scene.h).unwrap_or(image.height() as f64) as u32;
@@ -281,24 +283,22 @@ pub async fn read_dataset<B: Backend>(
             None
         };
 
-        log::info!("Loading transforms_test.json");
-        // Not entirely sure yet if we want to report stats on both test
-        // and eval, atm this skips "transforms_test.json" even if it's there.
-
         let train_handles = stream_fut_parallel(train_handles);
         let mut train_handles = std::pin::pin!(train_handles);
 
         let mut i = 0;
         while let Some(view) = train_handles.next().await {
+            let view = view.context("Failed to load training view from json")?;
+
             if let Some(eval_period) = load_args_clone.eval_split_every {
                 // Include extra eval images only when the dataset doesn't have them.
                 if i % eval_period == 0 && val_stream.is_some() {
-                    eval_views.push(view?);
+                    eval_views.push(view);
                 } else {
-                    train_views.push(view?);
+                    train_views.push(view);
                 }
             } else {
-                train_views.push(view?);
+                train_views.push(view);
             }
 
             emitter
@@ -312,7 +312,9 @@ pub async fn read_dataset<B: Backend>(
             let val_handles = stream_fut_parallel(val_stream);
             let mut val_handles = std::pin::pin!(val_handles);
             while let Some(view) = val_handles.next().await {
-                eval_views.push(view?);
+                let view = view.context("Failed to load eval view from json")?;
+
+                eval_views.push(view);
                 emitter
                     .emit(Dataset::from_views(train_views.clone(), eval_views.clone()))
                     .await;

@@ -1,3 +1,4 @@
+use anyhow::Context;
 use burn_jit::cubecl::Runtime;
 use web_time::Instant;
 
@@ -204,7 +205,8 @@ async fn train_process_loop(
 
     // Read dataset stream.
     while let Some(d) = data_stream.next().await {
-        dataset = d?;
+        dataset = d.context("Failed to parse dataset. \n")?;
+
         let _ = output
             .send(ProcessMessage::Dataset {
                 data: dataset.clone(),

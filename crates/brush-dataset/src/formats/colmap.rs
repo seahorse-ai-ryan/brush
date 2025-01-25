@@ -97,7 +97,7 @@ async fn read_views(
 
     let mut img_info_list = img_infos.into_iter().collect::<Vec<_>>();
 
-    log::info!("Colmap dataset contains {} images", img_info_list.len());
+    log::info!("Loading colmap dataset with {} images", img_info_list.len());
 
     // Sort by image ID. Not entirely sure whether it's better to
     // load things in COLMAP order or sorted by file name. Either way, at least
@@ -129,10 +129,13 @@ async fn read_views(
                     .filter(|p| p.ends_with(&img_info.name))
                     .collect();
 
-                let (path, mask_path) = find_mask_and_img(&vfs, &img_paths)?;
+                let (path, mask_path) = find_mask_and_img(&vfs, &img_paths)
+                    .with_context(|| format!("Failed to find image {}", img_info.name))?;
 
-                let (mut image, img_type) =
-                    load_image(&mut vfs, &path, mask_path.as_deref()).await?;
+                let (mut image, img_type) = load_image(&mut vfs, &path, mask_path.as_deref())
+                    .await
+                    .with_context(|| format!("Failed to load image {}", img_info.name))?;
+
                 if let Some(max) = load_args.max_resolution {
                     image = clamp_img_to_max_size(image, max);
                 }
@@ -178,16 +181,17 @@ pub(crate) async fn load_dataset<B: Backend>(
 
     let mut i = 0;
     let stream = stream_fut_parallel(handles).map(move |view| {
-        // I cannot wait for let chains.
+        let view = view.context("Failed to load COLMAP view")?;
+
         if let Some(eval_period) = load_args.eval_split_every {
             if i % eval_period == 0 {
                 log::info!("Adding split eval view");
-                eval_views.push(view?);
+                eval_views.push(view);
             } else {
-                train_views.push(view?);
+                train_views.push(view);
             }
         } else {
-            train_views.push(view?);
+            train_views.push(view);
         }
 
         i += 1;
@@ -214,7 +218,10 @@ pub(crate) async fn load_dataset<B: Backend>(
 
         // Extract COLMAP sfm points.
         let points_data = {
-            let mut points_file = vfs.open_path(&points_path).await?;
+            let mut points_file = vfs
+                .open_path(&points_path)
+                .await
+                .context("Failed to read COLMAP points file")?;
             colmap_reader::read_points3d(&mut points_file, is_binary).await
         };
 

@@ -27,6 +27,11 @@ struct RenderState {
     cam_rot: Quat,
 }
 
+struct ErrorDisplay {
+    headline: String,
+    context: Vec<String>,
+}
+
 pub(crate) struct ScenePanel {
     pub(crate) backbuffer: BurnTexture,
     pub(crate) last_draw: Option<Instant>,
@@ -35,7 +40,7 @@ pub(crate) struct ScenePanel {
     frame_count: usize,
 
     frame: f32,
-    err: Option<String>,
+    err: Option<ErrorDisplay>,
 
     is_loading: bool,
 
@@ -225,7 +230,9 @@ impl AppPanel for ScenePanel {
                 }
             }
             ProcessMessage::Error(e) => {
-                self.err = Some(e.to_string());
+                let headline = e.to_string();
+                let context = e.chain().skip(1).map(|cause| format!("{cause}")).collect();
+                self.err = Some(ErrorDisplay { headline, context });
             }
             _ => {}
         }
@@ -279,7 +286,14 @@ For bigger training runs consider using the native app."#,
         }
 
         if let Some(err) = self.err.as_ref() {
-            ui.label("Error: ".to_owned() + &err.to_string());
+            ui.heading(format!("❌ {}", err.headline));
+
+            ui.indent("err_context", |ui| {
+                for c in &err.context {
+                    ui.label(format!("• {c}"));
+                    ui.add_space(2.0);
+                }
+            });
         } else if !self.view_splats.is_empty() {
             const FPS: f32 = 24.0;
 
