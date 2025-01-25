@@ -5,10 +5,7 @@ use web_time::Instant;
 use crate::{data_source::DataSource, rerun_tools::VisualizeTools};
 use brush_dataset::{brush_vfs::BrushVfs, splat_import, Dataset};
 use brush_render::gaussian_splats::{RandomSplatsConfig, Splats};
-use brush_train::{
-    eval::EvalStats,
-    train::{RefineStats, TrainStepStats},
-};
+use brush_train::train::{RefineStats, TrainStepStats};
 use burn::{backend::Autodiff, module::AutodiffModule, prelude::Backend};
 use burn_wgpu::{Wgpu, WgpuDevice, WgpuRuntime};
 use glam::Vec3;
@@ -71,7 +68,8 @@ pub enum ProcessMessage {
     #[allow(unused)]
     EvalResult {
         iter: u32,
-        eval: EvalStats<Wgpu>,
+        avg_psnr: f32,
+        avg_ssim: f32,
     },
 }
 
@@ -308,21 +306,33 @@ async fn train_process_loop(
                 // before doing a refine.
                 if next_iter % process_config.eval_every == 0 {
                     if let Some(eval_scene) = eval_scene.as_ref() {
-                        let eval = brush_train::eval::eval_stats(
+                        let mut psnr = 0.0;
+                        let mut ssim = 0.0;
+                        let mut count = 0;
+
+                        for samp in brush_train::eval::eval_stats(
                             *splats.clone(),
                             eval_scene,
                             None,
                             &mut rng,
                             &device,
-                        )
-                        .await;
+                        ) {
+                            count += 1;
+                            psnr += samp.psnr.clone().into_scalar_async().await;
+                            ssim += samp.ssim.clone().into_scalar_async().await;
+                            visualize.log_eval_view(next_iter, &samp).await?;
+                        }
 
-                        visualize.log_eval_stats(next_iter, &eval).await?;
+                        psnr /= count as f32;
+                        ssim /= count as f32;
+
+                        visualize.log_eval_stats(next_iter, psnr, ssim)?;
 
                         if output
                             .send(ProcessMessage::EvalResult {
                                 iter: next_iter,
-                                eval,
+                                avg_psnr: psnr,
+                                avg_ssim: ssim,
                             })
                             .await
                             .is_err()

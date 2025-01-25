@@ -11,7 +11,7 @@ pub(crate) struct StatsPanel {
 
     last_train_step: (Instant, u32),
     train_iter_per_s: f32,
-    last_eval_psnr: Option<f32>,
+    last_eval: Option<String>,
     cur_sh_degree: u32,
 
     training_started: bool,
@@ -29,7 +29,7 @@ impl StatsPanel {
             device,
             last_train_step: (Instant::now(), 0),
             train_iter_per_s: 0.0,
-            last_eval_psnr: None,
+            last_eval: None,
             training_started: false,
             num_splats: 0,
             frames: 0,
@@ -73,7 +73,7 @@ impl AppPanel for StatsPanel {
                 self.train_iter_per_s = 0.0;
                 self.num_splats = 0;
                 self.cur_sh_degree = 0;
-                self.last_eval_psnr = None;
+                self.last_eval = None;
                 self.training_started = *training;
             }
             ProcessMessage::ViewSplats {
@@ -99,8 +99,12 @@ impl AppPanel for StatsPanel {
                 self.train_iter_per_s = 0.95 * self.train_iter_per_s + 0.05 * current_iter_per_s;
                 self.last_train_step = (*timestamp, *iter);
             }
-            ProcessMessage::EvalResult { iter: _, eval } => {
-                self.last_eval_psnr = Some(eval.avg_psnr());
+            ProcessMessage::EvalResult {
+                iter: _,
+                avg_psnr,
+                avg_ssim,
+            } => {
+                self.last_eval = Some(format!("{avg_psnr:.2} PSNR, {avg_ssim:.3} SSIM"));
             }
             _ => {}
         }
@@ -135,11 +139,11 @@ impl AppPanel for StatsPanel {
                     ui.label(format!("{:.1}", self.train_iter_per_s));
                     ui.end_row();
 
-                    ui.label("Last eval PSNR");
-                    ui.label(if let Some(psnr) = self.last_eval_psnr {
-                        format!("{psnr:.}")
+                    ui.label("Last eval:");
+                    ui.label(if let Some(eval) = self.last_eval.as_ref() {
+                        eval
                     } else {
-                        "--".to_owned()
+                        "--"
                     });
                     ui.end_row();
 

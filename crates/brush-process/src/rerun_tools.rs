@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use brush_render::{gaussian_splats::Splats, AutodiffBackend, Backend};
-use brush_train::eval::EvalStats;
+use brush_train::eval::EvalView;
 use brush_train::{image::tensor_into_image, scene::Scene, train::RefineStats};
 use brush_train::{ssim::Ssim, train::TrainStepStats};
 use burn::tensor::{activation::sigmoid, ElementConversion};
@@ -144,58 +144,65 @@ impl VisualizeTools {
     }
 
     #[allow(unused_variables)]
-    pub async fn log_eval_stats<B: Backend>(&self, iter: u32, stats: &EvalStats<B>) -> Result<()> {
+    pub fn log_eval_stats(&self, iter: u32, avg_psnr: f32, avg_ssim: f32) -> Result<()> {
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(rec) = self.rec.as_ref() {
+            if rec.is_enabled() {
+                rec.set_time_sequence("iterations", iter);
+                rec.log("psnr/eval", &rerun::Scalar::new(avg_psnr as f64))?;
+                rec.log("ssim/eval", &rerun::Scalar::new(avg_ssim as f64))?;
+            }
+        }
+        Ok(())
+    }
+
+    #[allow(unused_variables)]
+    pub async fn log_eval_view<B: Backend>(&self, iter: u32, view: &EvalView<B>) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         if let Some(rec) = self.rec.as_ref() {
             if rec.is_enabled() {
                 rec.set_time_sequence("iterations", iter);
 
-                let avg_psnr = stats.avg_psnr();
-                let avg_ssim = stats.avg_ssim();
+                let eval_render = tensor_into_image(view.rendered.clone().into_data_async().await);
 
-                rec.log("psnr/eval", &rerun::Scalar::new(avg_psnr as f64))?;
-                rec.log("ssim/eval", &rerun::Scalar::new(avg_ssim as f64))?;
+                let rendered = eval_render.to_rgb8();
 
-                for (i, samp) in stats.samples.iter().enumerate() {
-                    let eval_render =
-                        tensor_into_image(samp.rendered.clone().into_data_async().await);
+                let [w, h] = [rendered.width(), rendered.height()];
+                rec.log(
+                    format!("world/eval/view_{}", view.index),
+                    &rerun::Transform3D::from_translation_rotation(
+                        view.view.camera.position,
+                        view.view.camera.rotation,
+                    ),
+                )?;
+                rec.log(
+                    format!("world/eval/view_{}", view.index),
+                    &rerun::Pinhole::from_focal_length_and_resolution(
+                        view.view.camera.focal(glam::uvec2(w, h)),
+                        glam::vec2(w as f32, h as f32),
+                    ),
+                )?;
 
-                    let rendered = eval_render.to_rgb8();
+                let gt_img = &view.view.image;
+                let gt_rerun_img = if gt_img.color().has_alpha() {
+                    rerun::Image::from_rgba32(gt_img.to_rgba8().into_vec(), [w, h])
+                } else {
+                    rerun::Image::from_rgb24(gt_img.to_rgb8().into_vec(), [w, h])
+                };
 
-                    let [w, h] = [rendered.width(), rendered.height()];
-                    rec.log(
-                        format!("world/eval/view_{i}"),
-                        &rerun::Transform3D::from_translation_rotation(
-                            samp.view.camera.position,
-                            samp.view.camera.rotation,
-                        ),
-                    )?;
-                    rec.log(
-                        format!("world/eval/view_{i}"),
-                        &rerun::Pinhole::from_focal_length_and_resolution(
-                            samp.view.camera.focal(glam::uvec2(w, h)),
-                            glam::vec2(w as f32, h as f32),
-                        ),
-                    )?;
-
-                    let gt_img = &samp.view.image;
-                    let gt_rerun_img = if gt_img.color().has_alpha() {
-                        rerun::Image::from_rgba32(gt_img.to_rgba8().into_vec(), [w, h])
-                    } else {
-                        rerun::Image::from_rgb24(gt_img.to_rgb8().into_vec(), [w, h])
-                    };
-
-                    rec.log(format!("world/eval/view_{i}/ground_truth"), &gt_rerun_img)?;
-                    rec.log(
-                        format!("world/eval/view_{i}/render"),
-                        &rerun::Image::from_rgb24(rendered.to_vec(), [w, h]),
-                    )?;
-                    // TODO: Whats a good place for this? Maybe in eval views?
-                    rec.log(
-                        format!("world/eval/view_{i}/tile_depth"),
-                        &samp.aux.calc_tile_depth().into_rerun().await,
-                    )?;
-                }
+                rec.log(
+                    format!("world/eval/view_{}/ground_truth", view.index),
+                    &gt_rerun_img,
+                )?;
+                rec.log(
+                    format!("world/eval/view_{}/render", view.index),
+                    &rerun::Image::from_rgb24(rendered.to_vec(), [w, h]),
+                )?;
+                // TODO: Whats a good place for this? Maybe in eval views?
+                rec.log(
+                    format!("world/eval/view_{}/tile_depth", view.index),
+                    &view.aux.calc_tile_depth().into_rerun().await,
+                )?;
             }
         }
 

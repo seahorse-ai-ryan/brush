@@ -117,10 +117,14 @@ pub async fn process_ui(process: RunningProcess) {
             ProcessMessage::RefineStep { .. } => {
                 // Do we show this info somewhere?
             }
-            ProcessMessage::EvalResult { iter, eval } => {
-                let psnr = eval.avg_psnr();
-                let ssim = eval.avg_ssim();
-                eval_spinner.set_message(format!("Eval iter {iter}: PSNR {psnr}, ssim {ssim}"));
+            ProcessMessage::EvalResult {
+                iter,
+                avg_psnr,
+                avg_ssim,
+            } => {
+                eval_spinner.set_message(format!(
+                    "Eval iter {iter}: PSNR {avg_psnr}, ssim {avg_ssim}"
+                ));
                 // Show eval results.
             }
         }
