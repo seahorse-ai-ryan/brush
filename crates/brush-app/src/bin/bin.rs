@@ -56,8 +56,14 @@ fn main() -> Result<(), clap::Error> {
                     });
                 }
 
+                let title = if cfg!(debug_assertions) {
+                    "Brush  -  Debug"
+                } else {
+                    "Brush"
+                };
+
                 eframe::run_native(
-                    "Brush",
+                    title,
                     native_options,
                     Box::new(move |cc| Ok(Box::new(App::new(cc, send)))),
                 )
