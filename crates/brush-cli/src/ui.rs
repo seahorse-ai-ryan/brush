@@ -80,7 +80,7 @@ pub async fn process_ui(process: RunningProcess) {
                 main_spinner.set_message("Loading data...");
             }
             ProcessMessage::Error(error) => {
-                let _ = sp.println(format!("❌ Error: {error}"));
+                let _ = sp.println(format!("❌ Error: {error:?}"));
                 break;
             }
             ProcessMessage::ViewSplats { .. } => {
