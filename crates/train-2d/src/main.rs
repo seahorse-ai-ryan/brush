@@ -199,19 +199,11 @@ impl eframe::App for App {
 
 #[tokio::main]
 async fn main() {
-    // NB: Load carrying icon. egui at head fails when no icon is included
-    // as the built-in one is git-lfs which cargo doesn't clone properly.
-    let icon = eframe::icon_data::from_png_bytes(
-        &include_bytes!("../../brush-app/assets/icon-256.png")[..],
-    )
-    .expect("Failed to load icon");
-
     let native_options = eframe::NativeOptions {
         // Build app display.
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(egui::Vec2::new(1100.0, 500.0))
-            .with_active(true)
-            .with_icon(std::sync::Arc::new(icon)),
+            .with_active(true),
         wgpu_options: brush_ui::create_egui_options(),
         ..Default::default()
     };

@@ -22,13 +22,6 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
         .build()
         .unwrap();
 
-    // NB: Load carrying icon. egui at head fails when no icon is included
-    // as the built-in one is git-lfs which cargo doesn't clone properly.
-    let icon = eframe::icon_data::from_png_bytes(
-        &include_bytes!("../../brush-app/assets/icon-256.png")[..],
-    )
-    .unwrap();
-
     // Unused.
     #[allow(unused)]
     let (send, rec) = tokio::sync::oneshot::channel();
@@ -42,7 +35,7 @@ fn android_main(app: winit::platform::android::activity::AndroidApp) {
             "Brush",
             eframe::NativeOptions {
                 // Build app display.
-                viewport: egui::ViewportBuilder::default().with_icon(std::sync::Arc::new(icon)),
+                viewport: egui::ViewportBuilder::default(),
                 android_app: Some(app),
                 wgpu_options,
                 ..Default::default()
