@@ -16,16 +16,16 @@ pub fn smooth_orbit(
     position: Vec3,
     rotation: Quat,
     base_roll: Quat,
-    delta_x: f32,
-    delta_y: f32,
+    delta_yaw: f32,
+    delta_pitch: f32,
     distance: f32,
 ) -> (Vec3, Quat) {
     // Calculate focal point (where we're looking at)
     let focal_point = position + rotation * Vec3::Z * distance;
 
     // Create rotation quaternions in camera's local space
-    let pitch = Quat::from_axis_angle(rotation * Vec3::X, delta_x);
-    let yaw = Quat::from_axis_angle(base_roll * Vec3::Y, delta_y);
+    let pitch = Quat::from_axis_angle(rotation * Vec3::X, -delta_pitch);
+    let yaw = Quat::from_axis_angle(base_roll * Vec3::NEG_Y, -delta_yaw);
 
     // Apply yaw in world space, pitch in local space
     let new_rotation = (yaw * pitch * rotation).normalize();
@@ -72,7 +72,7 @@ impl CameraController {
         let mouselook_speed = 0.002;
 
         let right = self.rotation * Vec3::X;
-        let up = self.rotation * Vec3::Y;
+        let up = self.rotation * Vec3::NEG_Y;
         let forward = self.rotation * Vec3::Z;
 
         if response.hovered() {
@@ -88,20 +88,20 @@ impl CameraController {
         if look_pan {
             let drag_mult = self.focus_distance / response.rect.width().max(response.rect.height());
             self.position -= right * response.drag_delta().x * drag_mult;
-            self.position -= up * response.drag_delta().y * drag_mult;
+            self.position += up * response.drag_delta().y * drag_mult;
 
             ui.ctx().set_cursor_icon(egui::CursorIcon::Move);
         } else if look_fps {
             let axis = response.drag_delta();
-            let yaw = Quat::from_axis_angle(self.roll * Vec3::Y, axis.x * mouselook_speed);
+            let yaw = Quat::from_axis_angle(self.roll * Vec3::NEG_Y, axis.x * mouselook_speed);
             let pitch = Quat::from_rotation_x(-axis.y * mouselook_speed);
             self.rotation = yaw * self.rotation * pitch;
             ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
         } else if look_orbit {
-            let dx = response.drag_delta().x * mouselook_speed;
-            let dy = -response.drag_delta().y * mouselook_speed;
+            let delta_yaw = response.drag_delta().x * mouselook_speed;
+            let delta_pitch = response.drag_delta().y * mouselook_speed;
 
-            self.orbit_velocity = glam::vec2(dy, dx);
+            self.orbit_velocity = glam::vec2(delta_yaw, delta_pitch);
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
 
@@ -173,7 +173,7 @@ impl CameraController {
             if ui.input(|r| r.key_down(egui::Key::Q)) {
                 self.fly_velocity = exp_lerp3(
                     self.fly_velocity,
-                    Vec3::Y * move_speed,
+                    -Vec3::Y * move_speed,
                     delta_time,
                     fly_moment_lambda,
                 );
@@ -182,7 +182,7 @@ impl CameraController {
             if ui.input(|r| r.key_down(egui::Key::E)) {
                 self.fly_velocity = exp_lerp3(
                     self.fly_velocity,
-                    -Vec3::Y * move_speed,
+                    Vec3::Y * move_speed,
                     delta_time,
                     fly_moment_lambda,
                 );
@@ -211,5 +211,10 @@ impl CameraController {
 
     pub fn local_to_world(&self) -> glam::Affine3A {
         glam::Affine3A::from_rotation_translation(self.rotation, self.position)
+    }
+
+    pub(crate) fn stop_movement(&mut self) {
+        self.orbit_velocity = Vec2::ZERO;
+        self.fly_velocity = Vec3::ZERO;
     }
 }

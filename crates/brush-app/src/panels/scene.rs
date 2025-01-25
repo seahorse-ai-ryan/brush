@@ -112,8 +112,8 @@ impl ScenePanel {
         let camera = &mut context.camera;
 
         // Create a camera that incorporates the model transform.
-        let total_transform =
-            context.model_local_to_world.inverse() * context.controls.local_to_world();
+        let total_transform = context.model_local_to_world * context.controls.local_to_world();
+
         camera.position = total_transform.translation.into();
         camera.rotation = Quat::from_mat3a(&total_transform.matrix3);
 

@@ -194,7 +194,7 @@ pub fn load_splat_from_ply<T: AsyncRead + Unpin + 'static, B: Backend>(
             .iter()
             .filter_map(|c| match c.to_lowercase().strip_prefix("vertical axis: ") {
                 Some("x") => Some(Vec3::X),
-                Some("y") => Some(Vec3::Y),
+                Some("y") => Some(Vec3::NEG_Y),
                 Some("z") => Some(Vec3::Z),
                 _ => None,
             })

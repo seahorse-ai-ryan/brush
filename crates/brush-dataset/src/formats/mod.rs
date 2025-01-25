@@ -102,8 +102,6 @@ pub(crate) async fn load_image(
     img_path: &Path,
     mask_path: Option<&Path>,
 ) -> anyhow::Result<(DynamicImage, ViewImageType)> {
-    log::info!("Loading image at {img_path:?}, with a mask {mask_path:?}");
-
     let mut img_bytes = vec![];
 
     vfs.open_path(img_path)

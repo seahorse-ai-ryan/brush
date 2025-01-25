@@ -122,25 +122,28 @@ impl AppContext {
         }
     }
 
+    fn match_controls_to(&mut self, cam: &Camera) {
+        // We want model * controls.transform() == view_cam.transform() ->
+        //  controls.transform = model.inverse() * view_cam.transform.
+        let transform = self.model_local_to_world.inverse() * cam.local_to_world();
+        self.controls.position = transform.translation.into();
+        self.controls.rotation = Quat::from_mat3a(&transform.matrix3);
+    }
+
     pub fn set_model_up(&mut self, up_axis: Vec3) {
-        let rotation = Quat::from_rotation_arc(Vec3::Y, up_axis);
+        self.model_local_to_world = Affine3A::from_rotation_translation(
+            Quat::from_rotation_arc(up_axis, Vec3::NEG_Y),
+            Vec3::ZERO,
+        );
 
-        let object_from_cam = self.model_local_to_world.inverse() * self.camera.local_to_world();
-
-        let transform = Affine3A::from_rotation_translation(rotation, Vec3::ZERO);
-
-        self.model_local_to_world = transform;
-        let cam = self.model_local_to_world * object_from_cam;
-
-        self.controls.position = cam.translation.into();
-        self.controls.rotation = Quat::from_mat3a(&cam.matrix3);
+        let cam = self.camera.clone();
+        self.match_controls_to(&cam);
     }
 
     pub fn focus_view(&mut self, view_cam: &Camera) {
         self.camera = view_cam.clone();
-        let transform = self.model_local_to_world.inverse() * self.camera.local_to_world();
-        self.controls.position = transform.translation.into();
-        self.controls.rotation = Quat::from_mat3a(&transform.matrix3);
+        self.match_controls_to(view_cam);
+        self.controls.stop_movement();
     }
 
     pub fn connect_to(&mut self, process: RunningProcess) {

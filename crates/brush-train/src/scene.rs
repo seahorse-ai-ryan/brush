@@ -1,5 +1,5 @@
 use brush_render::{bounding_box::BoundingBox, camera::Camera};
-use glam::{vec3, Vec3};
+use glam::{vec3, Affine3A, Vec3};
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -30,17 +30,17 @@ pub struct Scene {
     pub views: Arc<Vec<SceneView>>,
 }
 
-fn camera_distance_score(cam: &Camera, reference: &Camera) -> f32 {
-    let mut score = 0.0;
+fn camera_distance_penalty(cam_local_to_world: Affine3A, reference: Affine3A) -> f32 {
+    let mut penalty = 0.0;
     for off_x in [-1.0, 0.0, 1.0] {
         for off_y in [-1.0, 0.0, 1.0] {
             let offset = vec3(off_x, off_y, 1.0);
-            let cam_pos = cam.position + cam.rotation * offset;
-            let ref_pos = reference.position + reference.rotation * offset;
-            score += (cam_pos - ref_pos).length();
+            let cam_pos = cam_local_to_world.transform_point3(offset);
+            let ref_pos = reference.transform_point3(offset);
+            penalty += (cam_pos - ref_pos).length();
         }
     }
-    score
+    penalty
 }
 
 impl Scene {
@@ -70,13 +70,13 @@ impl Scene {
         BoundingBox::from_min_max(min, max)
     }
 
-    pub fn get_nearest_view(&self, reference: &Camera) -> Option<usize> {
+    pub fn get_nearest_view(&self, reference: Affine3A) -> Option<usize> {
         self.views
             .iter()
             .enumerate() // This will give us (index, view) pairs
             .min_by(|(_, a), (_, b)| {
-                let score_a = camera_distance_score(&a.camera, reference);
-                let score_b = camera_distance_score(&b.camera, reference);
+                let score_a = camera_distance_penalty(a.camera.local_to_world(), reference);
+                let score_b = camera_distance_penalty(b.camera.local_to_world(), reference);
                 score_a
                     .partial_cmp(&score_b)
                     .unwrap_or(std::cmp::Ordering::Equal)
