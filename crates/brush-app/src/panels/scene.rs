@@ -251,6 +251,17 @@ Or load a dataset to train on. These are zip files with:
 
             ui.add_space(10.0);
 
+            if cfg!(debug_assertions) {
+                ui.scope(|ui| {
+                    ui.visuals_mut().override_text_color = Some(Color32::LIGHT_BLUE);
+                    ui.heading(
+                        "Note: running in debug mode, compile with --release for best performance",
+                    );
+                });
+
+                ui.add_space(10.0);
+            }
+
             #[cfg(target_family = "wasm")]
             ui.scope(|ui| {
                 ui.visuals_mut().override_text_color = Some(Color32::YELLOW);

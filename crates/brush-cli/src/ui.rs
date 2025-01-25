@@ -61,6 +61,11 @@ pub async fn process_ui(process: RunningProcess) {
         process.start_args.process_config.eval_every,
     ));
 
+    if cfg!(debug_assertions) {
+        let _ =
+            sp.println("ℹ️  running in debug mode, compile with --release for best performance");
+    }
+
     while let Some(msg) = process.messages.recv().await {
         match msg {
             ProcessMessage::NewSource => {
