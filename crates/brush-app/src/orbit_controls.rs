@@ -93,7 +93,7 @@ impl CameraController {
             ui.ctx().set_cursor_icon(egui::CursorIcon::Move);
         } else if look_fps {
             let axis = response.drag_delta();
-            let yaw = Quat::from_axis_angle(self.roll * Vec3::NEG_Y, axis.x * mouselook_speed);
+            let yaw = Quat::from_axis_angle(self.roll * Vec3::NEG_Y, -axis.x * mouselook_speed);
             let pitch = Quat::from_rotation_x(-axis.y * mouselook_speed);
             self.rotation = yaw * self.rotation * pitch;
             ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
