@@ -46,6 +46,10 @@ pub fn eval_stats<B: Backend>(
         let (rendered, aux) = splats.render(&view.camera, res, false);
 
         let render_rgb = rendered.slice([0..res.y as usize, 0..res.x as usize, 0..3]);
+
+        // Simulate 8-bit roundtrip for fair comparison.
+        let render_rgb = (render_rgb * 255.0).round() / 255.0;
+
         let mse = (render_rgb.clone() - gt_rgb.clone())
             .powf_scalar(2.0)
             .mean();
