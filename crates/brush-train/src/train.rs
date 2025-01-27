@@ -76,8 +76,8 @@ pub struct TrainConfig {
     opac_loss_weight: f32,
 
     /// How much opacity to subtrat every refine step.
-    #[config(default = 0.005)]
-    #[arg(long, help_heading = "Training options", default_value = "0.005")]
+    #[config(default = 0.004)]
+    #[arg(long, help_heading = "Training options", default_value = "0.004")]
     opac_refine_subtract: f32,
 
     /// GSs with opacity below this value will be pruned
@@ -95,7 +95,7 @@ pub struct TrainConfig {
     #[arg(long, help_heading = "Refine options", default_value = "0.1")]
     densify_radius_threshold: f32,
 
-    /// Below this size, gaussians are *duplicated*, otherwise split
+    /// Below this size, gaussians are cloned, otherwise split
     #[config(default = 0.01)]
     #[arg(long, help_heading = "Refine options", default_value = "0.01")]
     densify_size_threshold: f32,
@@ -124,6 +124,11 @@ pub struct TrainConfig {
     #[config(default = 100)]
     #[arg(long, help_heading = "Refine options", default_value = "100")]
     refine_every: u32,
+
+    /// Weight of l1 loss on alpha if input view has transparency.
+    #[config(default = 0.1)]
+    #[arg(long, help_heading = "Refine options", default_value = "0.1")]
+    alpha_loss_weight: f32,
 }
 
 type B = Autodiff<Wgpu>;
@@ -280,7 +285,9 @@ impl SplatTrainer {
                     // In alpha mode, add the l1 error of the alpha channel to the total error.
                     ViewImageType::Alpha => {
                         let pred_alpha = pred_image.clone().slice([0..img_h, 0..img_w, 3..4]);
-                        total_err.mean() + (alpha_input - pred_alpha).abs().mean()
+                        total_err.mean()
+                            + (alpha_input - pred_alpha).abs().mean()
+                                * self.config.alpha_loss_weight
                     }
                 }
             } else {
