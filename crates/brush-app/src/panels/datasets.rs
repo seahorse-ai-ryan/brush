@@ -200,7 +200,7 @@ impl AppPanel for DatasetPanel {
 
                     let info = format!(
                         "{} ({}x{} {})",
-                        selected_view.name,
+                        selected_view.path,
                         selected_view.image.width(),
                         selected_view.image.height(),
                         mask_info

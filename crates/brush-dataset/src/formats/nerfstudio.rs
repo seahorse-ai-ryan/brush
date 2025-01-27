@@ -142,16 +142,16 @@ fn read_transforms_file(
                 }
 
                 let mask_path = find_mask_path(&archive, &path);
-                let (mut image, img_type) = load_image(&mut archive, &path, mask_path.as_deref())
+                let (image, img_type) = load_image(&mut archive, &path, mask_path.as_deref())
                     .await
                     .with_context(|| format!("Failed to load image {}", frame.file_path))?;
+
+                let image = Arc::new(image);
 
                 let w = frame.w.or(scene.w).unwrap_or(image.width() as f64) as u32;
                 let h = frame.h.or(scene.h).unwrap_or(image.height() as f64) as u32;
 
-                if let Some(max) = load_args.max_resolution {
-                    image = clamp_img_to_max_size(image, max);
-                }
+                let image = clamp_img_to_max_size(image, load_args.max_resolution);
 
                 let fovx = frame
                     .camera_angle_x
@@ -184,9 +184,9 @@ fn read_transforms_file(
                 let cuv = glam::vec2((cx / w as f64) as f32, (cy / h as f64) as f32);
 
                 let view = SceneView {
-                    name: frame.file_path.clone(),
+                    path: frame.file_path.clone(),
                     camera: Camera::new(translation, rotation, fovx, fovy, cuv),
-                    image: Arc::new(image),
+                    image,
                     img_type,
                 };
                 anyhow::Result::<SceneView>::Ok(view)

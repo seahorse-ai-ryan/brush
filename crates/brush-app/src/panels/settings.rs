@@ -15,21 +15,14 @@ pub(crate) struct SettingsPanel {
 impl SettingsPanel {
     pub(crate) fn new() -> Self {
         Self {
-            args: ProcessArgs {
-                // Super high resolutions are a bit sketchy. Limit to at least
-                // some size.
-                load_config: LoadDataseConfig {
-                    max_resolution: Some(1920),
-                    max_frames: None,
-                    eval_split_every: None,
-                    subsample_frames: None,
-                    subsample_points: None,
-                },
-                train_config: TrainConfig::new(),
-                model_config: ModelConfig::new(),
-                process_config: ProcessConfig::new(),
-                rerun_config: RerunConfig::new(),
-            },
+            // Nb: Important to just start with the default values here, so CLI and UI match defaults.
+            args: ProcessArgs::new(
+                TrainConfig::new(),
+                ModelConfig::new(),
+                LoadDataseConfig::new(),
+                ProcessConfig::new(),
+                RerunConfig::new(),
+            ),
             url: "splat.com/example.ply".to_owned(),
         }
     }
@@ -46,18 +39,11 @@ impl AppPanel for SettingsPanel {
             ui.label("Spherical Harmonics Degree:");
             ui.add(Slider::new(&mut self.args.model_config.sh_degree, 0..=4));
 
-            ui.heading("Dataset Settings");
-            let mut limit_res = self.args.load_config.max_resolution.is_some();
-            if ui
-                .checkbox(&mut limit_res, "Limit training resolution")
-                .clicked()
-            {
-                self.args.load_config.max_resolution = if limit_res { Some(800) } else { None };
-            }
-
-            if let Some(target_res) = self.args.load_config.max_resolution.as_mut() {
-                ui.add(Slider::new(target_res, 32..=2048).clamping(egui::SliderClamping::Never));
-            }
+            ui.label("Max image resolution");
+            ui.add(
+                Slider::new(&mut self.args.load_config.max_resolution, 32..=2048)
+                    .clamping(egui::SliderClamping::Never),
+            );
 
             let mut limit_frames = self.args.load_config.max_frames.is_some();
             if ui.checkbox(&mut limit_frames, "Limit max frames").clicked() {

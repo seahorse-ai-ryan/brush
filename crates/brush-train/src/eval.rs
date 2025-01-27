@@ -7,7 +7,7 @@ use crate::image::view_to_sample;
 use crate::scene::{Scene, SceneView};
 use crate::ssim::Ssim;
 
-pub struct EvalView<B: Backend> {
+pub struct EvalSample<B: Backend> {
     pub index: usize,
 
     pub view: SceneView,
@@ -25,7 +25,7 @@ pub fn eval_stats<B: Backend>(
     num_frames: Option<usize>,
     rng: &mut impl rand::Rng,
     device: &B::Device,
-) -> impl Iterator<Item = EvalView<B>> + 'static {
+) -> impl Iterator<Item = EvalSample<B>> + 'static {
     let indices = if let Some(num) = num_frames {
         (0..eval_scene.views.len()).choose_multiple(rng, num)
     } else {
@@ -57,7 +57,7 @@ pub fn eval_stats<B: Backend>(
             .ssim(render_rgb.clone().unsqueeze(), gt_rgb.unsqueeze())
             .mean();
 
-        EvalView {
+        EvalSample {
             index,
             view,
             psnr,

@@ -10,6 +10,7 @@ use path_clean::PathClean;
 use std::{
     path::{Path, PathBuf},
     pin::Pin,
+    sync::Arc,
 };
 use tokio::io::AsyncReadExt;
 use tokio_stream::Stream;
@@ -95,7 +96,7 @@ fn find_mask_path(vfs: &BrushVfs, path: &Path) -> Option<PathBuf> {
     })
 }
 
-pub(crate) fn clamp_img_to_max_size(image: DynamicImage, max_size: u32) -> DynamicImage {
+pub fn clamp_img_to_max_size(image: Arc<DynamicImage>, max_size: u32) -> Arc<DynamicImage> {
     if image.width() <= max_size && image.height() <= max_size {
         return image;
     }
@@ -106,7 +107,7 @@ pub(crate) fn clamp_img_to_max_size(image: DynamicImage, max_size: u32) -> Dynam
     } else {
         ((max_size as f32 * aspect_ratio) as u32, max_size)
     };
-    image.resize(new_width, new_height, image::imageops::FilterType::Lanczos3)
+    Arc::new(image.resize(new_width, new_height, image::imageops::FilterType::Lanczos3))
 }
 
 pub(crate) async fn load_image(

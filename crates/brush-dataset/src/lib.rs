@@ -5,6 +5,7 @@ pub mod splat_export;
 pub mod splat_import;
 
 use burn::config::Config;
+pub use formats::clamp_img_to_max_size;
 pub use formats::load_dataset;
 
 use async_fn_stream::fn_stream;
@@ -22,9 +23,10 @@ pub struct LoadDataseConfig {
     /// Max nr. of frames of dataset to load
     #[arg(long, help_heading = "Dataset Options")]
     pub max_frames: Option<usize>,
-    /// Max resolution of images to load
-    #[arg(long, help_heading = "Dataset Options")]
-    pub max_resolution: Option<u32>,
+    /// Max resolution of images to load.
+    #[arg(long, help_heading = "Dataset Options", default_value = "1800")]
+    #[config(default = 1920)]
+    pub max_resolution: u32,
     /// Create an eval dataset by selecting every nth image
     #[arg(long, help_heading = "Dataset Options")]
     pub eval_split_every: Option<usize>,
@@ -38,12 +40,8 @@ pub struct LoadDataseConfig {
 
 #[derive(Config, Debug, Args)]
 pub struct ModelConfig {
-    #[arg(
-        long,
-        help = "SH degree of splats",
-        help_heading = "Model Options",
-        default_value = "3"
-    )]
+    /// SH degree of spalts.
+    #[arg(long, help_heading = "Model Options", default_value = "3")]
     #[config(default = 3)]
     pub sh_degree: u32,
 }

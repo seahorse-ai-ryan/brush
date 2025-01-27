@@ -17,7 +17,7 @@ pub enum ViewImageType {
 
 #[derive(Debug, Clone)]
 pub struct SceneView {
-    pub name: String,
+    pub path: String,
     pub camera: Camera,
     pub image: Arc<image::DynamicImage>,
     pub img_type: ViewImageType,

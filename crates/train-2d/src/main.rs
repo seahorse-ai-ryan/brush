@@ -124,7 +124,7 @@ impl App {
         );
 
         let view = SceneView {
-            name: "crabby".to_owned(),
+            path: "crabby".to_owned(),
             camera,
             image: Arc::new(image),
             img_type: ViewImageType::Alpha,

@@ -132,13 +132,11 @@ async fn read_views(
                 let (path, mask_path) = find_mask_and_img(&vfs, &img_paths)
                     .with_context(|| format!("Failed to find image {}", img_info.name))?;
 
-                let (mut image, img_type) = load_image(&mut vfs, &path, mask_path.as_deref())
+                let (image, img_type) = load_image(&mut vfs, &path, mask_path.as_deref())
                     .await
                     .with_context(|| format!("Failed to load image {}", img_info.name))?;
 
-                if let Some(max) = load_args.max_resolution {
-                    image = clamp_img_to_max_size(image, max);
-                }
+                let image = clamp_img_to_max_size(Arc::new(image), load_args.max_resolution);
 
                 // Convert w2c to c2w.
                 let world_to_cam =
@@ -149,9 +147,9 @@ async fn read_views(
                 let camera = Camera::new(translation, quat, fovx, fovy, center_uv);
 
                 let view = SceneView {
-                    name: path.to_string_lossy().to_string(),
+                    path: path.to_string_lossy().to_string(),
                     camera,
-                    image: Arc::new(image),
+                    image,
                     img_type,
                 };
                 Ok(view)
@@ -185,7 +183,6 @@ pub(crate) async fn load_dataset<B: Backend>(
 
         if let Some(eval_period) = load_args.eval_split_every {
             if i % eval_period == 0 {
-                log::info!("Adding split eval view");
                 eval_views.push(view);
             } else {
                 train_views.push(view);

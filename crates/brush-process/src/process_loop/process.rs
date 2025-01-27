@@ -1,5 +1,9 @@
+use std::path::Path;
+
 use anyhow::Context;
+use brush_train::image::tensor_into_image;
 use burn_jit::cubecl::Runtime;
+use image::DynamicImage;
 use web_time::Instant;
 
 use crate::{data_source::DataSource, rerun_tools::VisualizeTools};
@@ -212,7 +216,7 @@ async fn train_process_loop(
             .await;
     }
 
-    visualize.log_scene(&dataset.train)?;
+    visualize.log_scene(&dataset.train, process_args.rerun_config.rerun_max_img_size)?;
 
     let estimated_up = dataset.estimate_up();
 
@@ -299,18 +303,24 @@ async fn train_process_loop(
                 iter,
                 timestamp,
             } => {
+                let export_path =
+                    Path::new(process_config.export_path.as_deref().unwrap_or(".")).to_owned();
+
                 // We just finished iter 'iter', now starting iter + 1.
-                let next_iter = iter + 1;
+                let iter = iter + 1;
+                let is_last_step = iter == process_args.train_config.total_steps;
 
                 // Check if we want to evaluate _next iteration_. Small detail, but this ensures we evaluate
                 // before doing a refine.
-                if next_iter % process_config.eval_every == 0 {
+                if iter % process_config.eval_every == 0 || is_last_step {
                     if let Some(eval_scene) = eval_scene.as_ref() {
                         let mut psnr = 0.0;
                         let mut ssim = 0.0;
                         let mut count = 0;
 
-                        for samp in brush_train::eval::eval_stats(
+                        log::info!("Running evaluation for iteration {iter}");
+
+                        for sample in brush_train::eval::eval_stats(
                             *splats.clone(),
                             eval_scene,
                             None,
@@ -318,19 +328,45 @@ async fn train_process_loop(
                             &device,
                         ) {
                             count += 1;
-                            psnr += samp.psnr.clone().into_scalar_async().await;
-                            ssim += samp.ssim.clone().into_scalar_async().await;
-                            visualize.log_eval_view(next_iter, &samp).await?;
+                            psnr += sample.psnr.clone().into_scalar_async().await;
+                            ssim += sample.ssim.clone().into_scalar_async().await;
+                            visualize.log_eval_sample(iter, &sample).await?;
+
+                            #[cfg(not(target_family = "wasm"))]
+                            if process_args.process_config.eval_save_to_disk {
+                                log::info!("Saving eval image to disk.");
+
+                                let eval_render = tensor_into_image(
+                                    sample.rendered.clone().into_data_async().await,
+                                );
+                                let rendered: DynamicImage = eval_render.to_rgb8().into();
+
+                                let img_name = Path::new(&sample.view.path)
+                                    .file_stem()
+                                    .expect("No file name for eval view.")
+                                    .to_string_lossy();
+
+                                let path = Path::new(&export_path)
+                                    .join(format!("eval_{iter}"))
+                                    .join(format!("{img_name}.png"));
+
+                                let parent = path.parent().expect("Eval must have a filename");
+                                tokio::fs::create_dir_all(parent).await?;
+
+                                log::info!("Saving eval view to {path:?}");
+
+                                rendered.save(path)?;
+                            }
                         }
 
                         psnr /= count as f32;
                         ssim /= count as f32;
 
-                        visualize.log_eval_stats(next_iter, psnr, ssim)?;
+                        visualize.log_eval_stats(iter, psnr, ssim)?;
 
                         if output
                             .send(ProcessMessage::EvalResult {
-                                iter: next_iter,
+                                iter,
                                 avg_psnr: psnr,
                                 avg_ssim: ssim,
                             })
@@ -350,16 +386,18 @@ async fn train_process_loop(
                 // TODO: Support this on WASM somehow. Maybe have user pick a file once,
                 // and write to it repeatedly?
                 #[cfg(not(target_family = "wasm"))]
-                if iter % process_config.export_every == 0 && iter > 0 || iter == total_steps - 1 {
+                if iter % process_config.export_every == 0 || is_last_step {
                     let splats = *splats.clone();
                     let output_send = output.clone();
 
-                    let path = &process_config.export_path;
                     // Ad-hoc format string.
                     let digits = (total_steps as f64).log10().ceil() as usize;
-                    let export_path = path.replace("{iter}", &format!("{iter:0digits$}"));
+                    let export_name = process_config
+                        .export_name
+                        .replace("{iter}", &format!("{iter:0digits$}"));
 
-                    log::info!("Exporting to {export_path}");
+                    println!("Exporting to {export_path:?}");
+                    tokio::fs::create_dir_all(&export_path).await?;
 
                     // Nb: this COULD easily be done in the spawned future as well,
                     // but for memory reasons it's not great to keep another copy of the
@@ -367,18 +405,17 @@ async fn train_process_loop(
                     let splat_data = splat_export::splat_to_ply(splats).await?;
 
                     tokio::task::spawn(async move {
-                        if let Err(e) = tokio::fs::write(export_path, splat_data).await {
-                            let _ = output_send
-                                .send(ProcessMessage::Error(anyhow::anyhow!(
-                                    "Failed to export ply: {e}"
-                                )))
-                                .await;
+                        if let Err(e) = tokio::fs::write(export_path.join(&export_name), splat_data)
+                            .await
+                            .with_context(|| format!("Failed to export ply {export_path:?}"))
+                        {
+                            let _ = output_send.send(ProcessMessage::Error(e)).await;
                         }
                     });
                 }
 
                 if let Some(every) = process_args.rerun_config.rerun_log_splats_every {
-                    if iter % every == 0 {
+                    if iter % every == 0 || is_last_step {
                         visualize.log_splats(iter, *splats.clone()).await?;
                     }
                 }
@@ -386,14 +423,15 @@ async fn train_process_loop(
                 visualize.log_splat_stats(iter, &splats)?;
 
                 // Log out train stats.
-                if iter % process_args.rerun_config.rerun_log_train_stats_every == 0 {
+                if iter % process_args.rerun_config.rerun_log_train_stats_every == 0 || is_last_step
+                {
                     visualize.log_train_stats(iter, *stats.clone()).await?;
                 }
 
                 // How frequently to update the UI after a training step.
                 const UPDATE_EVERY: u32 = 5;
 
-                if iter % UPDATE_EVERY == 0
+                if (iter % UPDATE_EVERY == 0 || is_last_step)
                     && output
                         .send(ProcessMessage::TrainStep {
                             splats,
@@ -407,7 +445,7 @@ async fn train_process_loop(
                     break;
                 }
 
-                if iter > total_steps {
+                if is_last_step {
                     break;
                 }
             }

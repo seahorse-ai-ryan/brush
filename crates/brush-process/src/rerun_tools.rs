@@ -1,7 +1,10 @@
 #![allow(unused_imports)]
 
+use std::sync::Arc;
+
+use brush_dataset::clamp_img_to_max_size;
 use brush_render::{gaussian_splats::Splats, AutodiffBackend, Backend};
-use brush_train::eval::EvalView;
+use brush_train::eval::EvalSample;
 use brush_train::{image::tensor_into_image, scene::Scene, train::RefineStats};
 use brush_train::{ssim::Ssim, train::TrainStepStats};
 use burn::tensor::{activation::sigmoid, ElementConversion};
@@ -108,7 +111,7 @@ impl VisualizeTools {
     }
 
     #[allow(unused_variables)]
-    pub fn log_scene(&self, scene: &Scene) -> Result<()> {
+    pub fn log_scene(&self, scene: &Scene, max_img_size: u32) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         if let Some(rec) = self.rec.as_ref() {
             if rec.is_enabled() {
@@ -116,13 +119,15 @@ impl VisualizeTools {
 
                 for (i, view) in scene.views.iter().enumerate() {
                     let path = format!("world/dataset/camera/{i}");
-                    let (width, height) = (view.image.width(), view.image.height());
-                    let vis_size = glam::uvec2(width, height);
+                    let log_img = clamp_img_to_max_size(view.image.clone(), max_img_size);
+
+                    let img_size = glam::uvec2(log_img.width(), log_img.height());
+
                     rec.log_static(
                         path.clone(),
                         &rerun::Pinhole::from_focal_length_and_resolution(
-                            view.camera.focal(vis_size),
-                            glam::vec2(vis_size.x as f32, vis_size.y as f32),
+                            view.camera.focal(img_size),
+                            img_size.as_vec2(),
                         ),
                     )?;
                     rec.log_static(
@@ -134,7 +139,7 @@ impl VisualizeTools {
                     )?;
                     rec.log_static(
                         path + "/image",
-                        &rerun::Image::from_dynamic_image(view.image.as_ref().clone())?,
+                        &rerun::Image::from_dynamic_image(log_img.as_ref().clone())?,
                     )?;
                 }
             }
@@ -157,14 +162,13 @@ impl VisualizeTools {
     }
 
     #[allow(unused_variables)]
-    pub async fn log_eval_view<B: Backend>(&self, iter: u32, view: &EvalView<B>) -> Result<()> {
+    pub async fn log_eval_sample<B: Backend>(&self, iter: u32, view: &EvalSample<B>) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         if let Some(rec) = self.rec.as_ref() {
             if rec.is_enabled() {
                 rec.set_time_sequence("iterations", iter);
 
                 let eval_render = tensor_into_image(view.rendered.clone().into_data_async().await);
-
                 let rendered = eval_render.to_rgb8();
 
                 let [w, h] = [rendered.width(), rendered.height()];
