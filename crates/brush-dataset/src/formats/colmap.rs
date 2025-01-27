@@ -99,10 +99,8 @@ async fn read_views(
 
     log::info!("Loading colmap dataset with {} images", img_info_list.len());
 
-    // Sort by image ID. Not entirely sure whether it's better to
-    // load things in COLMAP order or sorted by file name. Either way, at least
-    // it is consistent
-    img_info_list.sort_by_key(|key_img| key_img.0);
+    // Sort by image name. This is imporant to match the exact eval images mipnerf uses.
+    img_info_list.sort_by_key(|key_img| key_img.1.name.clone());
 
     let handles = img_info_list
         .into_iter()
