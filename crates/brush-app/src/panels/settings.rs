@@ -72,49 +72,17 @@ impl AppPanel for SettingsPanel {
                 );
             }
 
-            let mut use_frame_subsample = self.args.load_config.subsample_frames.is_some();
-            if ui
-                .checkbox(&mut use_frame_subsample, "Subsample frames")
-                .clicked()
-            {
-                self.args.load_config.subsample_frames =
-                    if use_frame_subsample { Some(2) } else { None };
-            }
-
-            if let Some(subsample_frames) = self.args.load_config.subsample_frames.as_mut() {
-                ui.add(
-                    Slider::new(subsample_frames, 2..=32)
-                        .clamping(egui::SliderClamping::Never)
-                        .prefix("Keep 1 out of ")
-                        .suffix(" frames"),
-                );
-            }
-
-            let mut use_point_subsample = self.args.load_config.subsample_points.is_some();
-            if ui
-                .checkbox(&mut use_point_subsample, "Subsample points")
-                .clicked()
-            {
-                self.args.load_config.subsample_points =
-                    if use_point_subsample { Some(2) } else { None };
-            }
-
-            if let Some(subsample_points) = self.args.load_config.subsample_points.as_mut() {
-                ui.add(
-                    Slider::new(subsample_points, 2..=32)
-                        .clamping(egui::SliderClamping::Never)
-                        .prefix("Keep 1 out of ")
-                        .suffix(" points"),
-                );
-            }
-
             ui.heading("Training Settings");
 
-            ui.add(
-                egui::Slider::new(&mut self.args.train_config.total_steps, 1..=50000)
-                    .clamping(egui::SliderClamping::Never)
-                    .suffix(" steps"),
-            );
+            ui.horizontal(|ui| {
+                ui.label("Train");
+
+                ui.add(
+                    egui::Slider::new(&mut self.args.train_config.total_steps, 1..=50000)
+                        .clamping(egui::SliderClamping::Never)
+                        .suffix(" steps"),
+                );
+            });
 
             ui.heading("Process Settings");
 

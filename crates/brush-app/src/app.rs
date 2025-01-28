@@ -19,10 +19,19 @@ use std::collections::HashMap;
 
 pub(crate) trait AppPanel {
     fn title(&self) -> String;
+
+    /// Draw the pane's UI's content/
     fn ui(&mut self, ui: &mut egui::Ui, controls: &mut AppContext);
+
+    /// Handle an incoming message from the UI.
     fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
         let _ = message;
         let _ = context;
+    }
+
+    /// Override the inner margin for this panel.
+    fn inner_margin(&self) -> f32 {
+        12.0
     }
 }
 
@@ -44,7 +53,11 @@ impl egui_tiles::Behavior<PaneType> for AppTree {
         _tile_id: egui_tiles::TileId,
         pane: &mut PaneType,
     ) -> egui_tiles::UiResponse {
-        pane.ui(ui, &mut self.context.write().expect("Lock poisoned"));
+        egui::Frame::new()
+            .inner_margin(pane.inner_margin())
+            .show(ui, |ui| {
+                pane.ui(ui, &mut self.context.write().expect("Lock poisoned"));
+            });
         egui_tiles::UiResponse::None
     }
 
@@ -53,6 +66,16 @@ impl egui_tiles::Behavior<PaneType> for AppTree {
         SimplificationOptions {
             all_panes_must_have_tabs: !self.zen,
             ..Default::default()
+        }
+    }
+
+    /// Width of the gap between tiles in a horizontal or vertical layout,
+    /// and between rows/columns in a grid layout.
+    fn gap_width(&self, _style: &egui::Style) -> f32 {
+        if self.zen {
+            0.0
+        } else {
+            0.5
         }
     }
 }
@@ -382,8 +405,12 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         self.receive_messages();
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            self.tree.ui(&mut self.tree_ctx, ui);
-        });
+        let main_panel_frame = egui::Frame::central_panel(ctx.style().as_ref()).inner_margin(0.0);
+
+        egui::CentralPanel::default()
+            .frame(main_panel_frame)
+            .show(ctx, |ui| {
+                self.tree.ui(&mut self.tree_ctx, ui);
+            });
     }
 }

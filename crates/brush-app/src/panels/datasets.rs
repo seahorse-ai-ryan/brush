@@ -202,4 +202,8 @@ impl AppPanel for DatasetPanel {
             ui.label("Loading...");
         }
     }
+
+    fn inner_margin(&self) -> f32 {
+        0.0
+    }
 }

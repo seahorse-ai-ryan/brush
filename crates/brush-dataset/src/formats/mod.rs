@@ -100,14 +100,7 @@ pub fn clamp_img_to_max_size(image: Arc<DynamicImage>, max_size: u32) -> Arc<Dyn
     if image.width() <= max_size && image.height() <= max_size {
         return image;
     }
-
-    let aspect_ratio = image.width() as f32 / image.height() as f32;
-    let (new_width, new_height) = if image.width() > image.height() {
-        (max_size, (max_size as f32 / aspect_ratio) as u32)
-    } else {
-        ((max_size as f32 * aspect_ratio) as u32, max_size)
-    };
-    Arc::new(image.resize(new_width, new_height, image::imageops::FilterType::Lanczos3))
+    Arc::new(image.resize(max_size, max_size, image::imageops::FilterType::Lanczos3))
 }
 
 pub(crate) async fn load_image(

@@ -44,7 +44,7 @@ pub(crate) struct ScenePanel {
 
     // Ui state.
     live_update: bool,
-    playback_paused: bool,
+    paused: bool,
     err: Option<ErrorDisplay>,
     zen: bool,
 
@@ -65,7 +65,7 @@ impl ScenePanel {
             err: None,
             view_splats: vec![],
             live_update: true,
-            playback_paused: false,
+            paused: false,
             last_state: None,
             zen,
             frame_count: 0,
@@ -79,15 +79,20 @@ impl ScenePanel {
         context: &mut AppContext,
         splats: &Splats<Wgpu>,
     ) {
-        let mut size = brush_ui::size_for_splat_view(ui);
+        let size = brush_ui::size_for_splat_view(ui);
 
         if size.x < 8.0 || size.y < 8.0 {
             return;
         }
 
+        let mut size = size.floor();
+
         if context.training() {
             let focal = context.camera.focal(glam::uvec2(1, 1));
             let aspect_ratio = focal.y / focal.x;
+
+            println!("Figured focal aspect {aspect_ratio}");
+
             if size.x / size.y > aspect_ratio {
                 size.x = size.y * aspect_ratio;
             } else {
@@ -97,8 +102,9 @@ impl ScenePanel {
             let focal_y = fov_to_focal(context.camera.fov_y, size.y as u32) as f32;
             context.camera.fov_x = focal_to_fov(focal_y as f64, size.x as u32);
         }
-        // Round to 64 pixels. Necessary for buffer sizes to align.
-        let size = glam::uvec2(size.x.round() as u32, size.y.round() as u32);
+        let size = glam::uvec2(size.x.floor() as u32, size.y.floor() as u32);
+
+        log::info!("{size}");
 
         let (rect, response) = ui.allocate_exact_size(
             egui::Vec2::new(size.x as f32, size.y as f32),
@@ -180,7 +186,7 @@ impl AppPanel for ScenePanel {
                 self.view_splats = vec![];
                 self.frame_count = 0;
                 self.live_update = true;
-                self.playback_paused = false;
+                self.paused = false;
                 self.err = None;
                 self.last_state = None;
                 self.frame = 0.0;
@@ -284,7 +290,7 @@ For bigger training runs consider using the native app."#,
         } else if !self.view_splats.is_empty() {
             const FPS: f32 = 24.0;
 
-            if !self.playback_paused {
+            if !self.paused {
                 self.frame += ui.input(|r| r.predicted_dt);
             }
             if self.view_splats.len() != self.frame_count {
@@ -299,38 +305,38 @@ For bigger training runs consider using the native app."#,
 
             self.draw_splats(ui, context, &splats);
 
-            if context.loading() {
-                ui.horizontal(|ui| {
-                    ui.label("Loading... Please wait.");
-                    ui.spinner();
-                });
-            }
-
             if self.view_splats.len() > 1 && self.view_splats.len() == self.frame_count {
-                let label = if self.playback_paused {
+                let label = if self.paused {
                     "⏸ paused"
                 } else {
                     "⏵ playing"
                 };
 
-                if ui.selectable_label(!self.playback_paused, label).clicked() {
-                    self.playback_paused = !self.playback_paused;
+                if ui.selectable_label(!self.paused, label).clicked() {
+                    self.paused = !self.paused;
                 }
             }
 
-            if context.training() {
-                ui.horizontal(|ui| {
+            ui.horizontal(|ui| {
+                if context.loading() {
+                    ui.horizontal(|ui| {
+                        ui.label("Loading... Please wait.");
+                        ui.spinner();
+                    });
+                }
+
+                if context.training() {
                     ui.add_space(15.0);
 
-                    let label = if self.playback_paused {
+                    let label = if self.paused {
                         "⏸ paused"
                     } else {
                         "⏵ training"
                     };
 
-                    if ui.selectable_label(!self.playback_paused, label).clicked() {
-                        self.playback_paused = !self.playback_paused;
-                        context.control_message(ControlMessage::Paused(self.playback_paused));
+                    if ui.selectable_label(!self.paused, label).clicked() {
+                        self.paused = !self.paused;
+                        context.control_message(ControlMessage::Paused(self.paused));
                     }
 
                     ui.add_space(15.0);
@@ -378,8 +384,27 @@ For bigger training runs consider using the native app."#,
 
                         tokio_wasm::task::spawn(fut);
                     }
-                });
-            }
+                }
+
+                ui.selectable_label(false, "Controls")
+                    .on_hover_ui_at_pointer(|ui| {
+                        ui.heading("Controls");
+
+                        ui.label("• Left click and drag to orbit");
+                        ui.label(
+                            "• Right click, or left click + spacebar, and drag to look around.",
+                        );
+                        ui.label("• Middle click, or left click + control, and drag to pan");
+                        ui.label("• Scroll to zoom");
+                        ui.label("• WASD to fly, Q&E to move up & down.");
+                        ui.label("• Z&C to roll, X to reset roll");
+                        ui.label("• Shift to move faster");
+                    });
+            });
         }
+    }
+
+    fn inner_margin(&self) -> f32 {
+        0.0
     }
 }
