@@ -83,14 +83,7 @@ impl AppPanel for DatasetPanel {
                 let img_size = [image.width() as usize, image.height() as usize];
                 let color_img = if image.color().has_alpha() {
                     let data = image.to_rgba8().into_vec();
-
-                    if view.img_type == ViewImageType::Alpha {
-                        // Alpha training images are stored premultiplied.
-                        egui::ColorImage::from_rgba_premultiplied(img_size, &data)
-                    } else {
-                        // Masked images are _not_ premultiplied.
-                        egui::ColorImage::from_rgba_unmultiplied(img_size, &data)
-                    }
+                    egui::ColorImage::from_rgba_unmultiplied(img_size, &data)
                 } else {
                     egui::ColorImage::from_rgb(img_size, &image.to_rgb8().into_vec())
                 };
