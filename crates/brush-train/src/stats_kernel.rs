@@ -18,7 +18,7 @@ pub fn stats_gather_kernel(
     let num_vis = num_visible[0];
 
     if compact_gid >= num_vis {
-        return;
+        terminate!();
     }
 
     let mut line = Line::empty(2);

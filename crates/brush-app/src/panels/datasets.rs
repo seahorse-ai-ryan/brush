@@ -178,8 +178,6 @@ impl AppPanel for DatasetPanel {
 
                     ui.add_space(10.0);
 
-                    ui.label(format!("size {size}"));
-
                     let mask_info = if selected_view.image.color().has_alpha() {
                         if selected_view.img_type == ViewImageType::Alpha {
                             "rgb + alpha transparency"
