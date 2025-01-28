@@ -88,10 +88,8 @@ impl ScenePanel {
         let mut size = size.floor();
 
         if context.training() {
-            let focal = context.camera.focal(glam::uvec2(1, 1));
-            let aspect_ratio = focal.y / focal.x;
-
-            println!("Figured focal aspect {aspect_ratio}");
+            let train_img = context.dataset.train.views[0].image.as_ref();
+            let aspect_ratio = (train_img.width() as f32) / (train_img.height() as f32);
 
             if size.x / size.y > aspect_ratio {
                 size.x = size.y * aspect_ratio;
@@ -102,9 +100,7 @@ impl ScenePanel {
             let focal_y = fov_to_focal(context.camera.fov_y, size.y as u32) as f32;
             context.camera.fov_x = focal_to_fov(focal_y as f64, size.x as u32);
         }
-        let size = glam::uvec2(size.x.floor() as u32, size.y.floor() as u32);
-
-        log::info!("{size}");
+        let size = glam::uvec2(size.x.round() as u32, size.y.round() as u32);
 
         let (rect, response) = ui.allocate_exact_size(
             egui::Vec2::new(size.x as f32, size.y as f32),

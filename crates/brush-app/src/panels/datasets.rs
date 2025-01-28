@@ -113,6 +113,8 @@ impl AppPanel for DatasetPanel {
                     Some(egui::vec2(img_size[0] as f32, img_size[1] as f32)),
                 );
                 let min = ui.cursor().min;
+                let size = size.round();
+
                 let rect = egui::Rect::from_min_size(min, size);
 
                 match selected_view.img_type {
@@ -175,6 +177,8 @@ impl AppPanel for DatasetPanel {
                     }
 
                     ui.add_space(10.0);
+
+                    ui.label(format!("size {size}"));
 
                     let mask_info = if selected_view.image.color().has_alpha() {
                         if selected_view.img_type == ViewImageType::Alpha {
