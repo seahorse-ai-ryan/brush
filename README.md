@@ -1,21 +1,21 @@
-# Brush - universal splats
+# Brush - 3D reconstruction for all
 
 https://github.com/user-attachments/assets/b7f55b9c-8632-49f9-b34b-d5de52a7a8b0
 
-Brush is a 3D reconstruction engine using [Gaussian splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/).
-
-It works on a wide range of systems: **macOS/windows/linux**, **AMD/Nvidia/Intel** cards, **Android**, and in a **browser**. To achieve this, it uses WebGPU compatible tech and the [Burn](https://github.com/tracel-ai/burn) machine learning framework, which has a portable [`wgpu`](https://github.com/gfx-rs/wgpu) backend.
+Brush is a 3D reconstruction engine using [Gaussian splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/). It works on a wide range of systems: **macOS/windows/linux**, **AMD/Nvidia/Intel** cards, **Android**, and in a **browser**. To achieve this, it uses WebGPU compatible tech and the [Burn](https://github.com/tracel-ai/burn) machine learning framework, which has a portable [`wgpu`](https://github.com/gfx-rs/wgpu) backend.
 
 [**Try the (experimental) web demo** <img src="https://cdn-icons-png.flaticon.com/256/888/888846.png" alt="chrome logo" width="24"/>
 ](https://arthurbrussee.github.io/brush-demo)
-_NOTE: This only works on desktop Chrome 129+ currently (Jan 2025). Firefox and Safari are hopefully supported [soon](https://caniuse.com/webgpu), but currently even firefox nightly and safari technical preview do not work_
+_NOTE: Only works on Chrome 131+ as of Jan 2025. Firefox and Safari are hopefully supported [soon](https://caniuse.com/webgpu)_
 
 [![](https://dcbadge.limes.pink/api/server/https://discord.gg/TbxJST2BbC)](https://discord.gg/TbxJST2BbC)
 
 https://github.com/user-attachments/assets/4c70f892-cfd2-419f-8098-b0e20dba23c7
+
 Training & Viewing on the web
 
 https://github.com/user-attachments/assets/d6751cb3-ff58-45a4-8321-77d3b0a7b051
+
 Training on a pixel 7
 
 # Why
@@ -39,6 +39,8 @@ While training you can interact with the scene and see the training dynamics liv
 ## Viewer
 Brush also works well as a splat viewer, including on the web. It can load normal .ply files. It can also stream in data from a URL (for a web app, simply append `?url=`). There's both orbit and flythrough controls.
 
+Brush also can load .zip of splat files to display them as an animation, or a special ply that includes delta frames. This was used for [cat-4D](https://cat-4d.github.io/) and [Cap4D](https://felixtaubner.github.io/cap4d/)!
+
 ## CLI
 Brush can be used as a CLI. Run `brush --help` to get an overview. Every CLI command can work with `--with-viewer` which also opens the UI, for easy debugging.
 
@@ -61,7 +63,6 @@ WebGPU is still a new standard, and as such, only the latest versions of Chrome 
 
 ### Android
 See the more detailed README instructions at crates/brush-android.
-
 
 ## Results
 
