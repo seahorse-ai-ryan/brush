@@ -1,5 +1,6 @@
 use std::sync::{Arc, RwLock};
 
+use crate::channel::reactive_receiver;
 use crate::orbit_controls::CameraController;
 use crate::panels::SettingsPanel;
 use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
@@ -9,7 +10,6 @@ use brush_process::process_loop::{
     start_process, ControlMessage, ProcessArgs, ProcessMessage, RunningProcess,
 };
 use brush_render::camera::Camera;
-use brush_ui::channel::reactive_receiver;
 use burn_wgpu::WgpuDevice;
 use eframe::egui;
 use egui_tiles::SimplificationOptions;

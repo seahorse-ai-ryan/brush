@@ -6,7 +6,6 @@ use eframe::egui_wgpu::WgpuConfiguration;
 use wgpu::{Adapter, Features};
 
 pub mod burn_texture;
-pub mod channel;
 
 pub fn create_egui_options() -> WgpuConfiguration {
     WgpuConfiguration {
