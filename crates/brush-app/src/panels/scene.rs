@@ -25,6 +25,8 @@ struct RenderState {
     size: UVec2,
     cam_pos: Vec3,
     cam_rot: Quat,
+
+    frame: f32,
 }
 
 struct ErrorDisplay {
@@ -38,21 +40,16 @@ pub(crate) struct ScenePanel {
 
     view_splats: Vec<Splats<Wgpu>>,
     frame_count: usize,
-
     frame: f32,
-    err: Option<ErrorDisplay>,
 
-    is_loading: bool,
-
-    is_training: bool,
+    // Ui state.
     live_update: bool,
-    paused: bool,
-
-    last_state: Option<RenderState>,
-
-    dirty: bool,
-    renderer: Arc<EguiRwLock<Renderer>>,
+    playback_paused: bool,
+    err: Option<ErrorDisplay>,
     zen: bool,
+
+    // Keep track of what was last rendered.
+    last_state: Option<RenderState>,
 }
 
 impl ScenePanel {
@@ -63,20 +60,16 @@ impl ScenePanel {
         zen: bool,
     ) -> Self {
         Self {
-            frame: 0.0,
-            backbuffer: BurnTexture::new(device, queue),
+            backbuffer: BurnTexture::new(renderer, device, queue),
             last_draw: None,
             err: None,
             view_splats: vec![],
             live_update: true,
-            paused: false,
-            dirty: true,
+            playback_paused: false,
             last_state: None,
-            is_loading: false,
-            is_training: false,
-            renderer,
             zen,
             frame_count: 0,
+            frame: 0.0,
         }
     }
 
@@ -92,7 +85,7 @@ impl ScenePanel {
             return;
         }
 
-        if self.is_training {
+        if context.training() {
             let focal = context.camera.focal(glam::uvec2(1, 1));
             let aspect_ratio = focal.y / focal.x;
             if size.x / size.y > aspect_ratio {
@@ -126,20 +119,23 @@ impl ScenePanel {
             size: glam::uvec2(size.x, size.y),
             cam_pos: camera.position,
             cam_rot: camera.rotation,
+            frame: self.frame,
         };
 
-        if self.last_state != Some(state) {
-            self.dirty = true;
+        let dirty = self.last_state != Some(state);
+
+        if dirty {
             self.last_state = Some(state);
+
+            // Check again next frame, as there might be more to animate.
+            ui.ctx().request_repaint();
         }
 
         // If this viewport is re-rendering.
-        if ui.ctx().has_requested_repaint() && size.x > 0 && size.y > 0 && self.dirty {
+        if size.x > 0 && size.y > 0 && dirty {
             let _span = trace_span!("Render splats").entered();
-
             let (img, _) = splats.render(&context.camera, size, true);
-            self.backbuffer.update_texture(img, &self.renderer);
-            self.dirty = false;
+            self.backbuffer.update_texture(img);
         }
 
         if let Some(id) = self.backbuffer.id() {
@@ -182,19 +178,12 @@ impl AppPanel for ScenePanel {
         match message {
             ProcessMessage::NewSource => {
                 self.view_splats = vec![];
-                self.paused = false;
-                self.is_loading = false;
-                self.is_training = false;
+                self.frame_count = 0;
                 self.live_update = true;
+                self.playback_paused = false;
                 self.err = None;
-                self.dirty = true;
-            }
-            ProcessMessage::DoneLoading { training: _ } => {
-                self.is_loading = false;
-            }
-            ProcessMessage::StartLoading { training } => {
-                self.is_training = *training;
-                self.is_loading = true;
+                self.last_state = None;
+                self.frame = 0.0;
             }
             ProcessMessage::ViewSplats {
                 up_axis,
@@ -211,7 +200,7 @@ impl AppPanel for ScenePanel {
                     self.view_splats.push(*splats.clone());
                 }
                 self.frame_count = *total_frames;
-                self.dirty = true;
+                self.last_state = None;
             }
             ProcessMessage::TrainStep {
                 splats,
@@ -219,9 +208,7 @@ impl AppPanel for ScenePanel {
                 iter: _,
                 timestamp: _,
             } => {
-                if self.live_update {
-                    self.dirty = true;
-                }
+                self.last_state = None;
 
                 let splats = *splats.clone();
 
@@ -244,7 +231,7 @@ impl AppPanel for ScenePanel {
         self.last_draw = Some(cur_time);
 
         // Empty scene, nothing to show.
-        if !self.is_loading && self.view_splats.is_empty() && self.err.is_none() && !self.zen {
+        if !context.training() && self.view_splats.is_empty() && self.err.is_none() && !self.zen {
             ui.heading("Load a ply file or dataset to get started.");
             ui.add_space(5.0);
             ui.label(
@@ -297,10 +284,9 @@ For bigger training runs consider using the native app."#,
         } else if !self.view_splats.is_empty() {
             const FPS: f32 = 24.0;
 
-            if !self.paused {
+            if !self.playback_paused {
                 self.frame += ui.input(|r| r.predicted_dt);
             }
-
             if self.view_splats.len() != self.frame_count {
                 let max_t = (self.view_splats.len() - 1) as f32 / FPS;
                 self.frame = self.frame.min(max_t);
@@ -313,46 +299,38 @@ For bigger training runs consider using the native app."#,
 
             self.draw_splats(ui, context, &splats);
 
-            if self.is_loading {
+            if context.loading() {
                 ui.horizontal(|ui| {
                     ui.label("Loading... Please wait.");
                     ui.spinner();
                 });
             }
 
-            if self.view_splats.len() > 1 {
-                self.dirty = true;
+            if self.view_splats.len() > 1 && self.view_splats.len() == self.frame_count {
+                let label = if self.playback_paused {
+                    "⏸ paused"
+                } else {
+                    "⏵ playing"
+                };
 
-                if !self.is_loading {
-                    let label = if self.paused {
-                        "⏸ paused"
-                    } else {
-                        "⏵ playing"
-                    };
-
-                    if ui.selectable_label(!self.paused, label).clicked() {
-                        self.paused = !self.paused;
-                    }
-
-                    if !self.paused {
-                        self.dirty = true;
-                    }
+                if ui.selectable_label(!self.playback_paused, label).clicked() {
+                    self.playback_paused = !self.playback_paused;
                 }
             }
 
-            if self.is_training {
+            if context.training() {
                 ui.horizontal(|ui| {
                     ui.add_space(15.0);
 
-                    let label = if self.paused {
+                    let label = if self.playback_paused {
                         "⏸ paused"
                     } else {
                         "⏵ training"
                     };
 
-                    if ui.selectable_label(!self.paused, label).clicked() {
-                        self.paused = !self.paused;
-                        context.control_message(ControlMessage::Paused(self.paused));
+                    if ui.selectable_label(!self.playback_paused, label).clicked() {
+                        self.playback_paused = !self.playback_paused;
+                        context.control_message(ControlMessage::Paused(self.playback_paused));
                     }
 
                     ui.add_space(15.0);
@@ -401,11 +379,6 @@ For bigger training runs consider using the native app."#,
                         tokio_wasm::task::spawn(fut);
                     }
                 });
-            }
-
-            // Also redraw next frame, need to check if we're still animating.
-            if self.dirty {
-                ui.ctx().request_repaint();
             }
         }
     }

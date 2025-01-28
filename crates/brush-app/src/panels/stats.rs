@@ -23,8 +23,7 @@ pub(crate) struct StatsPanel {
 }
 
 impl StatsPanel {
-    pub(crate) fn new(device: WgpuDevice, adapter: &wgpu::Adapter) -> Self {
-        let adapter_info = adapter.get_info();
+    pub(crate) fn new(device: WgpuDevice, adapter_info: AdapterInfo) -> Self {
         Self {
             device,
             last_train_step: (Instant::now(), 0),
@@ -67,6 +66,9 @@ impl AppPanel for StatsPanel {
 
     fn on_message(&mut self, message: &ProcessMessage, _: &mut AppContext) {
         match message {
+            ProcessMessage::NewSource => {
+                *self = Self::new(self.device.clone(), self.adapter_info.clone());
+            }
             ProcessMessage::StartLoading { training } => {
                 self.start_load_time = Instant::now();
                 self.last_train_step = (Instant::now(), 0);

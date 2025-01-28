@@ -147,10 +147,17 @@ impl App {
 
         spawn_train_loop(view.clone(), config, device, cc.egui_ctx.clone(), sender);
 
+        let renderer = cc
+            .wgpu_render_state
+            .as_ref()
+            .expect("No wgpu renderer enabled in egui")
+            .renderer
+            .clone();
+
         Self {
             view,
             tex_handle: handle,
-            backbuffer: BurnTexture::new(state.device.clone(), state.queue.clone()),
+            backbuffer: BurnTexture::new(renderer, state.device.clone(), state.queue.clone()),
             receiver,
             last_step: None,
         }
@@ -158,7 +165,7 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         while let Ok(step) = self.receiver.try_recv() {
             self.last_step = Some(step);
         }
@@ -176,14 +183,10 @@ impl eframe::App for App {
                 true,
             );
 
-            let renderer = &frame
-                .wgpu_render_state()
-                .expect("No wgpu renderer enabled in egui")
-                .renderer;
             let size = egui::vec2(image.width() as f32, image.height() as f32);
 
             ui.horizontal(|ui| {
-                let texture_id = self.backbuffer.update_texture(img, renderer);
+                let texture_id = self.backbuffer.update_texture(img);
                 ui.image(ImageSource::Texture(SizedTexture::new(texture_id, size)));
                 ui.image(ImageSource::Texture(SizedTexture::new(
                     self.tex_handle.id(),

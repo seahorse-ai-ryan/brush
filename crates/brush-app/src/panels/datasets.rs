@@ -29,7 +29,6 @@ impl SelectedView {
 pub(crate) struct DatasetPanel {
     view_type: ViewType,
     selected_view: Option<SelectedView>,
-    loading: bool,
 }
 
 impl DatasetPanel {
@@ -37,7 +36,6 @@ impl DatasetPanel {
         Self {
             view_type: ViewType::Train,
             selected_view: None,
-            loading: false,
         }
     }
 }
@@ -49,11 +47,8 @@ impl AppPanel for DatasetPanel {
 
     fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
         match message {
-            ProcessMessage::NewSource | ProcessMessage::DoneLoading { .. } => {
-                self.loading = false;
-            }
-            ProcessMessage::StartLoading { training } => {
-                self.loading = *training;
+            ProcessMessage::NewSource => {
+                *self = Self::new();
             }
             ProcessMessage::Dataset { data: d } => {
                 // Set train view to last loaded camera.
@@ -210,7 +205,7 @@ impl AppPanel for DatasetPanel {
             }
         }
 
-        if self.loading {
+        if context.loading() && context.training() {
             ui.label("Loading...");
         }
     }

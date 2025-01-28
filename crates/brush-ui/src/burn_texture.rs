@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use burn::{
     backend::{
         wgpu::{JitBackend, WgpuRuntime},
@@ -22,6 +24,7 @@ pub struct BurnTexture {
     state: Option<TextureState>,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    renderer: Arc<EguiRwLock<Renderer>>,
 }
 
 fn create_texture(size: glam::UVec2, device: &wgpu::Device) -> wgpu::Texture {
@@ -42,19 +45,20 @@ fn create_texture(size: glam::UVec2, device: &wgpu::Device) -> wgpu::Texture {
 }
 
 impl BurnTexture {
-    pub fn new(device: wgpu::Device, queue: wgpu::Queue) -> Self {
+    pub fn new(
+        renderer: Arc<EguiRwLock<Renderer>>,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+    ) -> Self {
         Self {
             state: None,
             device,
             queue,
+            renderer,
         }
     }
 
-    pub fn update_texture(
-        &mut self,
-        img: Tensor<Wgpu, 3>,
-        renderer: &EguiRwLock<Renderer>,
-    ) -> TextureId {
+    pub fn update_texture(&mut self, img: Tensor<Wgpu, 3>) -> TextureId {
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor {
@@ -76,19 +80,18 @@ impl BurnTexture {
             if let Some(s) = self.state.as_mut() {
                 s.texture = texture;
 
-                renderer.write().update_egui_texture_from_wgpu_texture(
+                self.renderer.write().update_egui_texture_from_wgpu_texture(
                     &self.device,
                     &s.texture.create_view(&TextureViewDescriptor::default()),
                     wgpu::FilterMode::Linear,
                     s.id,
                 );
             } else {
-                let id = renderer.write().register_native_texture(
+                let id = self.renderer.write().register_native_texture(
                     &self.device,
                     &texture.create_view(&TextureViewDescriptor::default()),
                     wgpu::FilterMode::Linear,
                 );
-
                 self.state = Some(TextureState { texture, id });
             }
         }

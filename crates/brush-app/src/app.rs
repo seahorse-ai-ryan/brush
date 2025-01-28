@@ -87,10 +87,16 @@ pub struct AppContext {
     pub controls: CameraController,
     pub model_local_to_world: Affine3A,
     pub device: WgpuDevice,
+
+    loading: bool,
+    training: bool,
+
     ctx: egui::Context,
     running_process: Option<RunningProcess>,
+    cam_settings: CameraSettings,
 }
 
+#[derive(Clone)]
 struct CameraSettings {
     focal: f64,
     radius: f32,
@@ -117,8 +123,11 @@ impl AppContext {
             model_local_to_world: model_transform,
             device,
             ctx,
+            loading: false,
+            training: false,
             dataset: Dataset::empty(),
             running_process: None,
+            cam_settings: cam_settings.clone(),
         }
     }
 
@@ -147,19 +156,28 @@ impl AppContext {
     }
 
     pub fn connect_to(&mut self, process: RunningProcess) {
-        self.dataset = Dataset::empty();
+        // reset context & view.
+        *self = Self::new(self.device.clone(), self.ctx.clone(), &self.cam_settings);
+
         // Convert the receiver to a "reactive" receiver that wakes up the UI.
-        let process = RunningProcess {
+        self.running_process = Some(RunningProcess {
             messages: reactive_receiver(process.messages, self.ctx.clone()),
             ..process
-        };
-        self.running_process = Some(process);
+        });
     }
 
     pub(crate) fn control_message(&self, msg: ControlMessage) {
         if let Some(process) = self.running_process.as_ref() {
             let _ = process.control.send(msg);
         }
+    }
+
+    pub fn training(&self) -> bool {
+        self.training
+    }
+
+    pub fn loading(&self) -> bool {
+        self.loading
     }
 }
 
@@ -255,7 +273,10 @@ impl App {
             #[allow(unused_mut)]
             let mut sides = vec![
                 loading_pane,
-                tiles.insert_pane(Box::new(StatsPanel::new(device.clone(), &state.adapter))),
+                tiles.insert_pane(Box::new(StatsPanel::new(
+                    device.clone(),
+                    state.adapter.get_info(),
+                ))),
             ];
 
             if cfg!(feature = "tracing") {
@@ -306,18 +327,22 @@ impl App {
 }
 
 impl App {
+    #[allow(clippy::significant_drop_tightening)]
     fn receive_messages(&mut self) {
         let mut context = self.tree_ctx.context.write().expect("Lock poisoned");
 
-        if let Some(process) = context.running_process.as_mut() {
-            let mut messages = vec![];
+        let Some(process) = context.running_process.as_mut() else {
+            return;
+        };
 
-            while let Ok(message) = process.messages.try_recv() {
-                messages.push(message);
-            }
+        let mut messages = vec![];
+        while let Ok(message) = process.messages.try_recv() {
+            messages.push(message);
+        }
 
-            for message in messages {
-                if let ProcessMessage::Dataset { data: _ } = message {
+        for message in messages {
+            match message {
+                ProcessMessage::Dataset { data: _ } => {
                     // Show the dataset panel if we've loaded one.
                     if self.datasets.is_none() {
                         let pane_id = self.tree.tiles.insert_pane(Box::new(DatasetPanel::new()));
@@ -331,14 +356,22 @@ impl App {
                         }
                     }
                 }
+                ProcessMessage::StartLoading { training } => {
+                    context.training = training;
+                    context.loading = true;
+                }
+                ProcessMessage::DoneLoading { training: _ } => {
+                    context.loading = false;
+                }
+                _ => (),
+            }
 
-                for (_, pane) in self.tree.tiles.iter_mut() {
-                    match pane {
-                        Tile::Pane(pane) => {
-                            pane.on_message(&message, &mut context);
-                        }
-                        Tile::Container(_) => {}
+            for (_, pane) in self.tree.tiles.iter_mut() {
+                match pane {
+                    Tile::Pane(pane) => {
+                        pane.on_message(&message, &mut context);
                     }
+                    Tile::Container(_) => {}
                 }
             }
         }
