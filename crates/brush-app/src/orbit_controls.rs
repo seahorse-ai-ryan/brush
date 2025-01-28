@@ -157,17 +157,6 @@ impl CameraController {
         }
 
         if ui.input(|r| r.modifiers.alt) {
-            // Roll with alt + Q&E.
-            if ui.input(|r| r.key_down(egui::Key::Q)) {
-                let roll = Quat::from_axis_angle(forward, move_speed * 0.025 * delta_time);
-                self.rotation = roll * self.rotation;
-                self.roll = roll * self.roll;
-            }
-            if ui.input(|r| r.key_down(egui::Key::E)) {
-                let roll = Quat::from_axis_angle(forward, -move_speed * 0.025 * delta_time);
-                self.rotation = roll * self.rotation;
-                self.roll = roll * self.roll;
-            }
         } else {
             // Move _down_ with Q
             if ui.input(|r| r.key_down(egui::Key::Q)) {
@@ -187,6 +176,22 @@ impl CameraController {
                     fly_moment_lambda,
                 );
             }
+        }
+
+        // Roll with alt + Q&E.
+        if ui.input(|r| r.key_down(egui::Key::Z)) {
+            let roll = Quat::from_axis_angle(forward, move_speed * 0.025 * delta_time);
+            self.rotation = roll * self.rotation;
+            self.roll = roll * self.roll;
+        }
+        if ui.input(|r| r.key_down(egui::Key::X)) {
+            self.rotation = self.roll.inverse() * self.rotation;
+            self.roll = Quat::IDENTITY;
+        }
+        if ui.input(|r| r.key_down(egui::Key::C)) {
+            let roll = Quat::from_axis_angle(forward, -move_speed * 0.025 * delta_time);
+            self.rotation = roll * self.rotation;
+            self.roll = roll * self.roll;
         }
 
         let delta = self.fly_velocity * delta_time;
