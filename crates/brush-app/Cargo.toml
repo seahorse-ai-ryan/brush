@@ -4,6 +4,7 @@ edition.workspace = true
 version.workspace = true
 readme.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [lib]
 name = "brush_app"

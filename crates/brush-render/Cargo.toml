@@ -7,11 +7,11 @@ license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
+brush-prefix-sum.path = "../brush-prefix-sum"
 anyhow.workspace = true
 assert_approx_eq.workspace = true
-brush-kernel = { version = "0.1.0", path = "../brush-kernel" }
-brush-prefix-sum = { version = "0.1.0", path = "../brush-prefix-sum" }
-brush-sort = { version = "0.1.0", path = "../brush-sort" }
+brush-kernel.path = "../brush-kernel"
+brush-sort.path = "../brush-sort"
 
 burn.workspace = true
 burn-wgpu.workspace = true

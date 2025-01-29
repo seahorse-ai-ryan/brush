@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*", "examples/*"]
 default-members = ["crates/brush-app"]
 
 [workspace.package]
@@ -8,6 +8,8 @@ edition = "2021"
 version = "0.1.0"
 readme = "README.md"
 license = "Apache-2.0"
+repository = "https://github.com/ArthurBrussee/brush"
+
 
 [workspace.dependencies]
 glam = { version = "0.28", features = ["serde"] }
@@ -144,6 +146,11 @@ opt-level = 1
 debug = true
 
 [profile.release]
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
 # debug = true # good for profilers
 #
 # This leads to better optimizations and smaller binaries (and is the default in Wasm).
