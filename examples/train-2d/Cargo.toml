@@ -5,10 +5,6 @@ version.workspace = true
 readme.workspace = true
 license.workspace = true
 
-[[example]]
-name = "train_2d"
-path = "train_2d.rs"
-
 [dependencies]
 burn.workspace = true
 wgpu.workspace = true
