@@ -803,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "brush-android"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "android_logger",
  "brush-app",
@@ -820,7 +820,7 @@ dependencies = [
 
 [[package]]
 name = "brush-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "brush-cli",
@@ -860,7 +860,7 @@ dependencies = [
 
 [[package]]
 name = "brush-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "brush-process",
  "clap",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "brush-dataset"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-fn-stream",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "brush-kernel"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "brush-wgsl",
  "burn",
@@ -908,7 +908,7 @@ dependencies = [
 
 [[package]]
 name = "brush-prefix-sum"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "brush-kernel",
  "brush-wgsl",
@@ -922,7 +922,7 @@ dependencies = [
 
 [[package]]
 name = "brush-process"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-fn-stream",
@@ -952,7 +952,7 @@ dependencies = [
 
 [[package]]
 name = "brush-render"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_approx_eq",
@@ -984,7 +984,7 @@ dependencies = [
 
 [[package]]
 name = "brush-rerun"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "burn",
  "rerun",
@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "brush-sort"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "brush-kernel",
  "brush-wgsl",
@@ -1009,7 +1009,7 @@ dependencies = [
 
 [[package]]
 name = "brush-train"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "brush-kernel",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "brush-ui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "burn",
  "burn-fusion",
@@ -1044,14 +1044,14 @@ dependencies = [
 
 [[package]]
 name = "brush-wgsl"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "data-encoding",
  "naga_oil",
  "regex",
  "regex-syntax 0.8.5",
- "thiserror 2.0.11",
+ "thiserror 1.0.69",
  "wgpu",
 ]
 
@@ -1693,7 +1693,7 @@ dependencies = [
 
 [[package]]
 name = "colmap-reader"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "byteorder",
  "glam",
@@ -2805,7 +2805,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "brush-render",
  "brush-train",
@@ -6665,7 +6665,7 @@ dependencies = [
 
 [[package]]
 name = "rrfd"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "jni",
@@ -7318,7 +7318,7 @@ dependencies = [
 
 [[package]]
 name = "sync-span"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "burn",
  "burn-wgpu",
