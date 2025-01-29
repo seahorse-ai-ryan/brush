@@ -1,16 +1,20 @@
 [package]
-name = "train-2d"
+name = "examples"
 edition.workspace = true
 version.workspace = true
 readme.workspace = true
 license.workspace = true
 
+[[example]]
+name = "train_2d"
+path = "train_2d.rs"
+
 [dependencies]
 burn.workspace = true
 wgpu.workspace = true
-brush-train.path = "../brush-train"
-brush-render.path = "../brush-render"
-brush-ui.path = "../brush-ui"
+brush-train.path = "../../crates/brush-train"
+brush-render.path = "../../crates/brush-render"
+brush-ui.path = "../../crates/brush-ui"
 
 tokio = { workspace = true, features = ["sync", "rt-multi-thread", "macros"] }
 env_logger.workspace = true
