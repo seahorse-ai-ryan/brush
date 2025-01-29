@@ -62,7 +62,7 @@ checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
 dependencies = [
  "cfg-if",
  "const-random",
- "getrandom",
+ "getrandom 0.2.15",
  "once_cell",
  "serde",
  "version_check",
@@ -803,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "brush-android"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "android_logger",
  "brush-app",
@@ -820,7 +820,7 @@ dependencies = [
 
 [[package]]
 name = "brush-app"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "brush-cli",
@@ -860,7 +860,7 @@ dependencies = [
 
 [[package]]
 name = "brush-cli"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "brush-process",
  "clap",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "brush-dataset"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-fn-stream",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "brush-kernel"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "brush-wgsl",
  "burn",
@@ -908,7 +908,7 @@ dependencies = [
 
 [[package]]
 name = "brush-prefix-sum"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "brush-kernel",
  "brush-wgsl",
@@ -922,7 +922,7 @@ dependencies = [
 
 [[package]]
 name = "brush-process"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-fn-stream",
@@ -952,7 +952,7 @@ dependencies = [
 
 [[package]]
 name = "brush-render"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_approx_eq",
@@ -984,7 +984,7 @@ dependencies = [
 
 [[package]]
 name = "brush-rerun"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "burn",
  "rerun",
@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "brush-sort"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "brush-kernel",
  "brush-wgsl",
@@ -1009,7 +1009,7 @@ dependencies = [
 
 [[package]]
 name = "brush-train"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "brush-kernel",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "brush-ui"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "burn",
  "burn-fusion",
@@ -1044,14 +1044,14 @@ dependencies = [
 
 [[package]]
 name = "brush-wgsl"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "data-encoding",
  "naga_oil",
  "regex",
  "regex-syntax 0.8.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "wgpu",
 ]
 
@@ -1116,7 +1116,7 @@ version = "0.17.0"
 source = "git+https://github.com/tracel-ai/burn#04c5e74daac2adbfda4f5293746bc37ab6be56ea"
 dependencies = [
  "cubecl-common",
- "getrandom",
+ "getrandom 0.2.15",
  "rayon",
  "serde",
  "web-time",
@@ -1693,7 +1693,7 @@ dependencies = [
 
 [[package]]
 name = "colmap-reader"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "byteorder",
  "glam",
@@ -1811,7 +1811,7 @@ version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
 dependencies = [
- "getrandom",
+ "getrandom 0.2.15",
  "once_cell",
  "tiny-keccak",
 ]
@@ -2042,7 +2042,7 @@ dependencies = [
  "derive_more",
  "embassy-futures",
  "futures-lite",
- "getrandom",
+ "getrandom 0.2.15",
  "half",
  "log",
  "num-traits",
@@ -2805,7 +2805,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "brush-render",
  "brush-train",
@@ -3233,8 +3233,20 @@ dependencies = [
  "cfg-if",
  "js-sys",
  "libc",
- "wasi",
+ "wasi 0.11.0+wasi-snapshot-preview1",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "getrandom"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a49c392881ce6d5c3b8cb70f98717b7c07aabbdff06687b9030dbfbe2725f8"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "wasi 0.13.3+wasi-0.2.2",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -4549,7 +4561,7 @@ checksum = "2886843bf800fba2e3377cff24abf6379b4c4d5c6681eaf9ea5b0d15090450bd"
 dependencies = [
  "libc",
  "log",
- "wasi",
+ "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.52.0",
 ]
 
@@ -5613,7 +5625,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2fe5ef3495d7d2e377ff17b1a8ce2ee2ec2a18cde8b6ad6619d65d0701c135d"
 dependencies = [
  "bytes",
- "getrandom",
+ "getrandom 0.2.15",
  "rand",
  "ring",
  "rustc-hash 2.1.0",
@@ -5698,7 +5710,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
- "getrandom",
+ "getrandom 0.2.15",
 ]
 
 [[package]]
@@ -5849,7 +5861,7 @@ dependencies = [
  "either",
  "ethnum",
  "foreign_vec",
- "getrandom",
+ "getrandom 0.2.15",
  "half",
  "hash_hasher",
  "hashbrown 0.14.5",
@@ -6281,7 +6293,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fab74c48f17a4a29b29e1184f690c4470f0f34126eedd5051868afc8e908af"
 dependencies = [
  "document-features",
- "getrandom",
+ "getrandom 0.2.15",
  "once_cell",
  "re_protos",
  "serde",
@@ -6441,7 +6453,7 @@ version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"
 dependencies = [
- "getrandom",
+ "getrandom 0.2.15",
  "libredox",
  "thiserror 1.0.69",
 ]
@@ -6622,7 +6634,7 @@ checksum = "c17fa4cb658e3583423e915b9f3acc01cceaee1860e33d59ebae66adc3a2dc0d"
 dependencies = [
  "cc",
  "cfg-if",
- "getrandom",
+ "getrandom 0.2.15",
  "libc",
  "spin",
  "untrusted",
@@ -6653,7 +6665,7 @@ dependencies = [
 
 [[package]]
 name = "rrfd"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "jni",
@@ -7306,7 +7318,7 @@ dependencies = [
 
 [[package]]
 name = "sync-span"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "burn",
  "burn-wgpu",
@@ -7428,13 +7440,13 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.15.0"
+version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a8a559c81686f576e8cd0290cd2a24a2a9ad80c98b3478856500fcbd7acd704"
+checksum = "38c246215d7d24f48ae091a2902398798e05d978b24315d6efbc00ede9a8bb91"
 dependencies = [
  "cfg-if",
  "fastrand",
- "getrandom",
+ "getrandom 0.3.1",
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
@@ -8235,7 +8247,7 @@ version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3758f5e68192bb96cc8f9b7e2c2cfdabb435499a28499a42f8f984092adad4b"
 dependencies = [
- "getrandom",
+ "getrandom 0.2.15",
  "rand",
  "serde",
  "wasm-bindgen",
@@ -8311,6 +8323,15 @@ name = "wasi"
 version = "0.11.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
+
+[[package]]
+name = "wasi"
+version = "0.13.3+wasi-0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26816d2e1a4a36a2940b96c5296ce403917633dff8f3440e9b236ed6f6bacad2"
+dependencies = [
+ "wit-bindgen-rt",
+]
 
 [[package]]
 name = "wasm-bindgen"
@@ -9125,6 +9146,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad699df48212c6cc6eb4435f35500ac6fd3b9913324f938aea302022ce19d310"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "wit-bindgen-rt"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3268f3d866458b787f390cf61f4bbb563b922d091359f9608842999eaee3943c"
+dependencies = [
+ "bitflags 2.8.0",
 ]
 
 [[package]]

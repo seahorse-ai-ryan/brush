@@ -37,6 +37,7 @@ skip = [
     { name = "bitflags" },
     { name = 'itertools' },
     { name = 'derive-new' },
+    { name = 'getrandom' },
 
 
     #
