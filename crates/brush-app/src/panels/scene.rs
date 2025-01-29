@@ -87,10 +87,7 @@ impl ScenePanel {
 
         let mut size = size.floor();
 
-        if context.training() {
-            let train_img = context.dataset.train.views[0].image.as_ref();
-            let aspect_ratio = (train_img.width() as f32) / (train_img.height() as f32);
-
+        if let Some(aspect_ratio) = context.view_aspect {
             if size.x / size.y > aspect_ratio {
                 size.x = size.y * aspect_ratio;
             } else {
@@ -118,7 +115,7 @@ impl ScenePanel {
         camera.rotation = Quat::from_mat3a(&total_transform.matrix3);
 
         let state = RenderState {
-            size: glam::uvec2(size.x, size.y),
+            size,
             cam_pos: camera.position,
             cam_rot: camera.rotation,
             frame: self.frame,

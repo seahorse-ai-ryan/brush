@@ -53,7 +53,7 @@ impl AppPanel for DatasetPanel {
             ProcessMessage::Dataset { data: d } => {
                 // Set train view to last loaded camera.
                 if let Some(view) = d.train.views.last() {
-                    context.focus_view(&view.camera);
+                    context.focus_view(view);
                 }
                 context.dataset = d.clone();
             }
@@ -173,7 +173,7 @@ impl AppPanel for DatasetPanel {
                     }
 
                     if interacted {
-                        context.focus_view(&pick_scene.views[*nearest].camera);
+                        context.focus_view(&pick_scene.views[*nearest]);
                     }
 
                     ui.add_space(10.0);

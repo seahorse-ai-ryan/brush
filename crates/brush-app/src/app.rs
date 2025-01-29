@@ -10,6 +10,7 @@ use brush_process::process_loop::{
     start_process, ControlMessage, ProcessArgs, ProcessMessage, RunningProcess,
 };
 use brush_render::camera::Camera;
+use brush_train::scene::SceneView;
 use burn_wgpu::WgpuDevice;
 use eframe::egui;
 use egui_tiles::SimplificationOptions;
@@ -107,6 +108,7 @@ pub struct App {
 pub struct AppContext {
     pub dataset: Dataset,
     pub camera: Camera,
+    pub view_aspect: Option<f32>,
     pub controls: CameraController,
     pub model_local_to_world: Affine3A,
     pub device: WgpuDevice,
@@ -146,6 +148,7 @@ impl AppContext {
             model_local_to_world: model_transform,
             device,
             ctx,
+            view_aspect: None,
             loading: false,
             training: false,
             dataset: Dataset::empty(),
@@ -172,10 +175,11 @@ impl AppContext {
         self.match_controls_to(&cam);
     }
 
-    pub fn focus_view(&mut self, view_cam: &Camera) {
-        self.camera = view_cam.clone();
-        self.match_controls_to(view_cam);
+    pub fn focus_view(&mut self, view: &SceneView) {
+        self.camera = view.camera.clone();
+        self.match_controls_to(&view.camera);
         self.controls.stop_movement();
+        self.view_aspect = Some(view.image.width() as f32 / view.image.height() as f32);
     }
 
     pub fn connect_to(&mut self, process: RunningProcess) {
