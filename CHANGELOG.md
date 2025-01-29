@@ -84,3 +84,15 @@ The next release will focus on going beyond the basics of Gaussian Splatting, an
 ### Thanks
 
 Thanks to everybody in the Brush discord, in particular @fasteinke for reporting many breakages along the way, @fhahlbohm for contributions and helping me fix my results table, @Simon.Bethke and @Gradeeterna for test data, @felixtaubner for the 4D splat export script.
+
+
+## 0.0.1
+
+- Add ability to train with transparent images
+- Add option to select GPU with the CUBECL_DEFAULT_DEVICE environment variable
+- Add 2D image trainer example
+- Tweak splitting cloning logic, adds +- 0.5 PSNR
+- Fixed backwards gradient for quaternions & SH
+- Fix exporting ply files
+- Fix evaluation not running
+- Fix some NaNs on the web version
