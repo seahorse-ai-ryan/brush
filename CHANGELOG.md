@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2
+
 Brush 0.2 goes from a proof of concept to a tool ready for real world data! It still only implements the “basics” of Gaussian Splatting, but trains as fast as gsplat to a (slightly) higher quality than gsplat. It also comes with nicer workflows, a CLI, dynamic gaussian rendering, and lots of other new features.
 
 The next release will focus on going beyond the basics of Gaussian Splatting, and implementing extensions that help to make Brush more robust, faster, and higher quality than other splatting alternatives. This might mean that the outputs are no longer 100% compatible with other splat viewers, so more work will also be done to make the Brush web viewer a great experience.
@@ -55,7 +57,7 @@ The next release will focus on going beyond the basics of Gaussian Splatting, an
 - Better splat pruning logic
 - Remove ESC to close
 - The web version has SSIM enabled again
-- Display more detailled error traces in the UI and CLI when something goes wrong
+- Display more detailed error traces in the UI and CLI when something goes wrong
 - Different method of emitting tile intersections ([#63](https://github.com/ArthurBrussee/brush/pull/63) for details)
   - Fixes some potential corruptions depending on your driver/shader compiler.
 - Read up-axis from PLY file if it’s included

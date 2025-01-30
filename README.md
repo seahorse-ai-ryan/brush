@@ -87,7 +87,7 @@ Numbers taken from [here](https://docs.gsplat.studio/main/tests/eval.html). Note
 
 ## Benchmarks
 
-Rendering is generally faster than gsplat, while end-to-end training speeds are similair. You can run benchmarks of some of the kernels using `cargo bench`. For additional profiling, you can use [tracy](https://github.com/wolfpld/tracy) and run with `cargo run --release --feature=tracy`.
+Rendering is generally faster than gsplat, while end-to-end training speeds are similar. You can run benchmarks of some of the kernels using `cargo bench`. For additional profiling, you can use [tracy](https://github.com/wolfpld/tracy) and run with `cargo run --release --feature=tracy`.
 
 # Acknowledgements
 
