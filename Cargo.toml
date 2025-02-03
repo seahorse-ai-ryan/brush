@@ -132,10 +132,6 @@ ecolor = { git = "https://github.com/emilk/egui", rev = "5b740f97acc3e0c24023609
 # cubecl = { path = "../cubecl/crates/cubecl" }
 # cubecl-common = { path = "../cubecl/crates/cubecl-common" }
 
-# Temporary until Brun updates cube.
-cubecl = { git = "https://github.com/ArthurBrussee/cubecl", branch = "patched" }
-cubecl-common = { git = "https://github.com/ArthurBrussee/cubecl", branch = "patched" }
-
 [profile.dev]
 opt-level = 1
 debug = true
