@@ -11,20 +11,6 @@ pub struct SceneLoader<B: Backend> {
     receiver: Receiver<SceneBatch<B>>,
 }
 
-use glam::Vec3;
-
-fn find_two_smallest(v: Vec3) -> (f32, f32) {
-    let mut arr = v.to_array();
-    arr.sort_by(|a, b| a.partial_cmp(b).expect("NaN"));
-    (arr[0], arr[1])
-}
-
-fn estimate_scene_extent(scene: &Scene) -> f32 {
-    let bounds = scene.bounds();
-    let smallest = find_two_smallest(bounds.extent * 2.0);
-    smallest.0.hypot(smallest.1)
-}
-
 impl<B: Backend> SceneLoader<B> {
     pub fn new(scene: &Scene, seed: u64, device: &B::Device) -> Self {
         let scene = scene.clone();
@@ -32,7 +18,7 @@ impl<B: Backend> SceneLoader<B> {
         let (tx, rx) = mpsc::channel(5);
         let device = device.clone();
 
-        let scene_extent = estimate_scene_extent(&scene);
+        let scene_extent = scene.estimate_extent().unwrap_or(1.0);
 
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 

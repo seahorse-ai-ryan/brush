@@ -6,8 +6,8 @@ use glam::{Quat, Vec2, Vec3};
 pub struct CameraController {
     pub position: Vec3,
     pub rotation: Quat,
+    pub focus_distance: f32,
     roll: Quat,
-    focus_distance: f32,
     fly_velocity: Vec3,
     orbit_velocity: Vec2,
 }

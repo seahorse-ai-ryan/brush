@@ -43,6 +43,12 @@ fn camera_distance_penalty(cam_local_to_world: Affine3A, reference: Affine3A) ->
     penalty
 }
 
+fn find_two_smallest(v: Vec3) -> (f32, f32) {
+    let mut arr = v.to_array();
+    arr.sort_by(|a, b| a.partial_cmp(b).expect("NaN"));
+    (arr[0], arr[1])
+}
+
 impl Scene {
     pub fn new(views: Vec<SceneView>) -> Self {
         Self {
@@ -82,5 +88,16 @@ impl Scene {
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .map(|(index, _)| index) // We return the index instead of the camera
+    }
+
+    pub fn estimate_extent(&self) -> Option<f32> {
+        if self.views.len() < 5 {
+            None
+        } else {
+            // TODO: This is really sensitive to outliers.
+            let bounds = self.bounds();
+            let smallest = find_two_smallest(bounds.extent * 2.0);
+            Some(smallest.0.hypot(smallest.1))
+        }
     }
 }

@@ -180,6 +180,12 @@ impl AppContext {
         self.match_controls_to(&view.camera);
         self.controls.stop_movement();
         self.view_aspect = Some(view.image.width() as f32 / view.image.height() as f32);
+
+        self.controls.focus_distance = self
+            .dataset
+            .train
+            .estimate_extent()
+            .map_or(4.0, |x| x / 3.0);
     }
 
     pub fn connect_to(&mut self, process: RunningProcess) {
