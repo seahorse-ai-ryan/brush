@@ -67,8 +67,11 @@ skip = [
     { name = 'hashbrown' },
 
     { name = 'tower' },
-
     { name = 'indexmap' },
+
+    # Duplicate from rerun / egui.
+    { name = 'ecolor' },
+    { name = 'emath' },
 
     { name = 'ndk-sys' }, # Needed on Android.
 ]
@@ -85,26 +88,23 @@ allow = [
     "BSL-1.0",                        # https://tldrlegal.com/license/boost-software-license-1.0-explained
     "CC0-1.0",                        # https://creativecommons.org/publicdomain/zero/1.0/
     "ISC",                            # https://www.tldrlegal.com/license/isc-license
-    "LicenseRef-UFL-1.0",             # no official SPDX, see https://github.com/emilk/egui/issues/2321
     "MIT",                            # https://tldrlegal.com/license/mit-license
     "MPL-2.0",                        # https://www.mozilla.org/en-US/MPL/2.0/FAQ/ - see Q11. Used by webpki-roots on Linux.
-    "OFL-1.1",                        # https://spdx.org/licenses/OFL-1.1.html
     "Zlib",                           # https://tldrlegal.com/license/zlib-libpng-license-(zlib)
     "Unlicense",                      # https://www.tldrlegal.com/license/unlicense
     "Unicode-3.0",
     "OpenSSL",
 ]
-exceptions = []
-
-[[licenses.clarify]]
-name = "webpki"
-expression = "ISC"
-license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
 
 [[licenses.clarify]]
 name = "ring"
 expression = "MIT AND ISC AND OpenSSL"
 license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+[[licenses.clarify]]
+name = "epaint_default_fonts"
+expression = "(MIT OR Apache-2.0)"
+license-files = []
 
 [sources]
 unknown-registry = "deny"
