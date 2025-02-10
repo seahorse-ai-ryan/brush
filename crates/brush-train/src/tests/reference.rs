@@ -1,19 +1,21 @@
-use crate::{
+use anyhow::{Context, Result};
+use brush_render::{
     camera::{focal_to_fov, fov_to_focal, Camera},
     gaussian_splats::Splats,
-    safetensor_utils::safetensor_to_burn,
-    Backend,
 };
-
-use anyhow::{Context, Result};
 use brush_rerun::{BurnToImage, BurnToRerun};
 use burn::{
-    backend::Autodiff,
+    backend::{wgpu::WgpuDevice, Autodiff, Wgpu},
+    prelude::Backend,
     tensor::{Float, Tensor, TensorPrimitive},
 };
-use burn_wgpu::{Wgpu, WgpuDevice};
 use safetensors::SafeTensors;
 use std::{fs::File, io::Read};
+
+use crate::{
+    burn_glue::SplatForwardDiff,
+    tests::safetensor_utils::{safetensor_to_burn, splats_from_safetensors},
+};
 
 type DiffBack = Autodiff<Wgpu>;
 
@@ -101,7 +103,7 @@ async fn test_reference() -> Result<()> {
         let _ = File::open(format!("./test_cases/{path}.safetensors"))?.read_to_end(&mut buffer)?;
 
         let tensors = SafeTensors::deserialize(&buffer)?;
-        let splats = Splats::<DiffBack>::from_safetensors(&tensors, &device)?;
+        let splats: Splats<DiffBack> = splats_from_safetensors(&tensors, &device)?;
 
         let img_ref = safetensor_to_burn::<DiffBack, 3>(&tensors.tensor("out_img")?, &device);
         let [h, w, _] = img_ref.dims();
@@ -120,19 +122,20 @@ async fn test_reference() -> Result<()> {
             glam::vec2(0.5, 0.5),
         );
 
-        let (img, aux) = DiffBack::render_splats(
+        let diff_out = DiffBack::render_splats(
             &cam,
             glam::uvec2(w as u32, h as u32),
             splats.means.val().into_primitive().tensor(),
-            splats.xys_dummy.clone().into_primitive().tensor(),
             splats.log_scales.val().into_primitive().tensor(),
             splats.rotation.val().into_primitive().tensor(),
             splats.sh_coeffs.val().into_primitive().tensor(),
             splats.raw_opacity.val().into_primitive().tensor(),
-            false,
         );
 
-        let (out, aux) = (Tensor::from_primitive(TensorPrimitive::Float(img)), aux);
+        let (out, aux) = (
+            Tensor::from_primitive(TensorPrimitive::Float(diff_out.img)),
+            diff_out.aux,
+        );
         let wrapped_aux = aux.clone().into_wrapped();
 
         if let Some(rec) = rec.as_ref() {
@@ -183,8 +186,8 @@ async fn test_reference() -> Result<()> {
             .backward();
 
         // XY gradients are also in compact format.
-        let v_xys = splats
-            .xys_dummy
+        let v_xys = diff_out
+            .xy_grad_holder
             .grad(&grads)
             .context("no xys grad")?
             .slice([0..num_visible]);

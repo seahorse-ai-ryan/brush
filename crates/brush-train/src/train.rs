@@ -1,7 +1,6 @@
 use anyhow::Result;
 use brush_render::gaussian_splats::{inverse_sigmoid, Splats};
 use brush_render::render::sh_coeffs_for_degree;
-use brush_render::{AutodiffBackend, Backend};
 use burn::backend::wgpu::WgpuDevice;
 use burn::backend::{Autodiff, Wgpu};
 use burn::lr_scheduler::exponential::{ExponentialLrScheduler, ExponentialLrSchedulerConfig};
@@ -10,13 +9,16 @@ use burn::module::{Param, ParamId};
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::record::AdaptorRecord;
 use burn::optim::Optimizer;
+use burn::prelude::Backend;
 use burn::tensor::activation::sigmoid;
-use burn::tensor::{Bool, Distribution, Int};
+use burn::tensor::backend::AutodiffBackend;
+use burn::tensor::{Bool, Distribution, Int, TensorPrimitive};
 use burn::{config::Config, optim::GradientsParams, tensor::Tensor};
 use hashbrown::HashMap;
 use tracing::trace_span;
 
 use crate::adam_scaled::{AdamScaled, AdamScaledConfig, AdamState};
+use crate::burn_glue::SplatForwardDiff;
 use crate::scene::{SceneView, ViewImageType};
 use crate::ssim::Ssim;
 use crate::stats::RefineRecord;
@@ -149,7 +151,7 @@ pub struct RefineStats {
 }
 
 #[derive(Clone)]
-pub struct TrainStepStats<B: AutodiffBackend> {
+pub struct TrainStepStats<B: Backend> {
     pub pred_image: Tensor<B, 3>,
     pub gt_images: Tensor<B, 3>,
     pub gt_views: SceneView,
@@ -254,54 +256,64 @@ impl SplatTrainer {
 
         let [img_h, img_w, _] = batch.gt_image.dims();
 
-        let (pred_image, aux, loss) = {
-            let camera = &batch.gt_view.camera;
+        let camera = &batch.gt_view.camera;
 
-            let (pred_image, aux) =
-                splats.render(camera, glam::uvec2(img_w as u32, img_h as u32), false);
+        let (pred_image, aux, xy_grad_holder) = {
+            let diff_out = <B as SplatForwardDiff<B>>::render_splats(
+                camera,
+                glam::uvec2(img_w as u32, img_h as u32),
+                splats.means.val().into_primitive().tensor(),
+                splats.log_scales.val().into_primitive().tensor(),
+                splats.rotation.val().into_primitive().tensor(),
+                splats.sh_coeffs.val().into_primitive().tensor(),
+                splats.raw_opacity.val().into_primitive().tensor(),
+            );
+            let img = Tensor::from_primitive(TensorPrimitive::Float(diff_out.img));
+            let wrapped_aux = diff_out.aux.into_wrapped();
+            (img, wrapped_aux, diff_out.xy_grad_holder)
+        };
 
-            let _span = trace_span!("Calculate losses", sync_burn = true).entered();
+        // let (pred_image, aux) =
+        //     splats.render(camera, glam::uvec2(img_w as u32, img_h as u32), false);
 
-            let pred_rgb = pred_image.clone().slice([0..img_h, 0..img_w, 0..3]);
+        let _span = trace_span!("Calculate losses", sync_burn = true).entered();
+
+        let pred_rgb = pred_image.clone().slice([0..img_h, 0..img_w, 0..3]);
+        let gt_rgb = batch.gt_image.clone().slice([0..img_h, 0..img_w, 0..3]);
+
+        let l1_rgb = (pred_rgb.clone() - gt_rgb).abs();
+
+        let total_err = if self.config.ssim_weight > 0.0 {
             let gt_rgb = batch.gt_image.clone().slice([0..img_h, 0..img_w, 0..3]);
 
-            let l1_rgb = (pred_rgb.clone() - gt_rgb).abs();
-
-            let total_err = if self.config.ssim_weight > 0.0 {
-                let gt_rgb = batch.gt_image.clone().slice([0..img_h, 0..img_w, 0..3]);
-
-                let ssim_err = -self.ssim.ssim(pred_rgb, gt_rgb);
-                l1_rgb * (1.0 - self.config.ssim_weight) + ssim_err * self.config.ssim_weight
-            } else {
-                l1_rgb
-            };
-
-            let mut loss = if batch.gt_view.image.color().has_alpha() {
-                let alpha_input = batch.gt_image.clone().slice([0..img_h, 0..img_w, 3..4]);
-
-                match batch.gt_view.img_type {
-                    // In masked mode, weigh the errors by the alpha channel.
-                    ViewImageType::Masked => (total_err * alpha_input).mean(),
-                    // In alpha mode, add the l1 error of the alpha channel to the total error.
-                    ViewImageType::Alpha => {
-                        let pred_alpha = pred_image.clone().slice([0..img_h, 0..img_w, 3..4]);
-                        total_err.mean()
-                            + (alpha_input - pred_alpha).abs().mean()
-                                * self.config.alpha_loss_weight
-                    }
-                }
-            } else {
-                total_err.mean()
-            };
-
-            // Add in opacity loss if enabled.
-            if self.config.opac_loss_weight > 0.0 {
-                let opac_loss = splats.opacity().mean();
-                loss = loss + opac_loss * self.config.opac_loss_weight;
-            }
-
-            (pred_image, aux, loss)
+            let ssim_err = -self.ssim.ssim(pred_rgb, gt_rgb);
+            l1_rgb * (1.0 - self.config.ssim_weight) + ssim_err * self.config.ssim_weight
+        } else {
+            l1_rgb
         };
+
+        let mut loss = if batch.gt_view.image.color().has_alpha() {
+            let alpha_input = batch.gt_image.clone().slice([0..img_h, 0..img_w, 3..4]);
+
+            match batch.gt_view.img_type {
+                // In masked mode, weigh the errors by the alpha channel.
+                ViewImageType::Masked => (total_err * alpha_input).mean(),
+                // In alpha mode, add the l1 error of the alpha channel to the total error.
+                ViewImageType::Alpha => {
+                    let pred_alpha = pred_image.clone().slice([0..img_h, 0..img_w, 3..4]);
+                    total_err.mean()
+                        + (alpha_input - pred_alpha).abs().mean() * self.config.alpha_loss_weight
+                }
+            }
+        } else {
+            total_err.mean()
+        };
+
+        // Add in opacity loss if enabled.
+        if self.config.opac_loss_weight > 0.0 {
+            let opac_loss = splats.opacity().mean();
+            loss = loss + opac_loss * self.config.opac_loss_weight;
+        }
 
         let mut grads = trace_span!("Backward pass", sync_burn = true).in_scope(|| loss.backward());
 
@@ -383,11 +395,9 @@ impl SplatTrainer {
             // TODO: Burn really should implement +=
             if iter > self.config.refine_start_iter {
                 // Get the xy gradient norm from the dummy tensor.
-                let xys_grad = splats
-                    .xys_dummy
+                let xys_grad = xy_grad_holder
                     .grad_remove(&mut grads)
                     .expect("XY gradients need to be calculated.");
-
                 let aux = aux.clone();
                 self.refine_record.gather_stats(xys_grad, aux);
             }
@@ -438,7 +448,6 @@ impl SplatTrainer {
         let mut record = self.optim.to_record();
 
         let mut splats = splats;
-
         let device = splats.means.device();
 
         // Otherwise, do refinement, but do the split/clone on gaussians with no grads applied.

@@ -21,7 +21,7 @@ pub fn stats_gather_kernel(
         terminate!();
     }
 
-    let mut line = Line::empty(2);
+    let mut line: Line<f32> = Line::empty(2);
 
     // Nb: Clippy reports a warning here about a useless conversion but it's wrong.
     line[0] = comptime!(w as f32 / 2.0).into();

@@ -2,18 +2,17 @@ use crate::{
     bounding_box::BoundingBox,
     camera::Camera,
     render::{sh_coeffs_for_degree, sh_degree_from_coeffs},
-    safetensor_utils::safetensor_to_burn,
-    Backend, RenderAux,
+    RenderAux, SplatForward,
 };
 use ball_tree::BallTree;
 use burn::{
     config::Config,
     module::{Module, Param, ParamId},
+    prelude::Backend,
     tensor::{activation::sigmoid, Tensor, TensorData, TensorPrimitive},
 };
 use glam::{Quat, Vec3};
 use rand::Rng;
-use safetensors::SafeTensors;
 
 #[derive(Config)]
 pub struct RandomSplatsConfig {
@@ -28,9 +27,6 @@ pub struct Splats<B: Backend> {
     pub rotation: Param<Tensor<B, 2>>,
     pub raw_opacity: Param<Tensor<B, 1>>,
     pub log_scales: Param<Tensor<B, 2>>,
-
-    // Dummy input to track screenspace gradient.
-    pub xys_dummy: Tensor<B, 2>,
 }
 
 fn norm_vec<B: Backend>(vec: Tensor<B, 2>) -> Tensor<B, 2> {
@@ -198,16 +194,12 @@ impl<B: Backend> Splats<B> {
         assert_eq!(rotation.dims()[1], 4, "Rotation must be 4D");
         assert_eq!(log_scales.dims()[1], 3, "Scales must be 3D");
 
-        let num_points = means.shape().dims[0];
-        let device = means.device();
-
         Self {
             means: Param::initialized(ParamId::new(), means.detach().require_grad()),
             sh_coeffs: Param::initialized(ParamId::new(), sh_coeffs.detach().require_grad()),
             rotation: Param::initialized(ParamId::new(), rotation.detach().require_grad()),
             raw_opacity: Param::initialized(ParamId::new(), raw_opacity.detach().require_grad()),
             log_scales: Param::initialized(ParamId::new(), log_scales.detach().require_grad()),
-            xys_dummy: Tensor::zeros([num_points, 2], &device).require_grad(),
         }
     }
 
@@ -218,33 +210,6 @@ impl<B: Backend> Splats<B> {
         // TODO: use param::map once Burn makes it FnOnce.
         let (id, tensor) = (param.id, param.val());
         *param = Param::initialized(id, f(tensor).detach().require_grad());
-    }
-
-    pub fn render(
-        &self,
-        camera: &Camera,
-        img_size: glam::UVec2,
-        render_u32_buffer: bool,
-    ) -> (Tensor<B, 3>, RenderAux<B>) {
-        let (img, aux) = B::render_splats(
-            camera,
-            img_size,
-            self.means.val().into_primitive().tensor(),
-            self.xys_dummy.clone().into_primitive().tensor(),
-            self.log_scales.val().into_primitive().tensor(),
-            self.rotation.val().into_primitive().tensor(),
-            self.sh_coeffs.val().into_primitive().tensor(),
-            self.raw_opacity.val().into_primitive().tensor(),
-            render_u32_buffer,
-        );
-
-        let img = Tensor::from_primitive(TensorPrimitive::Float(img));
-
-        let wrapped_aux = aux.into_wrapped();
-        if cfg!(feature = "debug_validation") {
-            wrapped_aux.clone().debug_assert_valid();
-        }
-        (img, wrapped_aux)
     }
 
     pub fn opacity(&self) -> Tensor<B, 1> {
@@ -267,18 +232,39 @@ impl<B: Backend> Splats<B> {
         self.rotation = self.rotation.clone().map(|r| norm_vec(r));
     }
 
-    pub fn from_safetensors(tensors: &SafeTensors, device: &B::Device) -> anyhow::Result<Self> {
-        Ok(Self::from_tensor_data(
-            safetensor_to_burn::<B, 2>(&tensors.tensor("means")?, device),
-            safetensor_to_burn::<B, 2>(&tensors.tensor("quats")?, device),
-            safetensor_to_burn::<B, 2>(&tensors.tensor("scales")?, device),
-            safetensor_to_burn::<B, 3>(&tensors.tensor("coeffs")?, device),
-            safetensor_to_burn::<B, 1>(&tensors.tensor("opacities")?, device),
-        ))
-    }
-
     pub fn sh_degree(&self) -> u32 {
         let [_, coeffs, _] = self.sh_coeffs.dims();
         sh_degree_from_coeffs(coeffs as u32)
+    }
+}
+
+impl<B: Backend + SplatForward<B>> Splats<B> {
+    /// Render the splats.
+    ///
+    /// NB: This doesn't work on a differentiable backend.
+    pub fn render(
+        &self,
+        camera: &Camera,
+        img_size: glam::UVec2,
+        render_u32_buffer: bool,
+    ) -> (Tensor<B, 3>, RenderAux<B>) {
+        let (img, aux) = B::render_splats(
+            camera,
+            img_size,
+            self.means.val().into_primitive().tensor(),
+            self.log_scales.val().into_primitive().tensor(),
+            self.rotation.val().into_primitive().tensor(),
+            self.sh_coeffs.val().into_primitive().tensor(),
+            self.raw_opacity.val().into_primitive().tensor(),
+            render_u32_buffer,
+        );
+
+        let img = Tensor::from_primitive(TensorPrimitive::Float(img));
+
+        let wrapped_aux = aux.into_wrapped();
+        if cfg!(feature = "debug_validation") {
+            wrapped_aux.clone().debug_assert_valid();
+        }
+        (img, wrapped_aux)
     }
 }
