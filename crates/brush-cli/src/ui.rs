@@ -34,6 +34,12 @@ pub async fn process_ui(process: RunningProcess) {
             ]),
     );
 
+    let stats_spinner = ProgressBar::new_spinner().with_style(
+        ProgressStyle::with_template("{spinner:.blue} {msg}")
+            .expect("Invalid indicatif config")
+            .tick_strings(&["ℹ️", "ℹ️"]),
+    );
+
     let eval_spinner = ProgressBar::new_spinner().with_style(
         ProgressStyle::with_template("{spinner:.blue} {msg}")
             .expect("Invalid indicatif config")
@@ -53,6 +59,7 @@ pub async fn process_ui(process: RunningProcess) {
     let main_spinner = sp.add(main_spinner);
     let train_progress = sp.add(train_progress);
     let eval_spinner = sp.add(eval_spinner);
+    let stats_spinner = sp.add(stats_spinner);
 
     main_spinner.enable_steady_tick(Duration::from_millis(120));
 
@@ -60,6 +67,8 @@ pub async fn process_ui(process: RunningProcess) {
         "evaluating every {} steps",
         process.start_args.process_config.eval_every,
     ));
+
+    stats_spinner.set_message("Starting up");
 
     if cfg!(debug_assertions) {
         let _ =
@@ -105,13 +114,14 @@ pub async fn process_ui(process: RunningProcess) {
                 main_spinner.set_message("Dataset loaded");
             }
             ProcessMessage::TrainStep {
-                splats: _,
+                splats,
                 stats: _,
                 iter,
                 timestamp: _,
             } => {
                 main_spinner.set_message("Training");
                 train_progress.set_position(iter as u64);
+                stats_spinner.set_message(format!("Current splat count {}", splats.num_splats()));
                 // Progress bar.
             }
             ProcessMessage::RefineStep { .. } => {
