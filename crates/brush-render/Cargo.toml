@@ -16,6 +16,7 @@ burn.workspace = true
 burn-wgpu.workspace = true
 burn-jit.workspace = true
 burn-fusion.workspace = true
+burn-ir.workspace = true
 
 bytemuck.workspace = true
 glam.workspace = true

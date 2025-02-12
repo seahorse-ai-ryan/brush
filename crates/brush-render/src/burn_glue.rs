@@ -1,9 +1,6 @@
-use burn::tensor::{
-    ops::FloatTensor,
-    repr::{CustomOpDescription, HandleContainer, OperationDescription},
-    DType,
-};
+use burn::tensor::{ops::FloatTensor, DType};
 use burn_fusion::{client::FusionClient, stream::Operation, Fusion};
+use burn_ir::{CustomOpIr, HandleContainer, OperationIr};
 use burn_jit::fusion::{FusionJitRuntime, JitFusionHandle};
 use burn_wgpu::WgpuRuntime;
 
@@ -53,7 +50,7 @@ impl SplatForward<Self> for Fusion<BBase> {
             cam: Camera,
             img_size: glam::UVec2,
             render_u32_buffer: bool,
-            desc: CustomOpDescription,
+            desc: CustomOpIr,
         }
 
         impl Operation<FusionJitRuntime<WgpuRuntime, u32>> for CustomOp {
@@ -130,26 +127,26 @@ impl SplatForward<Self> for Fusion<BBase> {
             radii: client.tensor_uninitialized(vec![num_points], DType::F32),
         };
 
-        let desc = CustomOpDescription::new(
+        let desc = CustomOpIr::new(
             "render_splats",
             &[
-                means.into_description(),
-                log_scales.into_description(),
-                quats.into_description(),
-                sh_coeffs.into_description(),
-                raw_opacity.into_description(),
+                means.into_ir(),
+                log_scales.into_ir(),
+                quats.into_ir(),
+                sh_coeffs.into_ir(),
+                raw_opacity.into_ir(),
             ],
             &[
-                aux.projected_splats.to_description_out(),
-                aux.uniforms_buffer.to_description_out(),
-                aux.num_intersections.to_description_out(),
-                aux.num_visible.to_description_out(),
-                aux.final_index.to_description_out(),
-                aux.tile_offsets.to_description_out(),
-                aux.compact_gid_from_isect.to_description_out(),
-                aux.global_from_compact_gid.to_description_out(),
-                aux.radii.to_description_out(),
-                out_img.to_description_out(),
+                aux.projected_splats.to_ir_out(),
+                aux.uniforms_buffer.to_ir_out(),
+                aux.num_intersections.to_ir_out(),
+                aux.num_visible.to_ir_out(),
+                aux.final_index.to_ir_out(),
+                aux.tile_offsets.to_ir_out(),
+                aux.compact_gid_from_isect.to_ir_out(),
+                aux.global_from_compact_gid.to_ir_out(),
+                aux.radii.to_ir_out(),
+                out_img.to_ir_out(),
             ],
         );
 
@@ -160,7 +157,7 @@ impl SplatForward<Self> for Fusion<BBase> {
             desc: desc.clone(),
         };
 
-        client.register(vec![stream], OperationDescription::Custom(desc), op);
+        client.register(vec![stream], OperationIr::Custom(desc), op);
 
         (out_img, aux)
     }

@@ -53,8 +53,6 @@ pub fn module_to_compiled<C: Compiler>(
         source: shader_string,
         repr: None,
         cube_dim: CubeDim::new(workgroup_size[0], workgroup_size[1], workgroup_size[2]),
-        // This is just a compiler hint for burn, but doesn't have to be set.
-        shared_mem_bytes: 0,
         debug_info: None,
     }
 }
@@ -115,7 +113,12 @@ macro_rules! kernel_source_gen {
                 brush_kernel::calc_kernel_id::<Self>(&[$(self.$field_name),*])
             }
 
-            fn compile(&self,  _compilation_options: &C::CompilationOptions, _mode: brush_kernel::ExecutionMode) -> brush_kernel::CompiledKernel<C> {
+            fn compile(
+                &self,
+                _compiler: &mut C,
+                _compilation_options: &C::CompilationOptions,
+                _mode: brush_kernel::ExecutionMode
+            ) -> brush_kernel::CompiledKernel<C> {
                 let module = self.source();
                 brush_kernel::module_to_compiled(stringify!($struct_name), &module, Self::WORKGROUP_SIZE)
             }
@@ -182,6 +185,7 @@ impl<C: Compiler> CubeTask<C> for CreateDispatchBuffer {
 
     fn compile(
         &self,
+        _compiler: &mut C,
         _compilation_options: &C::CompilationOptions,
         _mode: ExecutionMode,
     ) -> CompiledKernel<C> {
