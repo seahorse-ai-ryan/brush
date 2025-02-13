@@ -51,6 +51,7 @@ tokio_with_wasm = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, optional = true }
 
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 brush-cli.path = "../brush-cli"
 tracing-tracy = { workspace = true, optional = true }
@@ -66,6 +67,7 @@ wasm-bindgen.workspace = true
 console_error_panic_hook.workspace = true
 web-sys.workspace = true
 wasm-logger.workspace = true
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [features]
 tracy = ["tracing", "dep:tracing-tracy"]
