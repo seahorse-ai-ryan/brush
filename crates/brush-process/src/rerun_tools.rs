@@ -117,7 +117,7 @@ impl VisualizeTools {
         #[cfg(not(target_family = "wasm"))]
         if let Some(rec) = self.rec.as_ref() {
             if rec.is_enabled() {
-                rec.log_static("world", &rerun::ViewCoordinates::RIGHT_HAND_Y_DOWN)?;
+                rec.log_static("world", &rerun::ViewCoordinates::RIGHT_HAND_Y_DOWN())?;
 
                 for (i, view) in scene.views.iter().enumerate() {
                     let path = format!("world/dataset/camera/{i}");
@@ -174,21 +174,6 @@ impl VisualizeTools {
                 let rendered = eval_render.to_rgb8();
 
                 let [w, h] = [rendered.width(), rendered.height()];
-                rec.log(
-                    format!("world/eval/view_{}", view.index),
-                    &rerun::Transform3D::from_translation_rotation(
-                        view.view.camera.position,
-                        view.view.camera.rotation,
-                    ),
-                )?;
-                rec.log(
-                    format!("world/eval/view_{}", view.index),
-                    &rerun::Pinhole::from_focal_length_and_resolution(
-                        view.view.camera.focal(glam::uvec2(w, h)),
-                        glam::vec2(w as f32, h as f32),
-                    ),
-                )?;
-
                 let gt_img = &view.view.image;
                 let gt_rerun_img = if gt_img.color().has_alpha() {
                     rerun::Image::from_rgba32(gt_img.to_rgba8().into_vec(), [w, h])
@@ -203,11 +188,6 @@ impl VisualizeTools {
                 rec.log(
                     format!("world/eval/view_{}/render", view.index),
                     &rerun::Image::from_rgb24(rendered.to_vec(), [w, h]),
-                )?;
-                // TODO: Whats a good place for this? Maybe in eval views?
-                rec.log(
-                    format!("world/eval/view_{}/tile_depth", view.index),
-                    &view.aux.calc_tile_depth().into_rerun().await,
                 )?;
             }
         }

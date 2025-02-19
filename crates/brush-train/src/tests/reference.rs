@@ -147,7 +147,7 @@ async fn test_reference() -> Result<()> {
                 &(img_ref.clone() - out.clone()).into_rerun_image().await,
             )?;
             rec.log(
-                "images/tile depth",
+                "images/tile_depth",
                 &wrapped_aux.calc_tile_depth().into_rerun().await,
             )?;
         }

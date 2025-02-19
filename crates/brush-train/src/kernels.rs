@@ -50,7 +50,7 @@ pub(crate) fn render_backward<F: FloatElement, I: IntElement, BT: BoolElement>(
     // Create tensors to hold gradients.
 
     // Nb: these are packed vec3 values, special care is taken in the kernel to respect alignment.
-    // Nb: These have to be zerod out - as we only write to visible splats.
+    // Nb: These have to be zeroed out - as we only write to visible splats.
     //
     let v_xys_local = BBase::<F, I, BT>::float_zeros([num_points, 2].into(), device);
     let v_means = BBase::<F, I, BT>::float_zeros([num_points, 3].into(), device);

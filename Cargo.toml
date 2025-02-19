@@ -89,7 +89,7 @@ eframe = { version = "0.31.0", default-features = false, features = [
 
 egui_tiles = "0.12.0"
 
-rerun = { version = "0.21", default-features = false, features = [
+rerun = { version = "0.22", default-features = false, features = [
     'sdk',
     'glam',
     'image',

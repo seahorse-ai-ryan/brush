@@ -1,28 +1,16 @@
 use std::future::Future;
 
-use burn::{
-    prelude::*,
-    tensor::{BasicOps, Tensor},
-};
+use burn::{prelude::*, tensor::Tensor};
 use rerun::{ChannelDatatype, ColorModel};
 
 trait BurnToRerunData {
     fn into_rerun_data(self) -> impl Future<Output = rerun::TensorData>;
 }
 
-fn tensor_dims<B: Backend, const D: usize, K: BasicOps<B>>(
-    tensor: &Tensor<B, D, K>,
-) -> Vec<rerun::TensorDimension> {
-    tensor
-        .dims()
-        .map(|x| rerun::TensorDimension::unnamed(x as u64))
-        .to_vec()
-}
-
 impl<B: Backend, const D: usize> BurnToRerunData for Tensor<B, D> {
     async fn into_rerun_data(self) -> rerun::TensorData {
         rerun::TensorData::new(
-            tensor_dims(&self),
+            self.dims().map(|x| x as u64).as_slice(),
             rerun::TensorBuffer::F32(
                 self.into_data_async()
                     .await
@@ -37,7 +25,7 @@ impl<B: Backend, const D: usize> BurnToRerunData for Tensor<B, D> {
 impl<B: Backend, const D: usize> BurnToRerunData for Tensor<B, D, Int> {
     async fn into_rerun_data(self) -> rerun::TensorData {
         rerun::TensorData::new(
-            tensor_dims(&self),
+            self.dims().map(|x| x as u64).as_slice(),
             rerun::TensorBuffer::I32(
                 self.into_data_async()
                     .await
@@ -52,7 +40,7 @@ impl<B: Backend, const D: usize> BurnToRerunData for Tensor<B, D, Int> {
 impl<B: Backend, const D: usize> BurnToRerunData for Tensor<B, D, Bool> {
     async fn into_rerun_data(self) -> rerun::TensorData {
         rerun::TensorData::new(
-            tensor_dims(&self),
+            self.dims().map(|x| x as u64).as_slice(),
             rerun::TensorBuffer::U8(
                 self.into_data_async()
                     .await
