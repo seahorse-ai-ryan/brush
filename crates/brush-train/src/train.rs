@@ -55,10 +55,12 @@ pub struct TrainConfig {
     #[config(default = 3e-3)]
     #[arg(long, help_heading = "Training options", default_value = "3e-3")]
     lr_coeffs_dc: f64,
+
     /// How much to divide the learning rate by for higher SH orders.
-    #[config(default = 25.0)]
+    #[config(default = 20.0)]
     #[arg(long, help_heading = "Training options", default_value = "20.0")]
     lr_coeffs_sh_scale: f32,
+
     /// Learning rate for the opacity.
     #[config(default = 3e-2)]
     #[arg(long, help_heading = "Training options", default_value = "3e-2")]
@@ -130,7 +132,7 @@ pub struct TrainConfig {
     /// Weight of l1 loss on alpha if input view has transparency.
     #[config(default = 0.1)]
     #[arg(long, help_heading = "Refine options", default_value = "0.1")]
-    alpha_loss_weight: f32,
+    match_alpha_weight: f32,
 }
 
 pub type TrainBack = Autodiff<Wgpu>;
@@ -140,26 +142,24 @@ pub type TrainBack = Autodiff<Wgpu>;
 pub struct SceneBatch<B: Backend> {
     pub gt_image: Tensor<B, 3>,
     pub gt_view: SceneView,
-    pub scene_extent: f32,
 }
 
 #[derive(Clone)]
 pub struct RefineStats {
-    pub num_split: usize,
-    pub num_cloned: usize,
-    pub num_transparent_pruned: usize,
-    pub num_scale_pruned: usize,
+    pub num_split: u32,
+    pub num_cloned: u32,
+    pub num_transparent_pruned: u32,
+    pub num_scale_pruned: u32,
 }
 
 #[derive(Clone)]
 pub struct TrainStepStats<B: Backend> {
     pub pred_image: Tensor<B, 3>,
-    pub gt_images: Tensor<B, 3>,
+
     pub gt_views: SceneView,
 
     pub num_intersections: Tensor<B, 1, Int>,
     pub num_visible: Tensor<B, 1, Int>,
-
     pub loss: Tensor<B, 1>,
 
     pub lr_mean: f64,
@@ -230,7 +230,8 @@ pub fn inv_sigmoid<B: Backend>(x: Tensor<B, 1>) -> Tensor<B, 1> {
 }
 
 impl SplatTrainer {
-    pub fn new(splats: &Splats<TrainBack>, config: &TrainConfig, device: &WgpuDevice) -> Self {
+    pub fn new(init_count: u32, config: &TrainConfig, device: &WgpuDevice) -> Self {
+        // I've tried some other momentum settings, but without much luck.
         let optim = AdamScaledConfig::new().with_epsilon(1e-15).init();
 
         let ssim = Ssim::new(config.ssim_window_size, 3, device);
@@ -242,13 +243,14 @@ impl SplatTrainer {
             config: config.clone(),
             sched_mean: lr_mean.init().expect("Lr schedule must be valid."),
             optim,
-            refine_record: RefineRecord::new(splats.num_splats(), device),
+            refine_record: RefineRecord::new(init_count, device),
             ssim,
         }
     }
 
     pub fn step(
         &mut self,
+        scene_extent: f32,
         iter: u32,
         batch: SceneBatch<TrainBack>,
         splats: Splats<TrainBack>,
@@ -273,9 +275,6 @@ impl SplatTrainer {
             let wrapped_aux = diff_out.aux.into_wrapped();
             (img, wrapped_aux, diff_out.xy_grad_holder)
         };
-
-        // let (pred_image, aux) =
-        //     splats.render(camera, glam::uvec2(img_w as u32, img_h as u32), false);
 
         let _span = trace_span!("Calculate losses", sync_burn = true).entered();
 
@@ -303,7 +302,7 @@ impl SplatTrainer {
                 ViewImageType::Alpha => {
                     let pred_alpha = pred_image.clone().slice([0..img_h, 0..img_w, 3..4]);
                     total_err.mean()
-                        + (alpha_input - pred_alpha).abs().mean() * self.config.alpha_loss_weight
+                        + (alpha_input - pred_alpha).abs().mean() * self.config.match_alpha_weight
                 }
             }
         } else {
@@ -319,7 +318,7 @@ impl SplatTrainer {
         let mut grads = trace_span!("Backward pass", sync_burn = true).in_scope(|| loss.backward());
 
         let (lr_mean, lr_rotation, lr_scale, lr_coeffs, lr_opac) = (
-            self.sched_mean.step() * batch.scene_extent as f64,
+            self.sched_mean.step() * scene_extent as f64,
             self.config.lr_rotation,
             // Scale is relative to the scene scale, but the exp() activation function
             // means "offsetting" all values also solves the learning rate scaling.
@@ -394,7 +393,12 @@ impl SplatTrainer {
 
         trace_span!("Housekeeping", sync_burn = true).in_scope(|| {
             // TODO: Burn really should implement +=
-            if iter > self.config.refine_start_iter {
+            if iter
+                > self
+                    .config
+                    .refine_start_iter
+                    .saturating_sub(self.config.refine_every)
+            {
                 // Get the xy gradient norm from the dummy tensor.
                 let xys_grad = xy_grad_holder
                     .grad_remove(&mut grads)
@@ -406,7 +410,6 @@ impl SplatTrainer {
 
         let stats = TrainStepStats {
             pred_image,
-            gt_images: batch.gt_image,
             gt_views: batch.gt_view,
             num_visible,
             num_intersections,
@@ -476,7 +479,7 @@ impl SplatTrainer {
         let clone_inds = clone_mask.clone().argwhere_async().await;
 
         // Clone splats
-        let clone_count = clone_inds.dims()[0];
+        let clone_count = clone_inds.dims()[0] as u32;
         if clone_count > 0 {
             let clone_inds = clone_inds.squeeze(1);
             let cur_means = splats.means.val().select(0, clone_inds.clone());
@@ -488,8 +491,11 @@ impl SplatTrainer {
 
             let samples = quaternion_vec_multiply(
                 cur_rots.clone(),
-                Tensor::random([clone_count, 3], Distribution::Normal(0.0, 1.0), &device)
-                    * cur_scale.clone().exp(),
+                Tensor::random(
+                    [clone_count as usize, 3],
+                    Distribution::Normal(0.0, 1.0),
+                    &device,
+                ) * cur_scale.clone().exp(),
             );
 
             append_means.push(cur_means + samples);
@@ -519,7 +525,7 @@ impl SplatTrainer {
 
         let split_inds = split_mask.clone().argwhere_async().await;
 
-        let split_count = split_inds.dims()[0];
+        let split_count = split_inds.dims()[0] as u32;
         if split_count > 0 {
             let split_inds = split_inds.squeeze(1);
 
@@ -532,8 +538,11 @@ impl SplatTrainer {
 
             let samples = quaternion_vec_multiply(
                 cur_rots.clone(),
-                Tensor::random([split_count, 3], Distribution::Normal(0.0, 1.0), &device)
-                    * cur_scale.clone().exp(),
+                Tensor::random(
+                    [split_count as usize, 3],
+                    Distribution::Normal(0.0, 1.0),
+                    &device,
+                ) * cur_scale.clone().exp(),
             );
 
             let scale_div: f32 = 1.6;
@@ -557,10 +566,8 @@ impl SplatTrainer {
         // of gradient <-> splat.
 
         // Remove barely visible gaussians.
-        let start_count = splats.num_splats();
         let alpha_mask = splats.opacity().lower_elem(self.config.cull_opacity);
-        prune_points(&mut splats, &mut record, alpha_mask).await;
-        let alpha_pruned = start_count - splats.num_splats();
+        let alpha_pruned = prune_points(&mut splats, &mut record, alpha_mask).await;
 
         // Slowly lower opacity.
         if self.config.opac_refine_subtract > 0.0 {
@@ -583,8 +590,7 @@ impl SplatTrainer {
 
         let scale_mask =
             Tensor::any_dim(Tensor::cat(vec![scale_small, scale_big], 1), 1).squeeze(1);
-        prune_points(&mut splats, &mut record, scale_mask).await;
-        let scale_pruned = start_count - splats.num_splats();
+        let scale_pruned = prune_points(&mut splats, &mut record, scale_mask).await;
 
         if !append_means.is_empty() {
             let append_means = Tensor::cat(append_means, 0);
@@ -650,9 +656,9 @@ pub async fn prune_points<B: AutodiffBackend>(
     splats: &mut Splats<B>,
     record: &mut HashMap<ParamId, AdaptorRecord<AdamScaled, B>>,
     prune: Tensor<B, 1, Bool>,
-) {
+) -> u32 {
     assert_eq!(
-        prune.dims()[0],
+        prune.dims()[0] as u32,
         splats.num_splats(),
         "Prune mask must have same number of elements as splats"
     );
@@ -661,18 +667,18 @@ pub async fn prune_points<B: AutodiffBackend>(
     let prune_count = prune.dims()[0];
 
     if prune_count == 0 {
-        return;
+        return 0;
     }
 
     let valid_inds = prune.bool_not().argwhere_async().await;
 
     if valid_inds.dims()[0] == 0 {
         log::warn!("Trying to create empty splat!");
-        return;
+        return 0;
     }
 
     let start_splats = splats.num_splats();
-    let new_points = valid_inds.dims()[0];
+    let new_points = valid_inds.dims()[0] as u32;
 
     if new_points < start_splats {
         let valid_inds = valid_inds.squeeze(1);
@@ -707,6 +713,8 @@ pub async fn prune_points<B: AutodiffBackend>(
             |x| x.select(0, valid_inds.clone().inner()),
         );
     }
+
+    start_splats - new_points
 }
 
 pub fn concat_splats<B: AutodiffBackend>(

@@ -25,11 +25,11 @@ pub(crate) struct RefineRecord<B: Backend> {
 }
 
 impl<B: Backend> RefineRecord<B> {
-    pub(crate) fn new(num_points: usize, device: &B::Device) -> Self {
+    pub(crate) fn new(num_points: u32, device: &B::Device) -> Self {
         Self {
-            grad_2d_accum: Tensor::<B, 1>::zeros([num_points], device),
-            xy_grad_counts: Tensor::zeros([num_points], device),
-            max_radii: Tensor::zeros([num_points], device),
+            grad_2d_accum: Tensor::<B, 1>::zeros([num_points as usize], device),
+            xy_grad_counts: Tensor::zeros([num_points as usize], device),
+            max_radii: Tensor::zeros([num_points as usize], device),
         }
     }
 }
