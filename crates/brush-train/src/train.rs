@@ -575,16 +575,6 @@ impl SplatTrainer {
             .lower_elem(inverse_sigmoid(MIN_OPACITY));
         let alpha_pruned = prune_points(&mut splats, &mut record, alpha_mask).await;
 
-        // Slowly lower opacity.
-        if self.config.opac_refine_subtract > 0.0 {
-            map_param(
-                &mut splats.raw_opacity,
-                &mut record,
-                |op| inv_sigmoid((sigmoid(op) - self.config.opac_refine_subtract).clamp_min(1e-3)),
-                |state| state,
-            );
-        }
-
         // Delete Gaussians with too large of a radius in world-units.
         let scale_big = splats
             .log_scales
@@ -621,6 +611,25 @@ impl SplatTrainer {
                 |op| op.clamp_max(inverse_sigmoid(0.01)),
                 |state| Tensor::zeros_like(&state),
             );
+        } else {
+            // Skip a refine after every reset.
+            let time_per_reset = self.config.reset_alpha_every_refine * self.config.refine_every;
+            let time_since_reset = iter % time_per_reset;
+
+            // Slowly lower opacity.
+            if self.config.opac_refine_subtract > 0.0 && time_since_reset > self.config.refine_every
+            {
+                map_param(
+                    &mut splats.raw_opacity,
+                    &mut record,
+                    |op| {
+                        inv_sigmoid(
+                            (sigmoid(op) - self.config.opac_refine_subtract).clamp_min(1e-3),
+                        )
+                    },
+                    |state| state,
+                );
+            }
         }
 
         // Stats don't line up anymore so have to reset them.
