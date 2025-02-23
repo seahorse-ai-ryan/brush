@@ -34,7 +34,7 @@ var<workgroup> local_id: array<i32, BATCH_SIZE>;
 // Current queue of gradients to be flushed.
 var<workgroup> grad_count: atomic<i32>;
 
-const TOTAL_GRADS = BATCH_SIZE * 10;
+const TOTAL_GRADS = BATCH_SIZE * 11;
 var<workgroup> gather_grads: array<f32, TOTAL_GRADS>;
 var<workgroup> gather_grad_id: array<i32, BATCH_SIZE>;
 
