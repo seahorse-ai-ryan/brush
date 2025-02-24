@@ -15,7 +15,6 @@
 @group(0) @binding(7) var<storage, read_write> v_scales: array<helpers::PackedVec3>;
 @group(0) @binding(8) var<storage, read_write> v_quats: array<vec4f>;
 
-// TODO: What do for quat len == 0.0?
 fn normalize_vjp(quat: vec4f) -> mat4x4f {
     let quat_sqr = quat * quat;
     let quat_len_sqr = dot(quat, quat);
