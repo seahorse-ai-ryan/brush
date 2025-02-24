@@ -54,8 +54,8 @@ pub struct TrainConfig {
     lr_mean_end: f64,
 
     /// Learning rate for the basic coefficients.
-    #[config(default = 2e-3)]
-    #[arg(long, help_heading = "Training options", default_value = "2e-3")]
+    #[config(default = 1e-3)]
+    #[arg(long, help_heading = "Training options", default_value = "1e-3")]
     lr_coeffs_dc: f64,
 
     /// How much to divide the learning rate by for higher SH orders.
@@ -89,8 +89,8 @@ pub struct TrainConfig {
     opac_refine_subtract: f32,
 
     /// Threshold for positional gradient norm
-    #[config(default = 0.0008)]
-    #[arg(long, help_heading = "Refine options", default_value = "0.0008")]
+    #[config(default = 0.0006)]
+    #[arg(long, help_heading = "Refine options", default_value = "0.0006")]
     densify_grad_thresh: f32,
 
     /// Gaussians bigger than this size in screenspace radius are split
@@ -233,6 +233,10 @@ fn create_default_optimizer() -> OptimizerType {
     AdamScaledConfig::new().with_epsilon(1e-15).init()
 }
 
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a * (1.0 - t) + b * t
+}
+
 impl SplatTrainer {
     pub fn new(config: &TrainConfig, device: &WgpuDevice) -> Self {
         let ssim = Ssim::new(config.ssim_window_size, 3, device);
@@ -335,8 +339,10 @@ impl SplatTrainer {
             let coeff_count = sh_coeffs_for_degree(sh_degree) as i32;
             let sh_size = coeff_count;
             let mut sh_lr_scales = vec![1.0];
-            for _ in 1..sh_size {
-                sh_lr_scales.push(1.0 / self.config.lr_coeffs_sh_scale);
+            for i in 1..sh_size {
+                let t = i as f32 / (sh_size - 1) as f32;
+                let lr_scaling = lerp(1.0, 1.0 / self.config.lr_coeffs_sh_scale, t);
+                sh_lr_scales.push(lr_scaling);
             }
             let sh_lr_scales = Tensor::<_, 1>::from_floats(sh_lr_scales.as_slice(), &device)
                 .reshape([1, coeff_count, 1]);
