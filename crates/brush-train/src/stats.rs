@@ -15,9 +15,9 @@ type Fused<F, I, BT> = Fusion<BBase<F, I, BT>>;
 pub(crate) struct RefineRecord<B: Backend> {
     // Helper tensors for accumulating the viewspace_xy gradients and the number
     // of observations per gaussian. Used in pruning and densification.
-    pub refine_weight_norm: Tensor<B, 1>,
-    pub visible_counts: Tensor<B, 1, Int>,
-    pub max_radii: Tensor<B, 1>,
+    refine_weight_norm: Tensor<B, 1>,
+    visible_counts: Tensor<B, 1, Int>,
+    max_radii: Tensor<B, 1>,
 }
 
 impl<B: Backend> RefineRecord<B> {
@@ -87,5 +87,22 @@ impl<F: FloatElement, I: IntElement, BT: BoolElement> RefineRecord<Fused<F, I, B
             w as u32,
             h as u32,
         );
+    }
+}
+
+impl<B: Backend> RefineRecord<B> {
+    pub fn keep(self, indices: Tensor<B, 1, Int>) -> Self {
+        Self {
+            refine_weight_norm: self.refine_weight_norm.select(0, indices.clone()),
+            visible_counts: self.visible_counts.select(0, indices.clone()),
+            max_radii: self.max_radii.select(0, indices),
+        }
+    }
+
+    pub fn into_stats(self) -> (Tensor<B, 1>, Tensor<B, 1>) {
+        (
+            self.refine_weight_norm / self.visible_counts.clamp_min(1).float(),
+            self.max_radii,
+        )
     }
 }
