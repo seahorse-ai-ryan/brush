@@ -211,6 +211,7 @@ impl AppContext {
 }
 
 pub struct AppCreateCb {
+    // TODO: Use parking lot non-poisonable locks.
     pub context: Arc<RwLock<AppContext>>,
 }
 
@@ -218,6 +219,7 @@ impl App {
     pub fn new(
         cc: &eframe::CreationContext,
         create_callback: tokio::sync::oneshot::Sender<AppCreateCb>,
+        start_uri_override: Option<String>,
     ) -> Self {
         // For now just assume we're running on the default
         let state = cc
@@ -259,10 +261,11 @@ impl App {
             }
         }
 
+        let start_uri = start_uri_override;
+
         #[cfg(target_family = "wasm")]
-        let start_uri = web_sys::window().and_then(|w| w.location().search().ok());
-        #[cfg(not(target_family = "wasm"))]
-        let start_uri: Option<String> = None;
+        let start_uri =
+            start_uri.or_else(|| web_sys::window().and_then(|w| w.location().search().ok()));
 
         let search_params = parse_search(start_uri.as_deref().unwrap_or(""));
 

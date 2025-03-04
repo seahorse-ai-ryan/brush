@@ -72,7 +72,7 @@ pub async fn pick_directory() -> Result<PathBuf> {
 
     #[cfg(any(target_os = "android", target_family = "wasm"))]
     {
-        unimplemented!("No folder picking on Android yet.")
+        panic!("No folder picking on Android or wasm yet.")
     }
 }
 
@@ -93,6 +93,6 @@ pub async fn save_file(default_name: &str) -> Result<FileHandle> {
     #[cfg(target_os = "android")]
     {
         let _ = default_name;
-        unimplemented!("No saving on Android yet.")
+        panic!("No saving on Android yet.")
     }
 }

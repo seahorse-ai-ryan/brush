@@ -13,6 +13,7 @@ type MainResult = Result<(), clap::Error>;
 #[cfg(target_family = "wasm")]
 type MainResult = Result<(), ()>;
 
+#[allow(clippy::unnecessary_wraps)] // Error isn't need on wasm but that's ok.
 fn main() -> MainResult {
     let wgpu_options = brush_ui::create_egui_options();
 
@@ -71,7 +72,7 @@ fn main() -> MainResult {
                 eframe::run_native(
                     title,
                     native_options,
-                    Box::new(move |cc| Ok(Box::new(App::new(cc, send)))),
+                    Box::new(move |cc| Ok(Box::new(App::new(cc, send, None)))),
                 )
                 .expect("Failed to run egui app");
             } else {
@@ -115,7 +116,7 @@ fn main() -> MainResult {
                     .start(
                         canvas,
                         web_options,
-                        Box::new(|cc| Ok(Box::new(App::new(cc, send)))),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, send, None)))),
                     )
                     .await
                     .expect("failed to start eframe");
@@ -128,7 +129,7 @@ fn main() -> MainResult {
 
 #[cfg(target_family = "wasm")]
 mod embedded {
-    use super::*;
+    use super::start_process;
     use brush_app::App;
     use brush_process::{data_source::DataSource, process_loop::ProcessArgs};
     use std::future::IntoFuture;
@@ -136,27 +137,36 @@ mod embedded {
     use tokio_with_wasm::alias as tokio_wasm;
     use wasm_bindgen::prelude::*;
 
+    enum EmbeddedCommands {
+        LoadDataSource(DataSource),
+        SetUpVector(glam::Vec3),
+    }
+
     #[wasm_bindgen]
     pub struct EmbeddedApp {
-        command_channel: UnboundedSender<DataSource>,
+        command_channel: UnboundedSender<EmbeddedCommands>,
     }
 
     #[wasm_bindgen]
     impl EmbeddedApp {
         #[wasm_bindgen(constructor)]
-        pub fn new(canvas_name: &str, url: &str) -> Self {
+        pub fn new(canvas_name: &str, start_uri: &str) -> Self {
             let wgpu_options = brush_ui::create_egui_options();
-            let document = web_sys::window().unwrap().document().unwrap();
+            let document = web_sys::window()
+                .expect("Failed to get winow")
+                .document()
+                .expect("Failed to get document");
             let canvas = document
                 .get_element_by_id(canvas_name)
-                .unwrap()
+                .unwrap_or_else(|| panic!("Failed to find canvas with id: {canvas_name}"))
                 .dyn_into::<web_sys::HtmlCanvasElement>()
-                .unwrap();
+                .unwrap_or_else(|_| panic!("Found canvas {canvas_name} was in fact not a canvas"));
 
-            let url = url.to_owned();
             let (send, rec) = tokio::sync::oneshot::channel();
 
             let (cmd_send, mut cmd_rec) = tokio::sync::mpsc::unbounded_channel();
+
+            let start_uri = start_uri.to_owned();
 
             // On wasm, run as a local task.
             tokio_wasm::spawn(async {
@@ -167,23 +177,37 @@ mod embedded {
                             wgpu_options,
                             ..Default::default()
                         },
-                        Box::new(|cc| Ok(Box::new(App::new(cc, send)))),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, send, Some(start_uri))))),
                     )
                     .await
                     .expect("failed to start eframe");
             });
 
             tokio_wasm::spawn(async move {
-                let context = rec.into_future().await.unwrap().context;
+                let context = rec
+                    .into_future()
+                    .await
+                    .expect("Failed to start Brush, failed to receive context")
+                    .context;
 
-                while let Some(source) = cmd_rec.recv().await {
-                    let mut ctx = context.write().unwrap();
-                    let process = start_process(source, ProcessArgs::default(), ctx.device.clone());
-                    ctx.connect_to(process);
+                while let Some(command) = cmd_rec.recv().await {
+                    let mut ctx = context.write().expect("Failed to lock context (poisoned)");
+
+                    match command {
+                        EmbeddedCommands::LoadDataSource(data_source) => {
+                            let process = start_process(
+                                data_source,
+                                ProcessArgs::default(),
+                                ctx.device.clone(),
+                            );
+                            ctx.connect_to(process);
+                        }
+                        EmbeddedCommands::SetUpVector(up_axis) => {
+                            ctx.set_model_up(up_axis);
+                        }
+                    }
                 }
             });
-            // Load initial url.
-            let _ = cmd_send.send(DataSource::Url(url.to_owned()));
             Self {
                 command_channel: cmd_send,
             }
@@ -192,7 +216,18 @@ mod embedded {
         #[wasm_bindgen]
         pub fn load_url(&self, url: &str) {
             self.command_channel
-                .send(DataSource::Url(url.to_owned()))
+                .send(EmbeddedCommands::LoadDataSource(DataSource::Url(
+                    url.to_owned(),
+                )))
+                .expect("Viewer was closed?");
+        }
+
+        #[wasm_bindgen]
+        pub fn set_up_vec(&self, x: f32, y: f32, z: f32) {
+            let vec = glam::vec3(x, y, z).normalize();
+
+            self.command_channel
+                .send(EmbeddedCommands::SetUpVector(vec))
                 .expect("Viewer was closed?");
         }
     }

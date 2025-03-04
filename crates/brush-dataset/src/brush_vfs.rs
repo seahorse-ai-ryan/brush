@@ -55,6 +55,7 @@ impl PathReader {
     pub fn add(&mut self, path: &Path, reader: impl AsyncRead + WasmNotSend + Unpin + 'static) {
         self.paths.insert(
             path.to_path_buf(),
+            #[allow(clippy::arc_with_non_send_sync)] // Not send/sync on wasm but that's ok.
             Arc::new(Mutex::new(Some(Box::new(reader)))),
         );
     }
@@ -137,7 +138,7 @@ impl BrushVfs {
         #[cfg(target_family = "wasm")]
         {
             let _ = dir;
-            unimplemented!("Cannot read paths on wasm");
+            panic!("Cannot read paths on wasm");
         }
     }
 
