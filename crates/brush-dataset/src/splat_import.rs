@@ -72,7 +72,7 @@ async fn parse_elem<T: AsyncBufRead + Unpin + 'static, E: PropertyAccess>(
 
 /// Call this in a loop to yield every once in a while.
 async fn try_yield(i: usize) {
-    if i % 1000 == 0 {
+    if i % 50000 == 0 {
         tokio_wasm::task::yield_now().await;
     }
 }
