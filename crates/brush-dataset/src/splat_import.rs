@@ -169,7 +169,7 @@ fn parse_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
             anyhow::bail!("First element must be 'vertex'")
         }
 
-        let parser = Parser::<ParsedGaussian>::new();
+        let parser = Parser::<ParsedGaussian<false>>::new();
 
         let properties: HashSet<_> = vertex.properties.iter().map(|x| x.name.clone()).collect();
         let mut means = Vec::with_capacity(vertex.count);
@@ -201,6 +201,10 @@ fn parse_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
             }
 
             let splat = parse_elem(&mut reader, &parser, header.encoding, vertex).await?;
+
+            if !splat.is_finite() {
+                continue;
+            }
 
             means.push(splat.mean);
             if let Some(scales) = &mut log_scales {
@@ -335,7 +339,7 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
             anyhow::bail!("Second element should be vertex compression metadata!");
         }
 
-        let parser = Parser::<ParsedGaussian>::new();
+        let parser = Parser::<ParsedGaussian<true>>::new();
         let mut means = Vec::with_capacity(vertex.count);
         // Atm, unlike normal plys, these values aren't optional.
         let mut log_scales = Vec::with_capacity(vertex.count);
@@ -346,11 +350,11 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
         let update_every = vertex.count.div_ceil(20);
         let mut last_update = 0;
 
+        let mut valid = vec![true; vertex.count];
+
         for i in 0..vertex.count {
             // Occasionally yield.
-            if i % 500 == 0 {
-                tokio_wasm::task::yield_now().await;
-            }
+            try_yield(i).await;
 
             // Doing this after first reading and parsing the points is quite wasteful, but
             // we do need to advance the reader.
@@ -364,21 +368,25 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
                 .get(i / 256)
                 .context("not enough quantization data to parse ply")?;
 
-            let mut splat = parse_elem(&mut reader, &parser, header.encoding, vertex).await?;
-            splat.mean = quant_data.mean.dequant(splat.mean);
-            means.push(splat.mean);
+            let splat = parse_elem(&mut reader, &parser, header.encoding, vertex).await?;
 
-            splat.log_scale = quant_data.scale.dequant(splat.log_scale);
-            log_scales.push(splat.log_scale);
+            // Don't add invalid splats.
+            if !splat.is_finite() {
+                valid[i] = false;
+                continue;
+            }
+
+            means.push(quant_data.mean.dequant(splat.mean));
+
+            log_scales.push(quant_data.scale.dequant(splat.log_scale));
             rotations.push(splat.rotation);
 
             // Compressed ply specifies things in post-activated values. Convert to pre-activated values.
             opacity.push(inverse_sigmoid(splat.opacity));
 
             // These come in as RGB colors. Convert to base SH coeffecients.
-            splat.sh_dc = quant_data.color.dequant(splat.sh_dc);
-            splat.sh_dc = rgb_to_sh(splat.sh_dc);
-            sh_coeffs.extend([splat.sh_dc.x, splat.sh_dc.y, splat.sh_dc.z]);
+            let sh_dc = rgb_to_sh(quant_data.color.dequant(splat.sh_dc));
+            sh_coeffs.extend([sh_dc.x, sh_dc.y, sh_dc.z]);
 
             // Occasionally send some updated splats.
             if (i - last_update) >= update_every || i == vertex.count - 1 {
@@ -405,13 +413,23 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
         }
 
         if let Some(sh_vals) = header.elements.get(2) {
+            // Bit of a hack - use the unquantized parser as that handles SH values. Really we don't need
+            // the entire splat parser though.
+            let parser = Parser::<ParsedGaussian<false>>::new();
+
             if sh_vals.name != "sh" {
                 anyhow::bail!("Second element should be SH compression metadata!");
             }
 
+            let mut splat_index = 0;
+
             let mut total_coeffs = vec![];
             for i in 0..sh_vals.count {
                 try_yield(i).await;
+
+                if !valid[i] {
+                    continue;
+                }
 
                 // Parse a splat - though nb only SH values will be used.
                 let mut splat = parse_elem(&mut reader, &parser, header.encoding, sh_vals).await?;
@@ -419,8 +437,13 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
                     *coeff = 8.0 * (*coeff - 0.5);
                 }
 
-                let dc = glam::vec3(sh_coeffs[i * 3], sh_coeffs[i * 3 + 1], sh_coeffs[i * 3 + 2]);
+                let dc = glam::vec3(
+                    sh_coeffs[splat_index * 3],
+                    sh_coeffs[splat_index * 3 + 1],
+                    sh_coeffs[splat_index * 3 + 2],
+                );
                 interleave_coeffs(dc, &splat.sh_coeffs_rest, &mut total_coeffs);
+                splat_index += 1;
             }
 
             emitter
@@ -455,7 +478,7 @@ fn parse_delta_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
     up_axis: Option<Vec3>,
 ) -> impl Stream<Item = Result<SplatMessage<B>>> + 'static {
     try_fn_stream(|emitter| async move {
-        let parser = Parser::<ParsedGaussian>::new();
+        let parser = Parser::<ParsedGaussian<false>>::new();
 
         // Check for frame count.
         let frame_count = header
