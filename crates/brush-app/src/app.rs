@@ -121,13 +121,19 @@ pub struct AppContext {
 struct CameraSettings {
     focal: f64,
     radius: f32,
+    focus_distance: f32,
+    speed_scale: f32,
 }
 
 impl AppContext {
     fn new(device: WgpuDevice, ctx: egui::Context, cam_settings: &CameraSettings) -> Self {
         let model_transform = Affine3A::IDENTITY;
 
-        let controls = CameraController::new(cam_settings.radius);
+        let controls = CameraController::new(
+            cam_settings.radius,
+            cam_settings.focus_distance,
+            cam_settings.speed_scale,
+        );
 
         // Camera position will be controlled by the orbit controls.
         let camera = Camera::new(
@@ -177,11 +183,11 @@ impl AppContext {
         self.controls.stop_movement();
         self.view_aspect = Some(view.image.width() as f32 / view.image.height() as f32);
 
-        self.controls.focus_distance = self
-            .dataset
-            .train
-            .estimate_extent()
-            .map_or(4.0, |x| x / 3.0);
+        if let Some(extent) = self.dataset.train.estimate_extent() {
+            self.controls.focus_distance = extent / 3.0;
+        } else {
+            self.controls.focus_distance = self.cam_settings.focus_distance;
+        }
     }
 
     pub fn connect_to(&mut self, process: RunningProcess) {
@@ -282,8 +288,21 @@ impl App {
             .get("radius")
             .and_then(|f| f.parse().ok())
             .unwrap_or(4.0);
+        let focus_distance = search_params
+            .get("focus_distance")
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(4.0);
+        let speed_scale = search_params
+            .get("speed_scale")
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(1.0);
 
-        let settings = CameraSettings { focal, radius };
+        let settings = CameraSettings {
+            focal,
+            radius,
+            focus_distance,
+            speed_scale,
+        };
         let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), &settings);
 
         let mut tiles: Tiles<PaneType> = Tiles::default();
