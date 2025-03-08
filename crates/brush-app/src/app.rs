@@ -2,6 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::channel::reactive_receiver;
 use crate::orbit_controls::CameraController;
+use crate::overlays::DatasetDetailOverlay;
 use crate::panels::SettingsPanel;
 use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
 use brush_dataset::Dataset;
@@ -17,6 +18,9 @@ use egui_tiles::SimplificationOptions;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3};
 use std::collections::HashMap;
+
+#[cfg(not(target_family = "wasm"))]
+use rfd;
 
 pub(crate) trait AppPanel {
     fn title(&self) -> String;
@@ -97,7 +101,10 @@ fn parse_search(search: &str) -> HashMap<String, String> {
 pub struct App {
     tree: egui_tiles::Tree<PaneType>,
     datasets: Option<TileId>,
+    dataset_detail_overlay: DatasetDetailOverlay,
     tree_ctx: AppTree,
+    // Flag to trigger folder selection
+    select_folder_requested: bool,
 }
 
 // TODO: Bit too much random shared state here.
@@ -374,6 +381,8 @@ impl App {
             tree,
             tree_ctx,
             datasets: None,
+            dataset_detail_overlay: DatasetDetailOverlay::new(),
+            select_folder_requested: false,
         }
     }
 }
@@ -434,6 +443,60 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         self.receive_messages();
 
+        // Top bar menu
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("File", |ui| {
+                    if ui.button("Exit").clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+                
+                ui.menu_button("View", |ui| {
+                    let mut detail_open = self.dataset_detail_overlay.is_open();
+                    if ui.checkbox(&mut detail_open, "Datasets").clicked() {
+                        self.dataset_detail_overlay.set_open(detail_open);
+                    }
+                });
+                
+                ui.menu_button("Help", |ui| {
+                    if ui.button("About").clicked() {
+                        // Show about dialog
+                    }
+                });
+            });
+        });
+
+        // Left sidebar with icons
+        egui::SidePanel::left("left_icon_bar")
+            .resizable(false)
+            .default_width(40.0)
+            .width_range(40.0..=40.0)
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(10.0);
+                    
+                    // Datasets icon
+                    let datasets_icon = "📁";
+                    let datasets_button = ui.add(
+                        egui::Button::new(datasets_icon)
+                            .min_size(egui::vec2(30.0, 30.0))
+                    );
+                    
+                    if datasets_button.clicked() {
+                        let is_open = self.dataset_detail_overlay.is_open();
+                        self.dataset_detail_overlay.set_open(!is_open);
+                    }
+                    
+                    // Tooltip for the datasets button
+                    if datasets_button.hovered() {
+                        datasets_button.on_hover_text("Browse Datasets");
+                    }
+                    
+                    // Add more icons here as needed
+                });
+            });
+
         let main_panel_frame = egui::Frame::central_panel(ctx.style().as_ref()).inner_margin(0.0);
 
         egui::CentralPanel::default()
@@ -441,5 +504,38 @@ impl eframe::App for App {
             .show(ctx, |ui| {
                 self.tree.ui(&mut self.tree_ctx, ui);
             });
+            
+        // Handle folder selection
+        if self.dataset_detail_overlay.wants_to_select_folder() {
+            self.dataset_detail_overlay.folder_selection_started();
+            self.select_folder_requested = true;
+        }
+        
+        if self.select_folder_requested {
+            self.select_folder_requested = false;
+            
+            // Use native dialog
+            #[cfg(not(target_family = "wasm"))]
+            {
+                // For native, use rfd directly (synchronous version)
+                if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                    self.dataset_detail_overlay.set_selected_folder(path);
+                    self.dataset_detail_overlay.refresh_datasets();
+                } else {
+                    self.dataset_detail_overlay.cancel_folder_selection();
+                }
+            }
+            
+            #[cfg(target_family = "wasm")]
+            {
+                // For WASM, we would need a different approach
+                // This is just a placeholder
+                self.dataset_detail_overlay.cancel_folder_selection();
+            }
+        }
+        
+        // Show the dataset detail overlay if it's open
+        let mut context = self.tree_ctx.context.write().expect("Lock poisoned");
+        self.dataset_detail_overlay.show(ctx, &mut context);
     }
 }

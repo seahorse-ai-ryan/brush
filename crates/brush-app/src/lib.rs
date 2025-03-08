@@ -1,12 +1,12 @@
 #![recursion_limit = "256"]
 
-mod orbit_controls;
-mod panels;
+pub mod app;
+pub mod channel;
+pub mod orbit_controls;
+pub mod panels;
+pub mod overlays;
 
-mod app;
-mod channel;
-
-pub use app::*;
+pub use app::App;
 use burn::backend::Autodiff;
 use burn_wgpu::Wgpu;
 pub type MainBackend = Autodiff<Wgpu>;

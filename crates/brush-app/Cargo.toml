@@ -40,6 +40,7 @@ wgpu.workspace = true
 urlencoding.workspace = true
 humantime.workspace = true
 web-time.workspace = true
+dirs = "5.0"
 
 log.workspace = true
 
@@ -59,6 +60,7 @@ clap.workspace = true
 tokio = { workspace = true, features = ["io-util", "rt", "rt-multi-thread"] }
 env_logger.workspace = true
 winit = { version = "0.30", features = ["default"] }
+rfd = "0.12"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 tracing-wasm.workspace = true

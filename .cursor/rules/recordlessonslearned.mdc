@@ -1,0 +1,29 @@
+---
+description: recording lessons learned
+globs: 
+alwaysApply: false
+---
+<documentation_responsibilities>
+lessons_learned_required: true
+
+When solving complex technical issues:
+
+1. PROACTIVELY identify opportunities to document lessons learned whenever:
+   - A non-obvious bug is discovered and fixed
+   - A complex error is resolved (especially compiler/borrow-checker/type errors)
+   - A counter-intuitive library behavior is discovered
+   - A reusable pattern is created to work around framework limitations
+   - Significant debugging techniques are applied to solve an issue
+
+2. WITHOUT WAITING FOR PROMPTING, suggest updating the "docs/ai_agent_lessons_learned.md" file with:
+   - The root cause analysis
+   - The solution implemented
+   - Generalizable lessons for future developers/agents
+   
+3. Format suggestions:
+   - Follow the format specified in the lessons learned document
+   - Be specific about error messages, file locations, and code patterns
+   - Highlight "better approaches" that could have prevented the issue
+
+4. Include this documentation step as part of the solution delivery, not as an afterthought.
+</documentation_responsibilities>

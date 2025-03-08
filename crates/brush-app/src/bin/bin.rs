@@ -1,7 +1,8 @@
 #![recursion_limit = "256"]
 
 #[allow(unused)]
-use brush_app::{App, AppCreateCb};
+use brush_app::App;
+use brush_app::app::AppCreateCb;
 
 use brush_process::process_loop::start_process;
 #[allow(unused)]
