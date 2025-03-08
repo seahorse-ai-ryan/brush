@@ -116,18 +116,29 @@ steps:
 
 ```yaml
 # AI AGENT INSTRUCTION: CHECKPOINT RECOMMENDATION
-trigger_condition: "after several successful edits OR significant wall clock time elapsed"
-priority: medium
-action_type: proactive_suggestion
+trigger_condition: "ONLY after MULTIPLE successful edits AND one of the following:"
+qualifying_conditions:
+  - significant_wall_clock_time: "30+ minutes since last commit"
+  - substantial_changes: "Changes across multiple files or significant functionality added"
+  - logical_completion: "A complete feature or bugfix has been implemented and tested"
+  - user_initiated_break: "User indicates they're taking a break or ending a session"
+priority: low
+action_type: non_intrusive_suggestion
 steps:
-  - suggest_saving_checkpoint: true
-  - if_user_agrees:
-      - commit_changes_with_descriptive_message
-      - push_to_remote_if_appropriate
-      - verify_application_builds_and_runs
+  - assess_if_appropriate_time:
+      - avoid_interrupting_user_flow
+      - consider_size_and_impact_of_changes
+      - respect_user_workflow_preferences
+  - if_appropriate:
+      - suggest_saving_checkpoint: true
+      - if_user_agrees:
+          - commit_changes_with_descriptive_message
+          - push_to_remote_if_appropriate
+          - verify_application_builds_and_runs
   - remind_about_benefits:
       - prevent_loss_of_work
       - easier_to_identify_when_issues_were_introduced
+  - do_not_suggest_again_for: "at least 30 minutes unless explicitly requested"
 ```
 
 ### Learning from Mistakes
