@@ -31,7 +31,7 @@ trigger_condition: "first interaction with a developer"
 priority: low
 action_type: helpful_suggestion
 steps:
-  - offer_personal_setup: "I'm reading up on this project and its unique properties, but if you don't already have private prompts for personalizing your AI agent experience, I can help you create those before we get started."
+  - offer_personal_setup: "I see you're working on Brush. Would you like me to help set up some personal AI prompt files to customize how I assist you with this codebase? This can help me better align with your coding style and workflow preferences."
   - if_user_interested:
       - suggest_personal_prompt_files:
           - coding_preferences.md
