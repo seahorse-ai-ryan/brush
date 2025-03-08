@@ -2,6 +2,19 @@
 
 *For AI Agents & Human Developers*
 
+```json
+{
+  "document_type": "contribution_guide",
+  "project_name": "Brush",
+  "version": "1.0",
+  "target_audience": ["agentic_ai_assistants", "human_developers"],
+  "min_capability_level": "advanced_reasoning",
+  "key_technologies": ["rust", "wgpu", "egui", "burn", "wasm", "trunk", "tokio"],
+  "priority_tasks": ["ui_improvements", "cross_platform_compatibility", "user_experience"],
+  "last_updated": "2024-03-07"
+}
+```
+
 > **IMPORTANT NOTE**: This guide is specifically designed for agentic AI assistants with advanced reasoning capabilities and may not be appropriate for simpler LLMs. The instructions assume the ability to maintain context, execute multi-step reasoning, and perform complex code analysis.
 
 ## Welcome
@@ -81,52 +94,85 @@ To provide the most helpful assistance, please begin by asking the user about th
 
 ### Repository Synchronization Check
 
-```
-// AI AGENT INSTRUCTION
-If the developer hasn't explicitly mentioned syncing to the public Brush repository recently:
-
-1. Ask if they want to check for and pull in new public changes from the original repository
-2. If they agree, assist with:
-   - Checking the current remote configuration
-   - Adding the upstream remote if needed
-   - Fetching the latest changes
-   - Merging or rebasing as appropriate
-3. After syncing, compile and test the application to ensure it still works correctly
+```yaml
+# AI AGENT INSTRUCTION: REPOSITORY SYNC CHECK
+trigger_condition: "developer hasn't mentioned syncing to public Brush repository recently"
+priority: high
+action_type: proactive_suggestion
+steps:
+  - ask_if_user_wants_to_check_for_updates: true
+  - if_user_agrees:
+      - check_remote_configuration
+      - add_upstream_remote_if_needed
+      - fetch_latest_changes
+      - merge_or_rebase_as_appropriate
+  - after_sync:
+      - compile_application
+      - test_application
+      - verify_functionality
 ```
 
 ### Checkpoint Recommendations
 
-```
-// AI AGENT INSTRUCTION
-After several successful edits, especially if significant wall clock time has elapsed during the coding session:
-
-1. Suggest that the user save a checkpoint of their work
-2. Assist with:
-   - Committing changes with a descriptive message
-   - Pushing to their remote repository if appropriate
-   - Verifying the application still builds and runs correctly
-3. Remind them that frequent checkpoints help prevent loss of work and make it easier to identify when issues were introduced
+```yaml
+# AI AGENT INSTRUCTION: CHECKPOINT RECOMMENDATION
+trigger_condition: "after several successful edits OR significant wall clock time elapsed"
+priority: medium
+action_type: proactive_suggestion
+steps:
+  - suggest_saving_checkpoint: true
+  - if_user_agrees:
+      - commit_changes_with_descriptive_message
+      - push_to_remote_if_appropriate
+      - verify_application_builds_and_runs
+  - remind_about_benefits:
+      - prevent_loss_of_work
+      - easier_to_identify_when_issues_were_introduced
 ```
 
 ### Learning from Mistakes
 
+```yaml
+# AI AGENT INSTRUCTION: DOCUMENT LESSONS LEARNED
+trigger_condition: "after resolving non-obvious bugs or errors"
+qualifying_error_types:
+  - required_multiple_iterations_to_fix
+  - produced_significant_compiler_errors
+  - involved_rust_type_system_ownership_borrowing_issues
+  - related_to_platform_specific_behavior
+priority: medium
+action_type: proactive_suggestion
+steps:
+  - ask_user_about_documenting_lesson: true
+  - if_user_agrees:
+      - create_or_update_file: "/docs/ai_agent_lessons_learned.md"
+      - include_metadata:
+          - timestamp
+          - agent_name_and_version
+          - intended_change_description
+          - error_summary
+          - better_approach
+      - insert_at_top_of_file: true
+      - keep_entry_concise: true
 ```
-// AI AGENT INSTRUCTION
-After resolving non-obvious bugs or errors, especially those that:
-- Required multiple iterations to fix
-- Produced a significant number of compiler errors
-- Involved subtle issues with the Rust type system, ownership, or borrowing
-- Related to platform-specific behavior
 
-1. Ask the user if they would like to document the lesson learned
-2. If they agree, create or update the file `/docs/ai_agent_lessons_learned.md` with:
-   - A timestamp
-   - Your agent name and version
-   - A brief description of the intended change
-   - A concise summary of the errors encountered
-   - What would have been a better approach
-3. Insert new entries at the top of the file
-4. Keep entries short and focused on actionable insights
+### Error Pattern Recognition
+
+```yaml
+# AI AGENT INSTRUCTION: ERROR PATTERN RECOGNITION
+trigger_condition: "encountering compiler or runtime errors"
+priority: high
+action_type: analysis
+steps:
+  - categorize_error_type:
+      - ownership_borrowing
+      - type_mismatch
+      - lifetime_issues
+      - platform_specific
+      - dependency_related
+  - check_against_known_patterns_in_lessons_learned
+  - suggest_solution_based_on_pattern_matching
+  - explain_underlying_concept_to_user
 ```
 
 ## Technical Focus Areas
@@ -171,6 +217,16 @@ The current focus is on enhancing the User Interface and User Experience. When c
 
 ### Pipeline Modularity
 The underlying processing pipeline is designed to be modular. Aim to maintain this modularity when making changes, which will facilitate future extensibility and allow for swapping out components without breaking the overall application. Ensure any changes to the pipeline still support compatible input formats and produce valid .ply Gaussian Splat outputs to maintain rendering compatibility.
+
+## Common Pitfalls and Solutions
+
+| Pitfall | Symptoms | Solution |
+|---------|----------|----------|
+| Ownership issues with GPU resources | Compiler errors about moved values | Use appropriate lifetime parameters or Arc/Rc for shared ownership |
+| Cross-platform UI inconsistencies | Different appearance or behavior across platforms | Test on multiple platforms early and use platform-agnostic egui features |
+| Performance degradation | Slow rendering or training | Profile with appropriate tools and optimize hotspots |
+| Memory leaks with WASM | Growing memory usage in browser | Ensure proper cleanup of resources, especially with WebGL contexts |
+| Dependency version conflicts | Build failures with cryptic errors | Use cargo-tree to identify conflicts and specify compatible versions |
 
 ---
 
