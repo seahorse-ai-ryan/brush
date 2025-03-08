@@ -1,8 +1,52 @@
 # Brush Development Environment Setup
 
-This guide provides instructions for setting up your development environment to contribute to the Brush project. Brush uses a modern Rust-based technology stack with several components that need to be installed and configured properly.
+This guide provides instructions for setting up your development environment to contribute to the Brush project. Don't worry if some of this seems technical - we've organized it to be approachable for everyone!
 
-## Prerequisites
+## For Casual Developers & Beginners
+
+If you're new to development or just want to get started quickly, here's what you need:
+
+### Absolute Basics
+
+1. **Choose a directory** on your computer where you'll store the Brush code
+   - This can be anywhere you like, such as `Documents/Code/brush`
+   - You'll need to remember this location
+
+2. **Install an AI-powered code editor**
+   - We recommend [Cursor](https://cursor.sh/) which comes with AI assistance built-in
+   - Cursor works on macOS, Windows, and Linux
+
+3. **Let AI help you with the rest!**
+   - If you're using Cursor with Claude, GPT, or another AI coding assistant, they can guide you through setting up the remaining requirements
+   - Simply ask: "I want to set up my environment for Brush development. Can you help me install the necessary components for my operating system?"
+   - The AI can read this document and provide step-by-step instructions specific to your needs
+
+### Quick Start with AI Assistance
+
+If you're using an AI coding assistant like Claude in Cursor:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/ArthurBrussee/brush.git
+   ```
+
+2. Ask your AI assistant:
+   ```
+   I've cloned the Brush repository. Can you help me set up all the required dependencies for development on [your OS]?
+   ```
+
+3. The AI will guide you through installing Rust, WebAssembly tools, and other requirements based on your operating system
+
+4. Once setup is complete, you can build and run Brush with:
+   ```bash
+   cargo run --bin brush_app
+   ```
+
+---
+
+## For Experienced Developers & AI Agents
+
+The following sections contain detailed technical information about all requirements and components needed for Brush development. If you're an experienced developer or an AI agent helping with setup, these details will be useful.
 
 ### Core Requirements
 
@@ -82,6 +126,8 @@ While you can use any editor, we recommend:
 
 - **Cursor** - AI-powered IDE with excellent Rust support
   - Download from [Cursor.sh](https://cursor.sh/)
+  - Works with Claude, GPT, and other AI assistants
+  - AI can help you navigate and understand the codebase
 
 - **VS Code with rust-analyzer** - Popular alternative
   ```bash
@@ -152,7 +198,8 @@ If you encounter issues setting up your development environment, please:
 1. Check the [GitHub Issues](https://github.com/ArthurBrussee/brush/issues) for similar problems
 2. Consult the [Rust Forum](https://users.rust-lang.org/) for Rust-specific questions
 3. Ask for help in our community channels
+4. If you're using an AI coding assistant, ask it to explain the error and suggest solutions
 
 ---
 
-This guide should help you get started with Brush development. If you discover additional requirements or better approaches, please contribute back to this document! 
+This guide should help you get started with Brush development, regardless of your experience level. If you discover additional requirements or better approaches, please contribute back to this document! 
