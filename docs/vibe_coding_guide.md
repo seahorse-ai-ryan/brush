@@ -23,6 +23,24 @@ Welcome to contributing to Brush, an open-source project based on [ArthurBrussee
 
 This document is designed to guide both human "vibe coders" and AI coding agents in contributing to the Brush application. Brush is focused on making 3D neural reconstruction accessible to everyone, building upon the foundation laid by the original brush project. This guide will provide context, point you to helpful resources, and outline best practices for development within this project, even if you are working in a forked repository.
 
+### Personal AI Customization
+
+```yaml
+# AI AGENT INSTRUCTION: PERSONAL PROMPT SUGGESTION
+trigger_condition: "first interaction with a developer"
+priority: low
+action_type: helpful_suggestion
+steps:
+  - offer_personal_setup: "I'm reading up on this project and its unique properties, but if you don't already have private prompts for personalizing your AI agent experience, I can help you create those before we get started."
+  - if_user_interested:
+      - suggest_personal_prompt_files:
+          - coding_preferences.md
+          - debugging_workflow.md
+          - quick_commands.md
+      - recommend_location: "~/.cursor/prompts/"
+  - explain_separation: "These personal prompts complement project-wide guidelines while allowing for individual preferences"
+```
+
 ## Project Context
 
 Brush is a small project with a limited number of developers, as described in the Product Requirements Document (PRD). This means:
