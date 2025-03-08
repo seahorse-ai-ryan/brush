@@ -53,6 +53,8 @@ While training, additional data can be visualized with the excellent [rerun](htt
 ## Building Brush
 First install rust 1.82+. You can run tests with `cargo test --all`. Brush uses the wonderful [rerun](https://rerun.io/) for additional visualizations while training, run `cargo install rerun-cli` if you want to use it.
 
+> **Note**: For a comprehensive guide on setting up your development environment, including all required dependencies and tools, see the [Development Environment Setup Guide](docs/development_environment.md).
+
 ### Windows/macOS/Linux
 Simply `cargo run` or `cargo run --release` from the workspace root. Brush can also be used as a CLI, run `cargo run --release -- --help` to use the CLI directly from source. See the notes about the CLI in the features section.
 
