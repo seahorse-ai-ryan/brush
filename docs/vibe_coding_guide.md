@@ -2,11 +2,22 @@
 
 *For AI Agents & Human Developers*
 
+> **IMPORTANT NOTE**: This guide is specifically designed for agentic AI assistants with advanced reasoning capabilities and may not be appropriate for simpler LLMs. The instructions assume the ability to maintain context, execute multi-step reasoning, and perform complex code analysis.
+
 ## Welcome
 
 Welcome to contributing to Brush, an open-source project based on [ArthurBrussee/brush](https://github.com/ArthurBrussee/brush)!
 
 This document is designed to guide both human "vibe coders" and AI coding agents in contributing to the Brush application. Brush is focused on making 3D neural reconstruction accessible to everyone, building upon the foundation laid by the original brush project. This guide will provide context, point you to helpful resources, and outline best practices for development within this project, even if you are working in a forked repository.
+
+## Project Context
+
+Brush is a small project with a limited number of developers, as described in the Product Requirements Document (PRD). This means:
+
+- Changes can have significant impact across the codebase
+- There may be less extensive documentation than in larger projects
+- You have the opportunity to make meaningful contributions that directly shape the project's direction
+- Communication and coordination with the small team is essential
 
 ## Understanding Brush and its Goals
 
@@ -65,6 +76,58 @@ To provide the most helpful assistance, please begin by asking the user about th
 > - 'Vibe coder' contributing to open source and exploring new technologies?
 > 
 > Knowing your background will help me tailor my responses to be the most relevant and helpful for you."
+
+## AI Agent-Specific Guidance
+
+### Repository Synchronization Check
+
+```
+// AI AGENT INSTRUCTION
+If the developer hasn't explicitly mentioned syncing to the public Brush repository recently:
+
+1. Ask if they want to check for and pull in new public changes from the original repository
+2. If they agree, assist with:
+   - Checking the current remote configuration
+   - Adding the upstream remote if needed
+   - Fetching the latest changes
+   - Merging or rebasing as appropriate
+3. After syncing, compile and test the application to ensure it still works correctly
+```
+
+### Checkpoint Recommendations
+
+```
+// AI AGENT INSTRUCTION
+After several successful edits, especially if significant wall clock time has elapsed during the coding session:
+
+1. Suggest that the user save a checkpoint of their work
+2. Assist with:
+   - Committing changes with a descriptive message
+   - Pushing to their remote repository if appropriate
+   - Verifying the application still builds and runs correctly
+3. Remind them that frequent checkpoints help prevent loss of work and make it easier to identify when issues were introduced
+```
+
+### Learning from Mistakes
+
+```
+// AI AGENT INSTRUCTION
+After resolving non-obvious bugs or errors, especially those that:
+- Required multiple iterations to fix
+- Produced a significant number of compiler errors
+- Involved subtle issues with the Rust type system, ownership, or borrowing
+- Related to platform-specific behavior
+
+1. Ask the user if they would like to document the lesson learned
+2. If they agree, create or update the file `/docs/ai_agent_lessons_learned.md` with:
+   - A timestamp
+   - Your agent name and version
+   - A brief description of the intended change
+   - A concise summary of the errors encountered
+   - What would have been a better approach
+3. Insert new entries at the top of the file
+4. Keep entries short and focused on actionable insights
+```
 
 ## Technical Focus Areas
 
