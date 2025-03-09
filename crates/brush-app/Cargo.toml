@@ -41,6 +41,7 @@ urlencoding.workspace = true
 humantime.workspace = true
 web-time.workspace = true
 dirs = "5.0"
+zip.workspace = true
 
 log.workspace = true
 
@@ -52,6 +53,7 @@ tokio_with_wasm = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, optional = true }
 
+notify = "8.0.0"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 brush-cli.path = "../brush-cli"
