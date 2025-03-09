@@ -100,11 +100,11 @@ fn parse_search(search: &str) -> HashMap<String, String> {
 
 pub struct App {
     tree: egui_tiles::Tree<PaneType>,
+    tree_ctx: AppTree,
     datasets: Option<TileId>,
     dataset_detail_overlay: DatasetDetailOverlay,
-    tree_ctx: AppTree,
-    // Flag to trigger folder selection
     select_folder_requested: bool,
+    select_file_requested: bool,  // New field for file selection
 }
 
 // TODO: Bit too much random shared state here.
@@ -383,6 +383,7 @@ impl App {
             datasets: None,
             dataset_detail_overlay: DatasetDetailOverlay::new(),
             select_folder_requested: false,
+            select_file_requested: false,
         }
     }
 }
@@ -440,7 +441,7 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.receive_messages();
 
         // Top bar menu
@@ -531,6 +532,36 @@ impl eframe::App for App {
                 // For WASM, we would need a different approach
                 // This is just a placeholder
                 self.dataset_detail_overlay.cancel_folder_selection();
+            }
+        }
+        
+        // Handle file selection for adding datasets
+        if self.dataset_detail_overlay.wants_to_select_file() {
+            self.dataset_detail_overlay.file_selection_started();
+            self.select_file_requested = true;
+        }
+        
+        if self.select_file_requested {
+            self.select_file_requested = false;
+            
+            // Use native dialog
+            #[cfg(not(target_family = "wasm"))]
+            {
+                // For native, use rfd directly (synchronous version)
+                if let Some(path) = rfd::FileDialog::new()
+                    .add_filter("Dataset", &["zip"])
+                    .pick_file() {
+                    self.dataset_detail_overlay.set_selected_file(path);
+                } else {
+                    self.dataset_detail_overlay.cancel_file_selection();
+                }
+            }
+            
+            #[cfg(target_family = "wasm")]
+            {
+                // For WASM, we would need a different approach
+                // This is just a placeholder
+                self.dataset_detail_overlay.cancel_file_selection();
             }
         }
         

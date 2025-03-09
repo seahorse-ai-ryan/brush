@@ -3,9 +3,9 @@ use brush_train::scene::{Scene, SceneView, ViewType};
 use egui::{Color32, Context, Hyperlink, Pos2, RichText, TextureHandle, Vec2, pos2};
 use std::path::PathBuf;
 use std::time::SystemTime;
-
-#[cfg(not(target_family = "wasm"))]
-use rfd;
+use std::fs;
+use brush_process::data_source::DataSource;
+use brush_process::process_loop::{ProcessArgs, start_process};
 
 struct SelectedView {
     index: usize,
@@ -45,6 +45,9 @@ pub(crate) struct DatasetDetailOverlay {
     datasets: Vec<DatasetEntry>,
     show_folder_dialog: bool,
     folder_selection_in_progress: bool,
+    auto_refresh_enabled: bool,    // New field for auto-refresh setting
+    show_file_dialog: bool,        // New field for file selection
+    file_selection_in_progress: bool, // New field for file selection
     
     // Detail view fields
     view_type: ViewType,
@@ -62,6 +65,7 @@ pub(crate) struct DatasetDetailOverlay {
     height_changed: bool,          // Flag to track height changes
     last_dataset_count: usize,     // Track dataset count changes
     prev_size: Vec2,               // Track previous size to detect resize attempts
+    pending_file_import: Option<PathBuf>, // New field for pending file import
 }
 
 // Helper function for URL buttons
@@ -78,6 +82,9 @@ impl DatasetDetailOverlay {
             datasets: Vec::new(),
             show_folder_dialog: false,
             folder_selection_in_progress: false,
+            auto_refresh_enabled: true,    // Enable auto-refresh by default
+            show_file_dialog: false,        // New field for file selection
+            file_selection_in_progress: false, // New field for file selection
             
             // Detail view fields
             view_type: ViewType::Train,
@@ -95,6 +102,7 @@ impl DatasetDetailOverlay {
             height_changed: false,
             last_dataset_count: 0,
             prev_size: Vec2::new(0.0, 0.0),
+            pending_file_import: None, // Initialize pending_file_import
         }
     }
     
@@ -102,7 +110,7 @@ impl DatasetDetailOverlay {
     pub(crate) fn set_selected_folder(&mut self, folder: PathBuf) {
         println!("DATASET DEBUG: Before setting folder - window size is: {}x{}", self.size.x, self.size.y);
         
-        self.datasets_folder = Some(folder);
+        self.datasets_folder = Some(folder.clone());
         self.show_folder_dialog = false;
         self.folder_selection_in_progress = false;
         
@@ -111,6 +119,12 @@ impl DatasetDetailOverlay {
         
         // Calculate and update window height
         self.calculate_window_height();
+        
+        // Check if we have a pending file import
+        if let Some(file_path) = self.pending_file_import.take() {
+            println!("DATASET DEBUG: Processing pending file import: {:?}", file_path);
+            self.process_selected_file(file_path, folder);
+        }
     }
     
     // Calculate desired window height based on dataset count
@@ -185,8 +199,8 @@ impl DatasetDetailOverlay {
                     }
                 }
                 
-                // Sort alphabetically
-                self.datasets.sort_by(|a, b| a.name.cmp(&b.name));
+                // Sort alphabetically - CHANGED to sort by date (newest first)
+                self.sort_datasets_by_date();
                 dataset_count = self.datasets.len();
             }
             
@@ -209,6 +223,123 @@ impl DatasetDetailOverlay {
     pub(crate) fn cancel_folder_selection(&mut self) {
         self.show_folder_dialog = false;
         self.folder_selection_in_progress = false;
+    }
+    
+    // New method to handle adding a dataset file
+    pub(crate) fn add_dataset_file(&mut self) {
+        // Set a flag to indicate we want to select a file
+        self.show_file_dialog = true;
+    }
+    
+    // New method to handle the file selection result
+    pub(crate) fn file_selection_started(&mut self) {
+        self.file_selection_in_progress = true;
+    }
+    
+    // New method to cancel file selection
+    pub(crate) fn cancel_file_selection(&mut self) {
+        self.show_file_dialog = false;
+        self.file_selection_in_progress = false;
+    }
+    
+    // New method to check if we want to select a file
+    pub(crate) fn wants_to_select_file(&self) -> bool {
+        self.show_file_dialog && !self.file_selection_in_progress
+    }
+    
+    // New method to handle the selected file
+    pub(crate) fn set_selected_file(&mut self, file_path: PathBuf) {
+        println!("DATASET DEBUG: Selected file: {:?}", file_path);
+        
+        // Reset file selection flags
+        self.show_file_dialog = false;
+        self.file_selection_in_progress = false;
+        
+        // Check if the file is a zip file
+        if file_path.extension().map_or(false, |ext| ext == "zip") {
+            // Check if we have a dataset folder
+            if let Some(dataset_folder) = &self.datasets_folder {
+                self.process_selected_file(file_path, dataset_folder.clone());
+            } else {
+                // No dataset folder selected, so we need to select one first
+                println!("DATASET DEBUG: No dataset folder selected, prompting user to select one");
+                
+                // Store the file path for later processing
+                self.pending_file_import = Some(file_path);
+                
+                // Prompt the user to select a folder
+                self.select_folder();
+            }
+        } else {
+            println!("DATASET DEBUG: Selected file is not a zip file");
+        }
+    }
+    
+    // Helper method to process a selected file
+    fn process_selected_file(&mut self, file_path: PathBuf, dataset_folder: PathBuf) {
+        // Get the filename
+        let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        
+        // Create the destination path
+        let dest_path = dataset_folder.join(&filename);
+        
+        // Check if the file is already in the dataset folder
+        if file_path != dest_path {
+            // Copy the file to the dataset folder
+            match fs::copy(&file_path, &dest_path) {
+                Ok(_) => {
+                    println!("DATASET DEBUG: Copied file to dataset folder: {:?}", dest_path);
+                    
+                    // Get file metadata
+                    if let Ok(metadata) = fs::metadata(&dest_path) {
+                        // Add the new dataset to the list
+                        self.datasets.push(DatasetEntry {
+                            name: filename,
+                            path: dest_path,
+                            size: metadata.len(),
+                            modified: metadata.modified().unwrap_or(SystemTime::now()),
+                            processed: false,
+                        });
+                        
+                        // Sort datasets by modified time (newest first)
+                        self.sort_datasets_by_date();
+                    }
+                }
+                Err(err) => {
+                    println!("DATASET DEBUG: Failed to copy file: {}", err);
+                }
+            }
+        } else {
+            println!("DATASET DEBUG: File is already in the dataset folder");
+            
+            // Check if the file is already in our list
+            let already_in_list = self.datasets.iter().any(|d| d.path == dest_path);
+            
+            if !already_in_list {
+                // Get file metadata
+                if let Ok(metadata) = fs::metadata(&dest_path) {
+                    // Add the new dataset to the list
+                    self.datasets.push(DatasetEntry {
+                        name: filename,
+                        path: dest_path,
+                        size: metadata.len(),
+                        modified: metadata.modified().unwrap_or(SystemTime::now()),
+                        processed: false,
+                    });
+                    
+                    // Sort datasets by modified time (newest first)
+                    self.sort_datasets_by_date();
+                }
+            }
+        }
+        
+        // Recalculate window height
+        self.calculate_window_height();
+    }
+    
+    // Helper method to sort datasets by date (newest first)
+    fn sort_datasets_by_date(&mut self) {
+        self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
     }
     
     fn format_size(size: u64) -> String {
@@ -262,7 +393,7 @@ impl DatasetDetailOverlay {
         self.open = open;
     }
     
-    pub(crate) fn show(&mut self, ctx: &Context, _context: &mut AppContext) {
+    pub(crate) fn show(&mut self, ctx: &Context, context: &mut AppContext) {
         println!("DATASET DEBUG: show() called, open state: {}", self.open);
         
         if !self.open {
@@ -294,6 +425,9 @@ impl DatasetDetailOverlay {
         
         // Create a mutable copy of self.select_folder for the closure
         let mut should_select_folder = false;
+        let mut should_refresh = false;
+        let mut should_add_dataset = false;
+        let mut dataset_to_process: Option<PathBuf> = None;
         
         let response = window.show(ctx, |ui| {
             println!("DATASET DEBUG: Inside window content closure");
@@ -311,20 +445,6 @@ impl DatasetDetailOverlay {
             // Store for next frame to detect changes - ALWAYS update
             self.size = actual_size;
             
-            // Add close button at the top right corner
-            let mut close_clicked = false;
-            ui.allocate_ui_at_rect(
-                egui::Rect::from_min_size(
-                    egui::pos2(ui.max_rect().right() - 30.0, ui.max_rect().top() + 5.0),
-                    egui::vec2(20.0, 20.0)
-                ),
-                |ui| {
-                    if ui.button("X").clicked() {
-                        close_clicked = true;
-                    }
-                }
-            );
-            
             // CRITICAL CHANGE: Use a main vertical layout for the entire window content
             ui.vertical(|ui| {
                 // Force UI to take all available space
@@ -341,19 +461,44 @@ impl DatasetDetailOverlay {
                         ui.set_min_height(ui.available_height());
                         println!("LAYOUT DEBUG: Left panel available height: {}", ui.available_height());
                         
-                        // Compact header with folder selection controls
+                        // Add dataset section - MOVED TO TOP
+                        ui.heading("Add Datasets");
+                        ui.add_space(5.0);
+                        
+                        ui.horizontal(|ui| {
+                            ui.label("Select a .zip file to add to your dataset collection.");
+                            
+                            // Always enable the Browse button
+                            if ui.button("Browse").clicked() {
+                                should_add_dataset = true;
+                            }
+                        });
+                        
+                        if self.file_selection_in_progress {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.label("Selecting file...");
+                            });
+                        }
+                        
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.add_space(10.0);
+                        
+                        // Local datasets section - MOVED AFTER ADD DATASETS
                         ui.horizontal(|ui| {
                             ui.heading("Local Datasets");
                             
                             // Add folder selection button on the right
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let settings_btn = ui.button("⚙️");
-                                if settings_btn.clicked() {
+                                // Just use the gear icon without a square button
+                                let gear_btn = ui.link("⚙️");
+                                if gear_btn.clicked() {
                                     ui.memory_mut(|mem| mem.toggle_popup(egui::Id::new("folder_settings")));
                                 }
                                 
                                 // Use a simpler approach with popup menu - only for folder settings
-                                egui::popup::popup_below_widget(ui, egui::Id::new("folder_settings"), &settings_btn, egui::popup::PopupCloseBehavior::CloseOnClickOutside, |ui: &mut egui::Ui| {
+                                egui::popup::popup_below_widget(ui, egui::Id::new("folder_settings"), &gear_btn, egui::popup::PopupCloseBehavior::CloseOnClickOutside, |ui: &mut egui::Ui| {
                                     ui.set_max_width(300.0);
                                     ui.set_min_width(200.0);
                                     
@@ -376,6 +521,26 @@ impl DatasetDetailOverlay {
                                             should_select_folder = true;
                                             ui.close_menu();
                                         }
+                                        
+                                        ui.add_space(5.0);
+                                        ui.separator();
+                                        ui.add_space(5.0);
+                                        
+                                        // Auto-refresh setting
+                                        ui.heading("Settings");
+                                        let mut auto_refresh = self.auto_refresh_enabled;
+                                        if ui.checkbox(&mut auto_refresh, "Auto-check for new files").changed() {
+                                            self.auto_refresh_enabled = auto_refresh;
+                                        }
+                                        ui.label(RichText::new("Automatically scan for new datasets when app launches").small().weak());
+                                        
+                                        ui.add_space(5.0);
+                                        
+                                        // Manual refresh button
+                                        if ui.button("Refresh Now").clicked() {
+                                            should_refresh = true;
+                                            ui.close_menu();
+                                        }
                                     });
                                 });
                             });
@@ -394,7 +559,7 @@ impl DatasetDetailOverlay {
                                 // Only show refresh button when we have a folder
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     if ui.small_button("🔄").clicked() {
-                                        self.refresh_datasets();
+                                        should_refresh = true;
                                     }
                                 });
                             });
@@ -416,12 +581,6 @@ impl DatasetDetailOverlay {
                             // Dataset count
                             let dataset_count_text = format!("{} datasets", self.datasets.len().max(0));
                             ui.label(RichText::new(dataset_count_text).strong());
-                            
-                            // Add search/filter on the right
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.text_edit_singleline(&mut String::new())
-                                    .on_hover_text("Filter datasets (placeholder)");
-                            });
                         });
                         
                         // Get remaining height after UI elements above
@@ -441,7 +600,7 @@ impl DatasetDetailOverlay {
                                         if let Some(_) = &self.datasets_folder {
                                             ui.label("Add .zip files to your datasets folder");
                                             if ui.button("Refresh List").clicked() {
-                                                self.refresh_datasets();
+                                                should_refresh = true;
                                             }
                                         } else {
                                             ui.label("Select a datasets folder to get started");
@@ -452,7 +611,8 @@ impl DatasetDetailOverlay {
                                         ui.add_space(20.0);
                                     });
                                 } else {
-                                    self.draw_dataset_list(ui);
+                                    // Draw the dataset list with a closure that can capture dataset_to_process
+                                    self.draw_dataset_list(ui, &mut dataset_to_process);
                                 }
                             });
                         
@@ -471,8 +631,8 @@ impl DatasetDetailOverlay {
                 }
             });
             
-            // Return close button state
-            close_clicked
+            // Return close button state - no longer needed since we removed the button
+            false
         });
         
         // Update self.open based on window_open
@@ -486,18 +646,25 @@ impl DatasetDetailOverlay {
             self.select_folder();
         }
         
+        // If refresh was requested, trigger it now
+        if should_refresh {
+            self.refresh_datasets();
+        }
+        
+        // If add dataset was requested, trigger it now
+        if should_add_dataset {
+            self.add_dataset_file();
+        }
+        
+        // If a dataset was selected for processing, process it
+        if let Some(dataset_path) = dataset_to_process {
+            self.process_dataset(&dataset_path, context);
+        }
+        
         // Log window response
         if let Some(inner_response) = &response {
             println!("DATASET DEBUG: Window response rect: {:?}", inner_response.response.rect);
             println!("DATASET DEBUG: Window inner: {:?}", inner_response.inner);
-            
-            // Check if the close button was clicked
-            if let Some(close_clicked) = inner_response.inner {
-                if close_clicked {
-                    println!("DATASET DEBUG: Close button clicked");
-                    self.open = false;
-                }
-            }
             
             // Store window size for next frame
             self.size = inner_response.response.rect.size();
@@ -511,8 +678,8 @@ impl DatasetDetailOverlay {
         self.prev_size = self.size;
     }
 
-    // Helper method to draw the dataset list
-    fn draw_dataset_list(&self, ui: &mut egui::Ui) {
+    // Helper method to draw the dataset list - updated to accept a mutable reference to dataset_to_process
+    fn draw_dataset_list(&self, ui: &mut egui::Ui, dataset_to_process: &mut Option<PathBuf>) {
         // Get available height to adjust UI density
         let available_height = ui.available_height();
         let using_large_window = available_height > 600.0;
@@ -586,11 +753,9 @@ impl DatasetDetailOverlay {
                             // Always show size
                             ui.label(RichText::new(Self::format_size(dataset.size)).small().weak());
                             
-                            // Only show last modified in large windows
-                            if using_large_window {
-                                ui.label(RichText::new("•").small().weak());
-                                ui.label(RichText::new(Self::format_time(dataset.modified)).small().weak());
-                            }
+                            // Always show last modified date (changed from only in large windows)
+                            ui.label(RichText::new("•").small().weak());
+                            ui.label(RichText::new(Self::format_time(dataset.modified)).small().weak());
                         });
                     });
                     
@@ -601,12 +766,14 @@ impl DatasetDetailOverlay {
                             if ui.button("View").clicked() {
                                 // Handle view action
                                 println!("Viewing dataset: {}", dataset.path.display());
+                                // Set the dataset to be processed
+                                *dataset_to_process = Some(dataset.path.clone());
                             }
                         } else {
                             let button_text = if using_large_window { "Process" } else { "▶" };
                             if ui.button(button_text).clicked() {
-                                // Handle process action
-                                println!("Processing dataset: {}", dataset.path.display());
+                                // Set the dataset to be processed
+                                *dataset_to_process = Some(dataset.path.clone());
                             }
                         }
                     });
@@ -642,5 +809,23 @@ impl DatasetDetailOverlay {
             // Add a tiny bit of spacing between dataset rows
             ui.add_space(1.0);
         }
+    }
+
+    // New method to process a dataset file
+    pub(crate) fn process_dataset(&self, dataset_path: &PathBuf, context: &mut AppContext) {
+        println!("DATASET DEBUG: Processing dataset: {}", dataset_path.display());
+        
+        // Create a DataSource from the file path
+        let source = DataSource::Path(dataset_path.to_string_lossy().to_string());
+        
+        // Start the processing pipeline
+        let process = start_process(
+            source,
+            ProcessArgs::default(), // Use default processing args
+            context.device.clone(),
+        );
+        
+        // Connect to the process
+        context.connect_to(process);
     }
 } 
