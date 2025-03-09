@@ -1,7 +1,7 @@
 use crate::app::AppContext;
 use brush_train::scene::{Scene, SceneView, ViewType};
 use egui::{Color32, Context, Hyperlink, Pos2, RichText, TextureHandle, Vec2, pos2};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::time::SystemTime;
 use std::fs;
 use brush_process::data_source::DataSource;
@@ -86,11 +86,8 @@ fn url_button(label: &str, url: &str, ui: &mut egui::Ui) {
 
 impl DatasetDetailOverlay {
     pub(crate) fn new() -> Self {
-        println!("DATASET DEBUG: Creating new DatasetDetailOverlay");
-        
         // Set default datasets folder based on OS
         let default_datasets_folder = Self::get_default_datasets_folder();
-        println!("DATASET DEBUG: Default datasets folder: {:?}", default_datasets_folder);
         
         let mut overlay = Self {
             // Dataset browser fields
@@ -112,7 +109,7 @@ impl DatasetDetailOverlay {
             // UI state
             open: true, // Start with window open
             position: pos2(100.0, 100.0),
-            size: Vec2::new(800.0, 600.0), // Start with medium size
+            size: Vec2::new(400.0, 600.0), // Reduced width to 50% of original
             
             // For dynamic sizing
             last_table_height: 300.0,
@@ -169,19 +166,28 @@ impl DatasetDetailOverlay {
     
     // Function to set the selected folder
     pub(crate) fn set_selected_folder(&mut self, folder: PathBuf) {
-        println!("DATASET DEBUG: Setting datasets folder to: {:?}", folder);
-        
         // Store the new folder
         self.datasets_folder = Some(folder);
         
         // Cancel any pending folder selection
         self.folder_selection_in_progress = false;
+        self.show_folder_dialog = false;
         
         // Update the file watcher for the new folder
         self.update_file_watcher();
         
         // Refresh the dataset list
         self.refresh_datasets();
+        
+        // Process any pending file import
+        if let Some(file_path) = self.pending_file_import.clone() {
+            if self.copy_datasets_to_local {
+                // Copy to local datasets folder
+                if let Some(dataset_folder) = &self.datasets_folder {
+                    self.process_selected_file(file_path.clone(), dataset_folder.clone());
+                }
+            }
+        }
     }
     
     // Calculate desired window height based on dataset count
@@ -239,14 +245,10 @@ impl DatasetDetailOverlay {
         }
         
         if let Some(folder) = &self.datasets_folder {
-            // Store folder path for logging to avoid borrow issues
-            let folder_path = folder.to_string_lossy().to_string();
-            
             // Ensure the directory exists
             if !folder.exists() {
-                println!("DATASET DEBUG: Creating datasets folder: {}", folder_path);
                 if let Err(e) = std::fs::create_dir_all(folder) {
-                    println!("DATASET DEBUG: Error creating datasets folder: {}", e);
+                    println!("Error creating datasets folder: {}", e);
                     return;
                 }
             }
@@ -257,9 +259,7 @@ impl DatasetDetailOverlay {
             // Special case for the lego folder - check if it exists in the datasets folder
             let lego_folder = folder.join("lego");
             if lego_folder.exists() && lego_folder.is_dir() {
-                println!("DATASET DEBUG: Found lego folder, checking if it's a valid dataset");
                 if self.is_valid_dataset_folder(&lego_folder) || true { // Force include lego folder for debugging
-                    println!("DATASET DEBUG: Adding lego folder to datasets list");
                     if let Ok(metadata) = std::fs::metadata(&lego_folder) {
                         let size = self.get_folder_size(&lego_folder).unwrap_or(0);
                         self.datasets.push(DatasetEntry {
@@ -342,122 +342,32 @@ impl DatasetDetailOverlay {
                 self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
             }
             
-            println!("Loaded {} datasets from folder: {}", dataset_count, folder_path);
+            println!("Loaded {} datasets from folder: {}", dataset_count, folder.to_string_lossy());
         }
     }
     
     // Helper method to check if a folder is a valid dataset folder
     fn is_valid_dataset_folder(&self, folder_path: &PathBuf) -> bool {
-        println!("DATASET DEBUG: Checking if folder is a valid dataset: {}", folder_path.display());
-        
-        if let Ok(entries) = std::fs::read_dir(folder_path) {
-            // Look for common dataset files/folders
-            let mut has_images = false;
-            let mut has_metadata = false;
-            let mut has_colmap = false;
-            let mut found_files = Vec::new();
-            
-            // First, collect all entries for debugging
-            let all_entries: Vec<_> = entries.flatten().collect();
-            
-            // Log the folder contents for debugging
-            println!("DATASET DEBUG: Folder contains {} entries", all_entries.len());
-            
-            // Special case for the lego folder - check if this is the one we're looking for
-            let folder_name = folder_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            if folder_name.to_lowercase() == "lego" {
-                println!("DATASET DEBUG: Found lego folder, examining contents closely");
-                
-                // Print all entries for debugging
-                for entry in &all_entries {
-                    let path = entry.path();
-                    let filename = path.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
-                    println!("  - {}: {}", if path.is_dir() { "DIR" } else { "FILE" }, filename);
-                }
-            }
-            
-            for entry in &all_entries {
-                let path = entry.path();
-                let filename = path.file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
-                found_files.push(filename.clone());
-                
-                // Check for images folder or image files
-                if path.is_dir() {
-                    if filename == "images" || filename == "imgs" {
-                        has_images = true;
-                        println!("DATASET DEBUG: Found images folder: {}", path.display());
-                    } else if filename == "sparse" || filename == "colmap" {
-                        has_colmap = true;
-                        println!("DATASET DEBUG: Found colmap folder: {}", path.display());
-                    }
-                    
-                    // Check for nested images folder (common in some datasets)
-                    if let Ok(subentries) = std::fs::read_dir(&path) {
-                        for subentry in subentries.flatten() {
-                            let subpath = subentry.path();
-                            if subpath.is_dir() && subpath.file_name().map_or(false, |name| name == "images") {
-                                has_images = true;
-                                println!("DATASET DEBUG: Found nested images folder: {}", subpath.display());
-                            }
-                        }
-                    }
-                }
-                
-                // Check for image files directly in the folder
-                if path.is_file() {
-                    let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-                    if ext == "jpg" || ext == "png" || ext == "jpeg" {
-                        has_images = true;
-                        println!("DATASET DEBUG: Found image file: {}", path.display());
-                    }
-                    
-                    // Check for metadata files
-                    if filename.contains("cameras") || 
-                       filename.contains("points3D") || 
-                       filename.contains("metadata") || 
-                       filename.contains("transforms") ||
-                       filename.contains("poses") ||
-                       filename == "scene.json" {
-                        has_metadata = true;
-                        println!("DATASET DEBUG: Found metadata file: {}", path.display());
-                    }
-                }
-            }
-            
-            // Special case for lego dataset - if it has a transforms.json file, it's valid
-            if folder_name.to_lowercase() == "lego" && found_files.iter().any(|f| f == "transforms.json") {
-                println!("DATASET DEBUG: Lego dataset detected with transforms.json");
-                return true;
-            }
-            
-            // Early return if we found enough evidence
-            if (has_images && has_metadata) || (has_images && has_colmap) {
-                println!("DATASET DEBUG: Valid dataset folder detected: {}", folder_path.display());
-                return true;
-            }
-            
-            // If we have either strong indicators, consider it a dataset
-            let is_valid = has_images || has_metadata || has_colmap;
-            
-            // Debug output
-            if is_valid {
-                println!("DATASET DEBUG: Likely dataset folder detected: {}", folder_path.display());
-                println!("  - Has images: {}", has_images);
-                println!("  - Has metadata: {}", has_metadata);
-                println!("  - Has colmap: {}", has_colmap);
-            } else {
-                println!("DATASET DEBUG: Not a valid dataset folder: {}", folder_path.display());
-                println!("  - Has images: {}", has_images);
-                println!("  - Has metadata: {}", has_metadata);
-                println!("  - Has colmap: {}", has_colmap);
-                println!("  - Files found: {}", found_files.join(", "));
-            }
-            
-            return is_valid;
-        } else {
-            println!("DATASET DEBUG: Could not read directory: {}", folder_path.display());
-            false
+        // Check if the folder exists and is a directory
+        if !folder_path.exists() || !folder_path.is_dir() {
+            return false;
         }
+        
+        // Check for common dataset folder structures
+        let has_images = folder_path.join("images").exists() && folder_path.join("images").is_dir();
+        let has_colmap = folder_path.join("sparse").exists() && folder_path.join("sparse").is_dir();
+        let has_transforms = folder_path.join("transforms.json").exists();
+        
+        // Valid if it has images and either colmap or transforms.json
+        let is_valid = has_images && (has_colmap || has_transforms);
+        
+        if is_valid {
+            // This is a valid dataset folder
+            return true;
+        }
+        
+        // Not a valid dataset folder
+        false
     }
     
     // Function to check if the overlay wants to select a folder
@@ -491,6 +401,8 @@ impl DatasetDetailOverlay {
     pub(crate) fn cancel_file_selection(&mut self) {
         self.show_file_dialog = false;
         self.file_selection_in_progress = false;
+        // Clear any pending file import to be safe
+        self.pending_file_import = None;
     }
     
     // New method to check if we want to select a file
@@ -500,9 +412,8 @@ impl DatasetDetailOverlay {
     
     // New method to handle the selected file
     pub(crate) fn set_selected_file(&mut self, file_path: PathBuf) {
-        println!("DATASET DEBUG: Selected file: {:?}", file_path);
-        
-        // Cancel any pending file selection
+        // Reset all file selection flags
+        self.show_file_dialog = false;
         self.file_selection_in_progress = false;
         
         // Store the file path for processing
@@ -678,26 +589,20 @@ impl DatasetDetailOverlay {
     }
     
     pub(crate) fn is_open(&self) -> bool {
-        println!("DATASET DEBUG: is_open() called, returning: {}", self.open);
         self.open
     }
     
     pub(crate) fn set_open(&mut self, open: bool) {
-        println!("DATASET DEBUG: set_open({}) called, was: {}", open, self.open);
         self.open = open;
     }
     
     pub(crate) fn show(&mut self, ctx: &Context, context: &mut AppContext) {
-        println!("DATASET DEBUG: show() called, open state: {}", self.open);
-        
         if !self.open {
-            println!("DATASET DEBUG: Window is closed, returning early");
             return;
         }
         
         // Ensure we have a datasets folder set, use default if not
         if self.datasets_folder.is_none() {
-            println!("DATASET DEBUG: No datasets folder set, using default");
             self.datasets_folder = Some(Self::get_default_datasets_folder());
             
             // Setup the file watcher for the default folder
@@ -709,8 +614,6 @@ impl DatasetDetailOverlay {
         
         // Check if we have a pending file import
         if let Some(file_path) = self.pending_file_import.take() {
-            println!("DATASET DEBUG: Processing pending file import: {:?}", file_path);
-            
             if self.copy_datasets_to_local {
                 // Copy to local datasets folder
                 if let Some(folder) = &self.datasets_folder {
@@ -719,17 +622,20 @@ impl DatasetDetailOverlay {
             }
             
             // Always process the dataset directly, regardless of copy setting
-            println!("DATASET DEBUG: Processing dataset directly from source: {:?}", file_path);
             self.process_dataset(&file_path, context);
         }
         
         // Create a unique window ID - make it static to maintain window state
         let window_id = egui::Id::new("dataset_detail_window");
         
-        println!("DATASET DEBUG: Creating window with ID: {:?}", window_id);
-        
         // Track open state locally to avoid borrow issues
         let mut window_open = self.open;
+        
+        // Variables to track UI actions
+        let mut should_select_folder = false;
+        let mut should_refresh = false;
+        let mut should_add_dataset = false;
+        let mut dataset_to_process: Option<PathBuf> = None;
         
         // Create the window with absolutely minimal settings to allow full resizing freedom
         let window = egui::Window::new("Local Datasets") // Changed title to "Local Datasets"
@@ -740,224 +646,178 @@ impl DatasetDetailOverlay {
             .collapsible(false)
             .default_pos(self.position)
             .default_size(self.size)
-            .min_width(400.0)
-            .min_height(300.0); // Increased minimum height
-            
-        println!("DATASET DEBUG: Window configured, about to show");
+            .min_width(300.0) // Reduced minimum width
+            .min_height(300.0);
         
-        // Create a mutable copy of self.select_folder for the closure
-        let mut should_select_folder = false;
-        let mut should_refresh = false;
-        let mut should_add_dataset = false;
-        let mut dataset_to_process: Option<PathBuf> = None;
-        
+        // Show the window and get the response
         let response = window.show(ctx, |ui| {
-            println!("DATASET DEBUG: Inside window content closure");
+            // Get the actual window size for debugging
+            let _window_size = ui.available_size();
             
-            // Store the window position
-            self.position = ui.max_rect().left_top();
-            
-            // Get the actual window size and ALWAYS update it
-            let actual_size = ui.max_rect().size();
-            
-            // Debug log the actual window size
-            println!("WINDOW DEBUG: Actual size: {}x{}", actual_size.x, actual_size.y);
-            println!("WINDOW DEBUG: Available size: {}x{}", ui.available_width(), ui.available_height());
-            
-            // Store for next frame to detect changes - ALWAYS update
-            self.size = actual_size;
-            
-            // CRITICAL CHANGE: Use a main vertical layout for the entire window content
+            // Create a vertical layout for the entire window content
             ui.vertical(|ui| {
-                // Force UI to take all available space
-                ui.set_min_size(egui::vec2(ui.available_width(), ui.available_height()));
-                
-                // Use SidePanel for left side which handles resizing properly
-                egui::SidePanel::left("dataset_browser_panel")
-                    .resizable(true)
-                    .min_width(280.0)
-                    .default_width(300.0)
-                    .max_width(ui.available_width() * 0.8)
-                    .show_inside(ui, |ui| {
-                        // Force panel to use all available height
-                        ui.set_min_height(ui.available_height());
-                        println!("LAYOUT DEBUG: Left panel available height: {}", ui.available_height());
+                // Left panel with dataset list
+                ui.vertical(|ui| {
+                    // Add dataset section - MOVED TO TOP
+                    ui.heading("Add Datasets");
+                    ui.add_space(5.0);
+                    
+                    // Zip file selection
+                    ui.horizontal(|ui| {
+                        ui.label("Select a .zip file to add to your dataset collection.");
                         
-                        // Add dataset section - MOVED TO TOP
-                        ui.heading("Add Datasets");
-                        ui.add_space(5.0);
+                        // Always enable the Browse button
+                        if ui.button("Browse Zip").clicked() {
+                            should_add_dataset = true;
+                        }
+                    });
+                    
+                    // Folder selection
+                    ui.horizontal(|ui| {
+                        ui.label("Or select an existing dataset folder.");
                         
-                        // Zip file selection
+                        // Always enable the Browse Folder button
+                        if ui.button("Browse Folder").clicked() {
+                            self.select_dataset_folder();
+                        }
+                    });
+                    
+                    // Add checkbox for copying datasets
+                    ui.checkbox(&mut self.copy_datasets_to_local, "Copy datasets to local folder");
+                    ui.add_enabled_ui(!self.copy_datasets_to_local, |ui| {
+                        ui.label(RichText::new("Dataset will be processed directly from source location").italics().small());
+                    });
+                    
+                    // Show spinner when selecting a file
+                    if self.file_selection_in_progress {
                         ui.horizontal(|ui| {
-                            ui.label("Select a .zip file to add to your dataset collection.");
+                            ui.spinner();
+                            ui.label("Selecting file...");
+                        });
+                    }
+                    
+                    // Show spinner when selecting a folder
+                    if self.dataset_folder_selection_in_progress {
+                        ui.horizontal(|ui| {
+                            ui.spinner();
+                            ui.label("Selecting folder...");
+                        });
+                    }
+                    
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(10.0);
+                    
+                    // Local datasets section - MOVED AFTER ADD DATASETS
+                    ui.horizontal(|ui| {
+                        ui.heading("Local Datasets");
+                        
+                        // Add refresh button on the right
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            // Add refresh button
+                            let refresh_button = ui.small_button("🔄");
+                            if refresh_button.clicked() {
+                                should_refresh = true;
+                            }
                             
-                            // Always enable the Browse button
-                            if ui.button("Browse Zip").clicked() {
-                                should_add_dataset = true;
+                            // Tooltip for refresh button
+                            if refresh_button.hovered() {
+                                refresh_button.on_hover_text("Manually refresh dataset list");
                             }
                         });
+                    });
+                    
+                    // Show current folder in a compact display under header
+                    if let Some(folder) = &self.datasets_folder {
+                        // Clone the path to avoid borrow issues
+                        let folder_path = folder.to_string_lossy().to_string();
                         
-                        // Folder selection
                         ui.horizontal(|ui| {
-                            ui.label("Or select an existing dataset folder.");
+                            ui.style_mut().spacing.item_spacing = Vec2::new(4.0, 0.0);
+                            ui.label(RichText::new("📁").small());
                             
-                            // Always enable the Browse Folder button
-                            if ui.button("Browse Folder").clicked() {
-                                self.select_dataset_folder();
+                            // Make the path clickable to change the folder
+                            let path_label = ui.add(
+                                egui::Label::new(RichText::new(&folder_path).small().weak().underline())
+                                    .sense(egui::Sense::click())
+                            );
+                            
+                            if path_label.clicked() {
+                                should_select_folder = true;
+                            }
+                            
+                            if path_label.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                path_label.on_hover_text("Click to change datasets folder");
                             }
                         });
-                        
-                        // Add checkbox for copying datasets
-                        ui.checkbox(&mut self.copy_datasets_to_local, "Copy datasets to local folder");
-                        ui.add_enabled_ui(!self.copy_datasets_to_local, |ui| {
-                            ui.label(RichText::new("Dataset will be processed directly from source location").italics().small());
-                        });
-                        
-                        // Show spinner when selecting a file
-                        if self.file_selection_in_progress {
-                            ui.horizontal(|ui| {
-                                ui.spinner();
-                                ui.label("Selecting file...");
-                            });
-                        }
-                        
-                        // Show spinner when selecting a folder
-                        if self.dataset_folder_selection_in_progress {
-                            ui.horizontal(|ui| {
-                                ui.spinner();
-                                ui.label("Selecting folder...");
-                            });
-                        }
-                        
-                        ui.add_space(10.0);
-                        ui.separator();
-                        ui.add_space(10.0);
-                        
-                        // Local datasets section - MOVED AFTER ADD DATASETS
+                    } else {
                         ui.horizontal(|ui| {
-                            ui.heading("Local Datasets");
+                            ui.label(RichText::new("No datasets folder selected. ").italics().small().weak());
                             
-                            // Add refresh button on the right
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                // Add refresh button
-                                let refresh_button = ui.small_button("🔄");
-                                if refresh_button.clicked() {
-                                    should_refresh = true;
-                                }
-                                
-                                // Tooltip for refresh button
-                                if refresh_button.hovered() {
-                                    refresh_button.on_hover_text("Manually refresh dataset list");
-                                }
-                            });
+                            // Add a button to select a folder
+                            if ui.small_button("Select Folder").clicked() {
+                                should_select_folder = true;
+                            }
                         });
-                        
-                        // Show current folder in a compact display under header
-                        if let Some(folder) = &self.datasets_folder {
-                            // Clone the path to avoid borrow issues
-                            let folder_path = folder.to_string_lossy().to_string();
-                            
-                            ui.horizontal(|ui| {
-                                ui.style_mut().spacing.item_spacing = Vec2::new(4.0, 0.0);
-                                ui.label(RichText::new("📁").small());
-                                
-                                // Make the path clickable to change the folder
-                                let path_label = ui.add(
-                                    egui::Label::new(RichText::new(&folder_path).small().weak().underline())
-                                        .sense(egui::Sense::click())
-                                );
-                                
-                                if path_label.clicked() {
-                                    should_select_folder = true;
-                                }
-                                
-                                if path_label.hovered() {
-                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                    path_label.on_hover_text("Click to change datasets folder");
-                                }
-                            });
-                        } else {
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new("No datasets folder selected. ").italics().small().weak());
-                                
-                                // Add a button to select a folder
-                                if ui.small_button("Select Folder").clicked() {
-                                    should_select_folder = true;
-                                }
-                            });
-                        }
-                        
-                        if self.folder_selection_in_progress {
-                            ui.horizontal(|ui| {
-                                ui.spinner();
-                                ui.label("Selecting folder...");
-                            });
-                        }
-                        
-                        ui.add_space(5.0);
-                        
-                        // Show dataset count and filter options in a horizontal bar
+                    }
+                    
+                    if self.folder_selection_in_progress {
                         ui.horizontal(|ui| {
-                            // Dataset count
-                            let dataset_count_text = format!("{} datasets", self.datasets.len().max(0));
-                            ui.label(RichText::new(dataset_count_text).strong());
+                            ui.spinner();
+                            ui.label("Selecting folder...");
                         });
-                        
-                        // Get remaining height after UI elements above
-                        let remaining_height = ui.available_height();
-                        println!("LAYOUT DEBUG: Remaining height for dataset list: {}", remaining_height);
-                        
-                        // Create a scrollable area that fills the remaining space
-                        let dataset_area = egui::ScrollArea::vertical()
-                            .auto_shrink([false; 2]) // Don't shrink in either direction
-                            .show(ui, |ui| {
-                                // Special case for empty datasets
-                                if self.datasets.is_empty() {
-                                    ui.vertical_centered(|ui| {
-                                        ui.add_space(20.0);
-                                        ui.label("No datasets found");
-                                        
-                                        if let Some(_) = &self.datasets_folder {
-                                            ui.label("Add .zip files to your datasets folder");
-                                            if ui.button("Refresh List").clicked() {
-                                                should_refresh = true;
-                                            }
-                                        } else {
-                                            ui.label("Select a datasets folder to get started");
-                                            if ui.button("Select Folder").clicked() {
-                                                should_select_folder = true;
-                                            }
+                    }
+                    
+                    ui.add_space(5.0);
+                    
+                    // Show dataset count and filter options in a horizontal bar
+                    ui.horizontal(|ui| {
+                        // Dataset count
+                        let dataset_count_text = format!("{} datasets", self.datasets.len().max(0));
+                        ui.label(RichText::new(dataset_count_text).strong());
+                    });
+                    
+                    // Get remaining height after UI elements above
+                    let _remaining_height = ui.available_height();
+                    
+                    // Create a scrollable area that fills the remaining space
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false; 2]) // Don't shrink in either direction
+                        .show(ui, |ui| {
+                            // Special case for empty datasets
+                            if self.datasets.is_empty() {
+                                ui.vertical_centered(|ui| {
+                                    ui.add_space(20.0);
+                                    ui.label("No datasets found");
+                                    
+                                    if let Some(_) = &self.datasets_folder {
+                                        ui.label("Add .zip files to your datasets folder");
+                                        if ui.button("Refresh List").clicked() {
+                                            should_refresh = true;
                                         }
-                                        ui.add_space(20.0);
-                                    });
-                                } else {
-                                    // Draw the dataset list with a closure that can capture dataset_to_process
-                                    self.draw_dataset_list(ui, &mut dataset_to_process);
-                                }
-                            });
-                        
-                        // Log the actual size of the dataset area for debugging
-                        println!("LAYOUT DEBUG: Dataset area size: {}x{}", 
-                            dataset_area.inner_rect.width(), 
-                            dataset_area.inner_rect.height());
-                    });
-                
-                // Right panel for dataset detail view (if any)
-                if let Some(_selected_path) = &self.selected_dataset {
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
-                        ui.heading("Dataset Details");
-                        // Dataset details would go here
-                    });
-                }
+                                    } else {
+                                        ui.label("Select a datasets folder to get started");
+                                        if ui.button("Select Folder").clicked() {
+                                            should_select_folder = true;
+                                        }
+                                    }
+                                    ui.add_space(20.0);
+                                });
+                            } else {
+                                // Draw the dataset list with a closure that can capture dataset_to_process
+                                self.draw_dataset_list(ui, &mut dataset_to_process);
+                            }
+                        });
+                });
             });
             
-            // Return close button state - no longer needed since we removed the button
-            false
+            // Return the dataset to process (if any)
+            dataset_to_process
         });
         
         // Update self.open based on window_open
         if self.open != window_open {
-            println!("DATASET DEBUG: Window open state changed: {} -> {}", self.open, window_open);
             self.open = window_open;
         }
         
@@ -977,28 +837,17 @@ impl DatasetDetailOverlay {
         }
         
         // If a dataset was selected for processing, process it
-        if let Some(dataset_path) = dataset_to_process {
-            self.process_dataset(&dataset_path, context);
-            
-            // Refresh the dataset list after processing to show any newly extracted folders
-            self.refresh_datasets();
-        }
-        
-        // Log window response
-        if let Some(inner_response) = &response {
-            println!("DATASET DEBUG: Window response rect: {:?}", inner_response.response.rect);
-            println!("DATASET DEBUG: Window inner: {:?}", inner_response.inner);
+        if let Some(inner_response) = response {
+            if let Some(Some(dataset_path)) = inner_response.inner {
+                self.process_dataset(&dataset_path, context);
+                
+                // Refresh the dataset list after processing to show any newly extracted folders
+                self.refresh_datasets();
+            }
             
             // Store window size for next frame
             self.size = inner_response.response.rect.size();
-        } else {
-            println!("DATASET DEBUG: Window response is None (window was closed)");
-            // Window was closed if no response
-            self.open = false;
         }
-        
-        // Store the current size for the next frame to detect changes
-        self.prev_size = self.size;
     }
 
     // Helper method to draw the dataset list - updated to accept a mutable reference to dataset_to_process
@@ -1158,47 +1007,44 @@ impl DatasetDetailOverlay {
 
     // New method to process a dataset file
     pub(crate) fn process_dataset(&self, dataset_path: &PathBuf, context: &mut AppContext) {
-        println!("DATASET DEBUG: Processing dataset: {}", dataset_path.display());
-        
-        // Check if this is a zip file that needs to be extracted
-        let is_zip = dataset_path.is_file() && dataset_path.extension().map_or(false, |ext| ext == "zip");
-        
-        if is_zip {
-            // For zip files, we need to extract them first
-            println!("DATASET DEBUG: Dataset is a zip file, extracting first");
+        // Check if the dataset path is a zip file
+        if dataset_path.extension().map_or(false, |ext| ext == "zip") {
+            // Create a folder name from the zip file name
+            let folder_name = dataset_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
             
-            // Get the datasets folder
-            if let Some(datasets_folder) = &self.datasets_folder {
-                // Create a folder name from the zip file name (without extension)
-                let folder_name = dataset_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-                let extract_folder = datasets_folder.join(&folder_name);
-                
-                // Extract the zip file if needed
-                if !extract_folder.exists() || extract_folder.read_dir().map_or(true, |mut d| d.next().is_none()) {
-                    // Folder doesn't exist or is empty, extract the zip
-                    println!("DATASET DEBUG: Extracting zip to folder: {}", extract_folder.display());
-                    
-                    match self.extract_zip_file(dataset_path, &extract_folder) {
-                        Ok(_) => {
-                            println!("DATASET DEBUG: Extraction successful, processing extracted folder");
-                            // Process the extracted folder
-                            self.process_extracted_dataset(&extract_folder, context);
-                        }
-                        Err(e) => {
-                            println!("DATASET DEBUG: Extraction failed: {}", e);
-                            // Fall back to processing the zip directly
-                            self.process_dataset_direct(dataset_path, context);
-                        }
-                    }
-                } else {
-                    // Folder already exists and has content, use it
-                    println!("DATASET DEBUG: Using existing extracted folder: {}", extract_folder.display());
-                    self.process_extracted_dataset(&extract_folder, context);
-                }
+            // Create a folder path in the same directory as the zip file
+            let parent_dir = dataset_path.parent().unwrap_or_else(|| Path::new("."));
+            let folder_path = parent_dir.join(&folder_name);
+            
+            // Check if the folder already exists and has content
+            let folder_exists = folder_path.exists() && folder_path.is_dir();
+            let folder_has_content = folder_exists && 
+                std::fs::read_dir(&folder_path).map(|mut d| d.next().is_some()).unwrap_or(false);
+            
+            if folder_exists && folder_has_content {
+                // Folder exists and has content, use it directly
+                self.process_extracted_dataset(&folder_path, context);
             } else {
-                // No datasets folder, process the zip directly
-                println!("DATASET DEBUG: No datasets folder, processing zip directly");
-                self.process_dataset_direct(dataset_path, context);
+                // Folder doesn't exist or is empty, extract the zip file
+                if !folder_exists {
+                    if let Err(e) = std::fs::create_dir_all(&folder_path) {
+                        println!("Error creating folder for zip extraction: {}", e);
+                        return;
+                    }
+                }
+                
+                // Extract the zip file
+                match self.extract_zip_file(dataset_path, &folder_path) {
+                    Ok(_) => {
+                        // Process the extracted dataset
+                        self.process_extracted_dataset(&folder_path, context);
+                    }
+                    Err(e) => {
+                        println!("Error extracting zip file: {}", e);
+                        // Fall back to processing the zip directly
+                        self.process_dataset_direct(dataset_path, context);
+                    }
+                }
             }
         } else {
             // Not a zip file, process directly
@@ -1340,6 +1186,7 @@ impl DatasetDetailOverlay {
     
     pub(crate) fn cancel_dataset_folder_selection(&mut self) {
         self.dataset_folder_selection_in_progress = false;
+        self.show_dataset_folder_dialog = false;
     }
     
     // Method to request dataset folder selection
@@ -1349,40 +1196,51 @@ impl DatasetDetailOverlay {
     
     // Method to handle the selected dataset folder
     pub(crate) fn set_selected_dataset_folder(&mut self, folder_path: PathBuf) {
-        println!("DATASET DEBUG: Selected dataset folder: {:?}", folder_path);
-        
         // Reset selection flags
         self.dataset_folder_selection_in_progress = false;
+        self.show_dataset_folder_dialog = false;
+        
+        // Store the original path for processing
+        let original_path = folder_path.clone();
         
         // Process the folder based on the copy preference
         if self.copy_datasets_to_local {
             // Copy to local datasets folder
-            if let Some(dataset_folder) = &self.datasets_folder {
-                self.process_selected_dataset_folder(folder_path, dataset_folder.clone());
+            if let Some(dataset_folder) = self.datasets_folder.clone() {
+                // Get the folder name
+                let folder_name = original_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                
+                // Create the destination folder path
+                let dest_folder = dataset_folder.join(&folder_name);
+                
+                // Process the folder (copy it to the datasets folder)
+                self.process_selected_dataset_folder(folder_path, dataset_folder);
+                
+                // Refresh the dataset list to show the new folder
+                self.refresh_datasets();
+                
+                // Store the destination path for processing
+                self.pending_file_import = Some(dest_folder);
             } else {
                 // No dataset folder selected, so we need to select one first
-                println!("DATASET DEBUG: No dataset folder selected, prompting user to select one");
-                
                 // Store the folder path for later processing
-                self.pending_file_import = Some(folder_path);
+                self.pending_file_import = Some(original_path);
                 
                 // Prompt the user to select a folder
                 self.select_folder();
             }
         } else {
             // Process directly without copying
-            println!("DATASET DEBUG: Processing dataset folder directly from source: {:?}", folder_path);
-            
             // Get the folder name
-            let folder_name = folder_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let folder_name = original_path.file_name().unwrap_or_default().to_string_lossy().to_string();
             
             // Add the folder to our list if it's not already there
-            let already_in_list = self.datasets.iter().any(|d| d.path == folder_path);
+            let already_in_list = self.datasets.iter().any(|d| d.path == original_path);
             if !already_in_list {
-                if let Ok(size) = self.get_folder_size(&folder_path) {
+                if let Ok(size) = self.get_folder_size(&original_path) {
                     self.datasets.push(DatasetEntry {
                         name: folder_name,
-                        path: folder_path.clone(),
+                        path: original_path.clone(),
                         size,
                         modified: SystemTime::now(),
                         processed: false,
@@ -1393,12 +1251,12 @@ impl DatasetDetailOverlay {
                 }
             }
             
-            // Store the folder path for processing when show() is called with AppContext
-            self.pending_file_import = Some(folder_path);
-            
-            // Make sure the window is open to show progress
-            self.open = true;
+            // Store the folder path for processing
+            self.pending_file_import = Some(original_path);
         }
+        
+        // Make sure the window is open to show progress
+        self.open = true;
     }
     
     // Helper method to process a selected dataset folder
@@ -1411,8 +1269,6 @@ impl DatasetDetailOverlay {
         
         // Check if the folder already exists
         if dest_folder.exists() {
-            println!("DATASET DEBUG: Destination folder already exists: {:?}", dest_folder);
-            
             // For now, just use the existing folder
             // In the future, we'll handle naming conflicts here
             
@@ -1437,8 +1293,6 @@ impl DatasetDetailOverlay {
             // Copy the folder to the destination
             match self.copy_folder(&folder_path, &dest_folder) {
                 Ok(_) => {
-                    println!("DATASET DEBUG: Copied folder to datasets folder: {:?}", dest_folder);
-                    
                     // Calculate the folder size
                     if let Ok(size) = self.get_folder_size(&dest_folder) {
                         // Add the folder to the list
@@ -1455,7 +1309,7 @@ impl DatasetDetailOverlay {
                     }
                 }
                 Err(err) => {
-                    println!("DATASET DEBUG: Failed to copy folder: {}", err);
+                    println!("Failed to copy folder: {}", err);
                 }
             }
         }
@@ -1469,8 +1323,6 @@ impl DatasetDetailOverlay {
         
         // Only setup watcher if we have a datasets folder
         if let Some(folder) = &self.datasets_folder {
-            println!("DATASET DEBUG: Setting up file watcher for folder: {:?}", folder);
-            
             // Create a channel to receive file system events
             let (tx, rx) = channel();
             self.file_watcher_receiver = Some(rx);
@@ -1480,13 +1332,12 @@ impl DatasetDetailOverlay {
                 Ok(mut watcher) => {
                     // Watch the datasets folder recursively
                     if let Err(e) = watcher.watch(folder, RecursiveMode::Recursive) {
-                        println!("DATASET DEBUG: Error watching folder: {:?}", e);
+                        println!("Error watching folder: {:?}", e);
                     } else {
-                        println!("DATASET DEBUG: File watcher setup successfully");
                         self.file_watcher = Some(Box::new(watcher));
                     }
                 }
-                Err(e) => println!("DATASET DEBUG: Error creating watcher: {:?}", e),
+                Err(e) => println!("Error creating watcher: {:?}", e),
             }
         }
     }
@@ -1500,17 +1351,15 @@ impl DatasetDetailOverlay {
             // Process all pending events
             while let Ok(event) = rx.try_recv() {
                 match event {
-                    Ok(event) => {
-                        println!("DATASET DEBUG: File system event: {:?}", event);
+                    Ok(_) => {
                         should_refresh = true;
                     }
-                    Err(e) => println!("DATASET DEBUG: Watch error: {:?}", e),
+                    Err(e) => println!("Watch error: {:?}", e),
                 }
             }
             
             // Refresh datasets if changes were detected
             if should_refresh {
-                println!("DATASET DEBUG: Refreshing datasets due to file system changes");
                 self.refresh_datasets();
             }
         }
@@ -1521,9 +1370,8 @@ impl DatasetDetailOverlay {
         if let Some(folder) = &self.datasets_folder {
             // Check if the folder exists
             if !folder.exists() {
-                println!("DATASET DEBUG: Creating datasets folder: {}", folder.to_string_lossy());
                 if let Err(e) = std::fs::create_dir_all(folder) {
-                    println!("DATASET DEBUG: Error creating datasets folder: {}", e);
+                    println!("Error creating datasets folder: {}", e);
                     return;
                 }
             }
