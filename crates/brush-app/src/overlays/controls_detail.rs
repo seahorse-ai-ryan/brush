@@ -19,7 +19,7 @@ impl ControlsDetailOverlay {
             // UI state
             open: false, // Start with window closed
             position: pos2(300.0, 300.0),
-            size: Vec2::new(300.0, 200.0), // Compact size for controls
+            size: Vec2::new(220.0, 100.0), // Smaller height for controls
             
             // Control state
             paused: false,
@@ -55,8 +55,8 @@ impl ControlsDetailOverlay {
             .collapsible(true)
             .default_pos(self.position)
             .default_size(self.size)
-            .min_width(250.0)
-            .min_height(150.0);
+            .min_width(180.0)
+            .min_height(80.0);
         
         // Show the window and get the response
         let response = window.show(ctx, |ui| {
@@ -82,7 +82,7 @@ impl ControlsDetailOverlay {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
                     
                     if context.training() {
                         ui.horizontal(|ui| {
@@ -97,12 +97,12 @@ impl ControlsDetailOverlay {
                                 context.control_message(ControlMessage::Paused(self.paused));
                             }
                             
-                            ui.add_space(15.0);
+                            ui.add_space(8.0);
                             
                             ui.scope(|ui| {
                                 ui.style_mut().visuals.selection.bg_fill = Color32::DARK_RED;
                                 if ui
-                                    .selectable_label(self.live_update, "🔴 Live update splats")
+                                    .selectable_label(self.live_update, "🔴 Live update")
                                     .clicked()
                                 {
                                     self.live_update = !self.live_update;
@@ -113,40 +113,59 @@ impl ControlsDetailOverlay {
                             });
                         });
                         
-                        ui.add_space(10.0);
+                        ui.add_space(5.0);
                         
-                        let export_button = ui.button("⬆ Export");
-                        if export_button.clicked() {
-                            // Call the export_splats method on the AppContext
-                            context.export_splats();
-                        }
-                        
-                        if export_button.hovered() {
-                            export_button.on_hover_text("Export the current 3D model to a PLY file");
-                        }
-                    } else {
-                        ui.label("No active training session.");
-                    }
-                    
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.add_space(10.0);
-                    
-                    // Replace the Navigation Controls button with a question mark icon
-                    let help_button = ui.button("❓");
-                    if help_button.hovered() {
-                        help_button.on_hover_ui(|ui| {
-                            ui.heading("Navigation Controls");
+                        ui.horizontal(|ui| {
+                            let export_button = ui.button("⬆ Export");
+                            if export_button.clicked() {
+                                // Call the export_splats method on the AppContext
+                                context.export_splats();
+                            }
+                            
+                            if export_button.hovered() {
+                                export_button.on_hover_text("Export the current 3D model to a PLY file");
+                            }
+                            
                             ui.add_space(5.0);
                             
-                            ui.label("• Left click and drag to orbit");
-                            ui.label("• Right click, or left click + spacebar, and drag to look around");
-                            ui.label("• Middle click, or left click + control, and drag to pan");
-                            ui.label("• Scroll to zoom");
-                            ui.label("• WASD to fly, Q&E to move up & down");
-                            ui.label("• Z&C to roll, X to reset roll");
-                            ui.label("• Shift to move faster");
+                            // Replace the Navigation Controls button with a question mark icon
+                            let help_button = ui.button("❓");
+                            if help_button.hovered() {
+                                help_button.on_hover_ui(|ui| {
+                                    ui.heading("Navigation Controls");
+                                    ui.add_space(5.0);
+                                    
+                                    ui.label("• Left click and drag to orbit");
+                                    ui.label("• Right click, or left click + spacebar, and drag to look around");
+                                    ui.label("• Middle click, or left click + control, and drag to pan");
+                                    ui.label("• Scroll to zoom");
+                                    ui.label("• WASD to fly, Q&E to move up & down");
+                                    ui.label("• Z&C to roll, X to reset roll");
+                                    ui.label("• Shift to move faster");
+                                });
+                            }
                         });
+                    } else {
+                        ui.label("No active training session.");
+                        
+                        ui.add_space(5.0);
+                        
+                        // Help button for non-training state
+                        let help_button = ui.button("❓");
+                        if help_button.hovered() {
+                            help_button.on_hover_ui(|ui| {
+                                ui.heading("Navigation Controls");
+                                ui.add_space(5.0);
+                                
+                                ui.label("• Left click and drag to orbit");
+                                ui.label("• Right click, or left click + spacebar, and drag to look around");
+                                ui.label("• Middle click, or left click + control, and drag to pan");
+                                ui.label("• Scroll to zoom");
+                                ui.label("• WASD to fly, Q&E to move up & down");
+                                ui.label("• Z&C to roll, X to reset roll");
+                                ui.label("• Shift to move faster");
+                            });
+                        }
                     }
                 });
         });
@@ -173,6 +192,11 @@ impl ControlsDetailOverlay {
     
     pub(crate) fn set_paused(&mut self, paused: bool) {
         self.paused = paused;
+    }
+    
+    /// Set the position of the Controls overlay
+    pub(crate) fn set_position(&mut self, position: Pos2) {
+        self.position = position;
     }
     
     /// Reset the Controls overlay state when a new dataset is loaded

@@ -51,7 +51,7 @@ impl StatsDetailOverlay {
             // UI state
             open: false, // Start with window closed
             position: pos2(250.0, 250.0),
-            size: Vec2::new(300.0, 480.0), // Reduced width to better fit content
+            size: Vec2::new(210.0, 336.0), // Reduced size by 30% (from 300x480 to 210x336)
         }
     }
     
@@ -61,6 +61,11 @@ impl StatsDetailOverlay {
     
     pub(crate) fn set_open(&mut self, open: bool) {
         self.open = open;
+    }
+    
+    /// Set the position of the overlay
+    pub(crate) fn set_position(&mut self, position: Pos2) {
+        self.position = position;
     }
     
     pub(crate) fn on_message(&mut self, message: &ProcessMessage) {
@@ -151,8 +156,8 @@ impl StatsDetailOverlay {
             .collapsible(true)
             .default_pos(self.position)
             .default_size(self.size)
-            .min_width(300.0)
-            .min_height(300.0);
+            .min_width(180.0)
+            .min_height(200.0);
         
         // Show the window and get the response
         let response = window.show(ctx, |ui| {

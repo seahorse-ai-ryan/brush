@@ -109,14 +109,14 @@ impl DatasetDetailOverlay {
             // UI state
             open: false, // Start with window closed
             position: pos2(100.0, 100.0),
-            size: Vec2::new(600.0, 400.0), // Further reduced height to fit on screen better
+            size: Vec2::new(420.0, 400.0), // Reduced width by 30% (from 600 to 420)
             
             // For dynamic sizing
             last_table_height: 150.0, // Reduced table height
             auto_open_done: false,
             height_changed: false,
             last_dataset_count: 0,
-            prev_size: Vec2::new(600.0, 400.0), // Match the default size
+            prev_size: Vec2::new(420.0, 400.0), // Match the default size
             pending_file_import: None,
             
             // File system watcher
@@ -594,6 +594,11 @@ impl DatasetDetailOverlay {
     
     pub(crate) fn set_open(&mut self, open: bool) {
         self.open = open;
+    }
+    
+    /// Set the position of the overlay
+    pub(crate) fn set_position(&mut self, position: Pos2) {
+        self.position = position;
     }
     
     pub(crate) fn show(&mut self, ctx: &Context, context: &mut AppContext) {

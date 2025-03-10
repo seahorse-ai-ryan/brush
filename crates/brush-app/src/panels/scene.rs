@@ -43,7 +43,7 @@ pub(crate) struct ScenePanel {
     frame: f32,
 
     // Ui state.
-    live_update: bool,
+    pub(crate) live_update: bool,
     paused: bool,
     err: Option<ErrorDisplay>,
     zen: bool,
@@ -166,11 +166,24 @@ impl ScenePanel {
             });
         }
     }
+
+    /// Get the current splats for export
+    pub(crate) fn get_current_splats(&self) -> Option<&Splats<<TrainBack as AutodiffBackend>::InnerBackend>> {
+        if self.view_splats.is_empty() {
+            None
+        } else {
+            // Get the last frame
+            let frame = (self.frame * 24.0)
+                .rem_euclid(self.frame_count as f32)
+                .floor() as usize;
+            self.view_splats.get(frame)
+        }
+    }
 }
 
 impl AppPanel for ScenePanel {
     fn title(&self) -> String {
-        "Scene".to_owned()
+        "".to_owned()
     }
 
     fn on_message(&mut self, message: &ProcessMessage, context: &mut AppContext) {
@@ -226,8 +239,24 @@ impl AppPanel for ScenePanel {
 
     fn ui(&mut self, ui: &mut egui::Ui, context: &mut AppContext) {
         let cur_time = Instant::now();
-
         self.last_draw = Some(cur_time);
+
+        // Debug: Show the available space in the panel
+        let available_rect = ui.available_rect_before_wrap();
+        ui.painter().rect_filled(
+            available_rect,
+            0.0,
+            Color32::from_rgba_premultiplied(255, 0, 0, 10) // Very transparent red
+        );
+        
+        // Debug: Add text showing dimensions
+        ui.painter().text(
+            available_rect.left_bottom() + egui::vec2(5.0, -5.0),
+            egui::Align2::LEFT_BOTTOM,
+            format!("Available: {}x{}", available_rect.width(), available_rect.height()),
+            egui::FontId::proportional(10.0),
+            Color32::RED
+        );
 
         // Empty scene, nothing to show.
         if !context.training() && self.view_splats.is_empty() && self.err.is_none() && !self.zen {
@@ -309,91 +338,25 @@ For bigger training runs consider using the native app."#,
                     self.paused = !self.paused;
                 }
             }
-
-            ui.horizontal(|ui| {
-                if context.loading() {
-                    ui.horizontal(|ui| {
-                        ui.label("Loading... Please wait.");
-                        ui.spinner();
-                    });
-                }
-
-                if context.training() {
-                    ui.add_space(15.0);
-
-                    let label = if self.paused {
-                        "⏸ paused"
-                    } else {
-                        "⏵ training"
-                    };
-
-                    if ui.selectable_label(!self.paused, label).clicked() {
-                        self.paused = !self.paused;
-                        context.control_message(ControlMessage::Paused(self.paused));
-                    }
-
-                    ui.add_space(15.0);
-
-                    ui.scope(|ui| {
-                        ui.style_mut().visuals.selection.bg_fill = Color32::DARK_RED;
-                        if ui
-                            .selectable_label(self.live_update, "🔴 Live update splats")
-                            .clicked()
-                        {
-                            self.live_update = !self.live_update;
-                        }
-                    });
-
-                    ui.add_space(15.0);
-
-                    if ui.button("⬆ Export").clicked() {
-                        let splats = splats.clone();
-
-                        let fut = async move {
-                            let file = rrfd::save_file("export.ply").await;
-
-                            // Not sure where/how to show this error if any.
-                            match file {
-                                Err(e) => {
-                                    log::error!("Failed to save file: {e}");
-                                }
-                                Ok(file) => {
-                                    let data = splat_export::splat_to_ply(splats).await;
-
-                                    let data = match data {
-                                        Ok(data) => data,
-                                        Err(e) => {
-                                            log::error!("Failed to serialize file: {e}");
-                                            return;
-                                        }
-                                    };
-
-                                    if let Err(e) = file.write(&data).await {
-                                        log::error!("Failed to write file: {e}");
-                                    }
-                                }
-                            }
-                        };
-
-                        tokio_wasm::task::spawn(fut);
-                    }
-                }
-
-                ui.selectable_label(false, "Controls")
-                    .on_hover_ui_at_pointer(|ui| {
-                        ui.heading("Controls");
-
-                        ui.label("• Left click and drag to orbit");
-                        ui.label(
-                            "• Right click, or left click + spacebar, and drag to look around.",
-                        );
-                        ui.label("• Middle click, or left click + control, and drag to pan");
-                        ui.label("• Scroll to zoom");
-                        ui.label("• WASD to fly, Q&E to move up & down.");
-                        ui.label("• Z&C to roll, X to reset roll");
-                        ui.label("• Shift to move faster");
-                    });
-            });
+        }
+        
+        // Debug: Show the remaining space at the end of the panel
+        let remaining_rect = ui.available_rect_before_wrap();
+        ui.painter().rect_filled(
+            remaining_rect,
+            0.0,
+            Color32::from_rgba_premultiplied(0, 0, 255, 10) // Very transparent blue
+        );
+        
+        // Debug: Add text showing dimensions
+        if remaining_rect.height() > 0.0 {
+            ui.painter().text(
+                remaining_rect.left_top() + egui::vec2(5.0, 15.0),
+                egui::Align2::LEFT_TOP,
+                format!("Remaining: {}x{}", remaining_rect.width(), remaining_rect.height()),
+                egui::FontId::proportional(10.0),
+                Color32::BLUE
+            );
         }
     }
 
