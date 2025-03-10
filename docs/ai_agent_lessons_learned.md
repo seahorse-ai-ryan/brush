@@ -57,6 +57,97 @@ files_affected: ["path/to/file1.rs", "path/to/file2.rs"]
 <!-- ENTRIES START -->
 
 ---
+timestamp: "2024-05-26 15:30:00 UTC"
+agent: "Claude 3.7 Sonnet"
+issue_category: ["UI", "egui", "window management", "state persistence"]
+files_affected: [
+  "crates/brush-app/src/overlays/dataset_detail.rs", 
+  "crates/brush-app/src/overlays/settings_detail.rs", 
+  "crates/brush-app/src/overlays/stats_detail.rs", 
+  "crates/brush-app/src/app.rs",
+  "crates/brush-cli/src/lib.rs"
+]
+---
+
+### Issue: Window resizability issues and inefficient approach to resetting window sizes
+
+**Context**: The application had multiple overlay windows (Datasets, Settings, Stats) that weren't properly resizable, and we needed to implement a way to reset window sizes to their defaults.
+
+**Error Symptoms**: 
+- Windows could only be partially resized or not at all
+- Initial approach to reset window sizes involved creating duplicate constructors (`new_with_default_size()`) for each overlay
+- Window content didn't properly adapt to window size changes
+- Some windows appeared too tall and went off-screen
+
+**Root Cause**: 
+1. Egui windows weren't properly configured to allow full resizability
+2. Content within windows wasn't properly adapting to available space
+3. Window state persistence was handled by egui's built-in memory system, but we weren't leveraging it correctly
+
+**Solution**: 
+1. Properly configure window content to fill available space:
+```rust
+// Show the window and get the response
+let response = window.show(ctx, |ui| {
+    // Set content to fill available space
+    ui.set_width(ui.available_width());
+    ui.set_height(ui.available_height());
+    
+    // Use ScrollArea that adapts to available space
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show_viewport(ui, |ui, _viewport| {
+            // Window content here
+        });
+});
+```
+
+2. Use egui's memory system to reset window states instead of duplicate constructors:
+```rust
+// In App constructor
+if reset_windows {
+    cc.egui_ctx.memory_mut(|mem| {
+        mem.data.clear();
+    });
+}
+```
+
+3. Add a CLI flag to trigger window reset:
+```rust
+// In CLI struct
+/// Reset all window sizes and positions to their default values
+#[arg(long, help = "Reset all window sizes and positions to their default values")]
+pub reset_windows: bool,
+```
+
+**Better Approach**: 
+- From the beginning, understand that egui handles window state persistence automatically
+- Design window content to adapt to available space using proper layout techniques
+- Use egui's memory system for state management rather than creating custom solutions
+
+**Generalizable Lesson**: 
+1. When working with egui windows, ensure content adapts to available space:
+   - Use `ui.set_width(ui.available_width())` and `ui.set_height(ui.available_height())` to fill space
+   - Use `ScrollArea` with `.auto_shrink([false, false])` to prevent content from collapsing
+   - Ensure nested layouts properly propagate size constraints
+
+2. For state persistence and reset:
+   - Egui automatically persists window positions and sizes in its memory system
+   - To reset all window states, clear the memory with `ctx.memory_mut(|mem| { mem.data.clear(); })`
+   - Avoid creating duplicate constructors or complex reset mechanisms
+
+3. For proper window configuration:
+   - Use `.resizable(true)` to make windows resizable
+   - Set reasonable `.min_width()` and `.min_height()` values
+   - Use `.default_size()` to set initial size
+   - Consider `.default_pos()` to set initial position
+
+4. When adding CLI options:
+   - Use clap's `#[arg]` attributes for clear documentation
+   - Pass CLI options through the application initialization chain
+   - Consider how CLI options interact with persistent state
+
+---
 timestamp: "2024-05-25 19:00:00 UTC"
 agent: "Claude 3.7 Sonnet"
 issue_category: ["types", "UI", "debugging", "egui"]
