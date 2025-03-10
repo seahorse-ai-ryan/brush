@@ -95,11 +95,11 @@ impl DatasetDetailOverlay {
             datasets: Vec::new(),
             show_folder_dialog: false,
             folder_selection_in_progress: false,
-            show_file_dialog: false,        // New field for file selection
-            file_selection_in_progress: false, // New field for file selection
-            copy_datasets_to_local: true,  // New field for dataset copy preference
-            show_dataset_folder_dialog: false, // New field for dataset folder selection
-            dataset_folder_selection_in_progress: false, // New field for dataset folder selection
+            show_file_dialog: false,
+            file_selection_in_progress: false,
+            copy_datasets_to_local: true,
+            show_dataset_folder_dialog: false,
+            dataset_folder_selection_in_progress: false,
             
             // Detail view fields
             view_type: ViewType::Train,
@@ -651,16 +651,11 @@ impl DatasetDetailOverlay {
         
         // Show the window and get the response
         let response = window.show(ctx, |ui| {
-            // Set a specific size for the content to ensure the window is resizable
-            let available_size = ui.available_size();
-            ui.set_max_width(available_size.x);
-            ui.set_max_height(available_size.y);
-            
-            // Get the actual window size for debugging
-            let _window_size = ui.available_size();
-            
-            // Create a vertical layout for the entire window content
+            // Create a vertical layout that fills the available space
             ui.vertical(|ui| {
+                ui.set_width(ui.available_width());
+                ui.set_height(ui.available_height());
+                
                 // Left panel with dataset list
                 ui.vertical(|ui| {
                     // Add dataset section - MOVED TO TOP
@@ -821,9 +816,9 @@ impl DatasetDetailOverlay {
                     ui.separator();
                     ui.add_space(5.0);
                     
-                    // Collapsible presets section - default to open
-                    let presets_header = egui::CollapsingHeader::new("Presets")
-                        .default_open(true) // Open by default
+                    // Collapsible example datasets section - default to collapsed
+                    let presets_header = egui::CollapsingHeader::new("Example datasets")
+                        .default_open(false) // Collapsed by default
                         .show(ui, |ui| {
                         // Mipnerf scenes section
                         ui.heading("Mipnerf scenes");
@@ -957,28 +952,12 @@ impl DatasetDetailOverlay {
             // Main dataset row
             let response = frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    // Status indicator for dataset processing state
-                    let status_color = if dataset.processed { 
-                        Color32::GREEN 
-                    } else { 
-                        Color32::from_rgb(140, 140, 140)
-                    };
-                    
-                    let (status_icon, status_text) = if dataset.processed {
-                        ("✓", "Processed")
-                    } else {
-                        ("●", "Ready")
-                    };
-                    
                     // Determine if this is a folder or zip file
                     let is_folder = dataset.path.is_dir();
                     let type_icon = if is_folder { "📁" } else { "🗄️" };
                     
                     // Show type icon first
                     ui.label(RichText::new(type_icon).size(text_size));
-                    
-                    // Then status indicator
-                    ui.label(RichText::new(status_icon).color(status_color).size(text_size));
                     
                     // Dataset details in vertical layout
                     ui.vertical(|ui| {
@@ -1001,7 +980,15 @@ impl DatasetDetailOverlay {
                             // Show dataset type
                             let type_text = if is_folder { "Folder" } else { "Zip" };
                             ui.label(RichText::new(type_text).small().weak());
+                            
+                            // Show processing status
                             ui.label(RichText::new("•").small().weak());
+                            let status_color = if dataset.processed { 
+                                Color32::GREEN 
+                            } else { 
+                                Color32::from_rgb(140, 140, 140)
+                            };
+                            let status_text = if dataset.processed { "Processed" } else { "Ready" };
                             
                             // Only show status text in wide layouts
                             if is_wide_layout {

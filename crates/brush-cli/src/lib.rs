@@ -25,6 +25,10 @@ pub struct Cli {
     )]
     pub with_viewer: bool,
 
+    /// Reset all window sizes and positions to their default values
+    #[arg(long, help = "Reset all window sizes and positions to their default values")]
+    pub reset_windows: bool,
+
     #[clap(flatten)]
     pub process: ProcessArgs,
 }

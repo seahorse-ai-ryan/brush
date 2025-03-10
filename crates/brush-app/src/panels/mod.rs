@@ -1,15 +1,14 @@
 mod datasets;
-mod settings;
-
-mod presets;
 mod scene;
-mod stats;
+#[cfg(feature = "tracing")]
 mod tracing_debug;
 
+// Keep these modules for reference but don't re-export them
+mod settings;
+mod presets;
+mod stats;
+
 pub(crate) use datasets::*;
-pub(crate) use presets::*;
 pub(crate) use scene::*;
-pub(crate) use settings::*;
-pub(crate) use stats::*;
-#[allow(unused)]
+#[cfg(feature = "tracing")]
 pub(crate) use tracing_debug::*;

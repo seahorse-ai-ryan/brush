@@ -73,7 +73,7 @@ fn main() -> MainResult {
                 eframe::run_native(
                     title,
                     native_options,
-                    Box::new(move |cc| Ok(Box::new(App::new(cc, send, None)))),
+                    Box::new(move |cc| Ok(Box::new(App::new(cc, send, None, args.reset_windows)))),
                 )
                 .expect("Failed to run egui app");
             } else {
@@ -117,7 +117,7 @@ fn main() -> MainResult {
                     .start(
                         canvas,
                         web_options,
-                        Box::new(|cc| Ok(Box::new(App::new(cc, send, None)))),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, send, None, false)))),
                     )
                     .await
                     .expect("failed to start eframe");
@@ -178,7 +178,7 @@ mod embedded {
                             wgpu_options,
                             ..Default::default()
                         },
-                        Box::new(|cc| Ok(Box::new(App::new(cc, send, Some(start_uri))))),
+                        Box::new(|cc| Ok(Box::new(App::new(cc, send, Some(start_uri), false)))),
                     )
                     .await
                     .expect("failed to start eframe");

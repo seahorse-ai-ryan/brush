@@ -3,8 +3,9 @@ use std::sync::{Arc, RwLock};
 use crate::channel::reactive_receiver;
 use crate::orbit_controls::CameraController;
 use crate::overlays::{DatasetDetailOverlay, SettingsDetailOverlay, StatsDetailOverlay};
-use crate::panels::SettingsPanel;
-use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
+use crate::panels::{DatasetPanel, ScenePanel};
+#[cfg(feature = "tracing")]
+use crate::panels::TracingPanel;
 use brush_dataset::Dataset;
 use brush_process::data_source::DataSource;
 use brush_process::process_loop::{
@@ -236,6 +237,7 @@ impl App {
         cc: &eframe::CreationContext,
         create_callback: tokio::sync::oneshot::Sender<AppCreateCb>,
         _start_uri_override: Option<String>,
+        reset_windows: bool,
     ) -> Self {
         // For now just assume we're running on the default
         let state = cc
@@ -313,33 +315,24 @@ impl App {
         let scene_pane_id = tiles.insert_pane(Box::new(scene_pane));
 
         let root_container = if !zen {
-            let loading_subs = vec![
-                tiles.insert_pane(Box::new(SettingsPanel::new())),
-                tiles.insert_pane(Box::new(PresetsPanel::new())),
-            ];
-            let loading_pane = tiles.insert_tab_tile(loading_subs);
-
-            #[allow(unused_mut)]
-            let mut sides = vec![
-                loading_pane,
-                tiles.insert_pane(Box::new(StatsPanel::new(
-                    device.clone(),
-                    state.adapter.get_info(),
-                ))),
-            ];
-
-            if cfg!(feature = "tracing") {
-                sides.push(tiles.insert_pane(Box::new(TracingPanel::default())));
+            #[cfg(feature = "tracing")]
+            {
+                // If tracing is enabled, add the tracing panel
+                let tracing_pane = tiles.insert_pane(Box::new(TracingPanel::default()));
+                
+                let mut lin = egui_tiles::Linear::new(
+                    egui_tiles::LinearDir::Horizontal,
+                    vec![tracing_pane, scene_pane_id],
+                );
+                lin.shares.set_share(tracing_pane, 0.2);
+                tiles.insert_container(lin)
             }
-
-            let side_panel = tiles.insert_vertical_tile(sides);
-
-            let mut lin = egui_tiles::Linear::new(
-                egui_tiles::LinearDir::Horizontal,
-                vec![side_panel, scene_pane_id],
-            );
-            lin.shares.set_share(side_panel, 0.4);
-            tiles.insert_container(lin)
+            
+            #[cfg(not(feature = "tracing"))]
+            {
+                // Just use the scene panel
+                scene_pane_id
+            }
         } else {
             scene_pane_id
         };
@@ -372,6 +365,13 @@ impl App {
         let dataset_detail_overlay = DatasetDetailOverlay::new();
         let settings_detail_overlay = SettingsDetailOverlay::new();
         let stats_detail_overlay = StatsDetailOverlay::new(device_for_stats, state.adapter.get_info());
+        
+        // If reset_windows flag is set, clear the window state from storage
+        if reset_windows {
+            cc.egui_ctx.memory_mut(|mem| {
+                mem.data.clear();
+            });
+        }
         
         if let Some(running) = running {
             tree_ctx

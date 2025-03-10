@@ -44,7 +44,7 @@ impl StatsDetailOverlay {
             // UI state
             open: false, // Start with window closed
             position: pos2(200.0, 200.0), // Offset position to avoid overlap
-            size: Vec2::new(500.0, 700.0), // Increased default size
+            size: Vec2::new(450.0, 550.0), // Adjusted size to fit content better
         }
     }
     
@@ -149,99 +149,104 @@ impl StatsDetailOverlay {
         
         // Show the window and get the response
         let response = window.show(ctx, |ui| {
-            // Set a specific size for the content to ensure the window is resizable
-            let available_size = ui.available_size();
-            ui.set_max_width(available_size.x);
-            ui.set_max_height(available_size.y);
+            // Use a ScrollArea that fills the available space
+            ui.set_width(ui.available_width());
+            ui.set_height(ui.available_height());
             
-            egui::Grid::new("stats_grid")
-                .num_columns(2)
-                .spacing([40.0, 4.0])
-                .striped(true)
-                .show(ui, |ui| {
-                    ui.label("Splats");
-                    ui.label(format!("{}", self.num_splats));
-                    ui.end_row();
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show_viewport(ui, |ui, _viewport| {
+                    egui::Grid::new("stats_grid")
+                        .num_columns(2)
+                        .spacing([40.0, 4.0])
+                        .striped(true)
+                        .show(ui, |ui| {
+                            ui.label("Splats");
+                            ui.label(format!("{}", self.num_splats));
+                            ui.end_row();
 
-                    ui.label("SH Degree");
-                    ui.label(format!("{}", self.cur_sh_degree));
-                    ui.end_row();
+                            ui.label("SH Degree");
+                            ui.label(format!("{}", self.cur_sh_degree));
+                            ui.end_row();
 
-                    if self.frames > 0 {
-                        ui.label("Frames");
-                        ui.label(format!("{}", self.frames));
-                        ui.end_row();
-                    }
+                            if self.frames > 0 {
+                                ui.label("Frames");
+                                ui.label(format!("{}", self.frames));
+                                ui.end_row();
+                            }
 
-                    if self.training_started {
-                        ui.label("Train step");
-                        ui.label(format!("{}", self.last_train_step.1));
-                        ui.end_row();
+                            if self.training_started {
+                                ui.label("Train step");
+                                ui.label(format!("{}", self.last_train_step.1));
+                                ui.end_row();
 
-                        ui.label("Steps/s");
-                        ui.label(format!("{:.1}", self.train_iter_per_s));
-                        ui.end_row();
+                                ui.label("Steps/s");
+                                ui.label(format!("{:.1}", self.train_iter_per_s));
+                                ui.end_row();
 
-                        ui.label("Last eval:");
-                        ui.label(if let Some(eval) = self.last_eval.as_ref() {
-                            eval
-                        } else {
-                            "--"
+                                ui.label("Last eval:");
+                                ui.label(if let Some(eval) = self.last_eval.as_ref() {
+                                    eval
+                                } else {
+                                    "--"
+                                });
+                                ui.end_row();
+
+                                ui.label("Training time");
+                                // Round duration to seconds.
+                                let elapsed = Duration::from_secs(self.start_load_time.elapsed().as_secs());
+                                ui.label(format!("{}", humantime::Duration::from(elapsed)));
+                                ui.end_row();
+                            }
+
+                            let client = WgpuRuntime::client(&self.device);
+                            let memory = client.memory_usage();
+
+                            ui.label("GPU memory");
+                            ui.end_row();
+
+                            ui.label("Bytes in use");
+                            ui.label(Self::bytes_format(memory.bytes_in_use));
+                            ui.end_row();
+
+                            ui.label("Bytes reserved");
+                            ui.label(Self::bytes_format(memory.bytes_reserved));
+                            ui.end_row();
+
+                            ui.label("Active allocations");
+                            ui.label(format!("{}", memory.number_allocs));
+                            ui.end_row();
                         });
-                        ui.end_row();
 
-                        ui.label("Training time");
-                        // Round duration to seconds.
-                        let elapsed = Duration::from_secs(self.start_load_time.elapsed().as_secs());
-                        ui.label(format!("{}", humantime::Duration::from(elapsed)));
-                        ui.end_row();
+                    // On WASM, adapter info is mostly private, not worth showing.
+                    if !cfg!(target_family = "wasm") {
+                        ui.add_space(10.0);
+                        
+                        egui::Grid::new("gpu_grid")
+                            .num_columns(2)
+                            .spacing([40.0, 4.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                ui.label("GPU");
+                                ui.end_row();
+
+                                ui.label("Name");
+                                ui.label(&self.adapter_info.name);
+                                ui.end_row();
+
+                                ui.label("Type");
+                                ui.label(format!("{:?}", self.adapter_info.device_type));
+                                ui.end_row();
+
+                                ui.label("Driver");
+                                ui.label(format!(
+                                    "{}, {}",
+                                    self.adapter_info.driver, self.adapter_info.driver_info
+                                ));
+                                ui.end_row();
+                            });
                     }
-
-                    let client = WgpuRuntime::client(&self.device);
-                    let memory = client.memory_usage();
-
-                    ui.label("GPU memory");
-                    ui.end_row();
-
-                    ui.label("Bytes in use");
-                    ui.label(Self::bytes_format(memory.bytes_in_use));
-                    ui.end_row();
-
-                    ui.label("Bytes reserved");
-                    ui.label(Self::bytes_format(memory.bytes_reserved));
-                    ui.end_row();
-
-                    ui.label("Active allocations");
-                    ui.label(format!("{}", memory.number_allocs));
-                    ui.end_row();
                 });
-
-            // On WASM, adapter info is mostly private, not worth showing.
-            if !cfg!(target_family = "wasm") {
-                egui::Grid::new("gpu_grid")
-                    .num_columns(2)
-                    .spacing([40.0, 4.0])
-                    .striped(true)
-                    .show(ui, |ui| {
-                        ui.label("GPU");
-                        ui.end_row();
-
-                        ui.label("Name");
-                        ui.label(&self.adapter_info.name);
-                        ui.end_row();
-
-                        ui.label("Type");
-                        ui.label(format!("{:?}", self.adapter_info.device_type));
-                        ui.end_row();
-
-                        ui.label("Driver");
-                        ui.label(format!(
-                            "{}, {}",
-                            self.adapter_info.driver, self.adapter_info.driver_info
-                        ));
-                        ui.end_row();
-                    });
-            }
         });
         
         // Update self.open based on window_open
