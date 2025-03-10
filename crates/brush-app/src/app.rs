@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::channel::reactive_receiver;
 use crate::orbit_controls::CameraController;
-use crate::overlays::DatasetDetailOverlay;
+use crate::overlays::{DatasetDetailOverlay, SettingsDetailOverlay, StatsDetailOverlay};
 use crate::panels::SettingsPanel;
 use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
 use brush_dataset::Dataset;
@@ -103,8 +103,11 @@ pub struct App {
     tree_ctx: AppTree,
     datasets: Option<TileId>,
     dataset_detail_overlay: DatasetDetailOverlay,
+    settings_detail_overlay: SettingsDetailOverlay,
+    stats_detail_overlay: StatsDetailOverlay,
     select_folder_requested: bool,
-    select_file_requested: bool,  // New field for file selection
+    select_file_requested: bool,
+    select_dataset_folder_requested: bool,
 }
 
 // TODO: Bit too much random shared state here.
@@ -232,7 +235,7 @@ impl App {
     pub fn new(
         cc: &eframe::CreationContext,
         create_callback: tokio::sync::oneshot::Sender<AppCreateCb>,
-        start_uri_override: Option<String>,
+        _start_uri_override: Option<String>,
     ) -> Self {
         // For now just assume we're running on the default
         let state = cc
@@ -245,44 +248,31 @@ impl App {
             state.queue.clone(),
         );
 
-        #[cfg(feature = "tracing")]
+        // Parse URL parameters.
+        let mut zen = false;
+        let search_params: HashMap<String, String> = HashMap::new();
+
+        #[cfg(target_family = "wasm")]
         {
-            // TODO: In debug only?
-            #[cfg(target_family = "wasm")]
-            {
-                use tracing_subscriber::layer::SubscriberExt;
-
-                tracing::subscriber::set_global_default(
-                    tracing_subscriber::registry()
-                        .with(tracing_wasm::WASMLayer::new(Default::default())),
-                )
-                .expect("Failed to set tracing subscriber");
-            }
-
-            #[cfg(all(feature = "tracy", not(target_family = "wasm")))]
-            {
-                use tracing_subscriber::layer::SubscriberExt;
-
-                tracing::subscriber::set_global_default(
-                    tracing_subscriber::registry()
-                        .with(tracing_tracy::TracyLayer::default())
-                        .with(sync_span::SyncLayer::<
-                            burn_cubecl::CubeBackend<burn_wgpu::WgpuRuntime, f32, i32, u32>,
-                        >::new(device.clone())),
-                )
-                .expect("Failed to set tracing subscriber");
+            use web_sys::window;
+            if let Some(window) = window() {
+                if let Ok(Some(location)) = window.location().search().map(|s| {
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s[1..].to_string())
+                    }
+                }) {
+                    for pair in location.split('&') {
+                        let mut parts = pair.split('=');
+                        if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
+                            search_params.insert(key.to_string(), value.to_string());
+                        }
+                    }
+                }
             }
         }
 
-        let start_uri = start_uri_override;
-
-        #[cfg(target_family = "wasm")]
-        let start_uri =
-            start_uri.or_else(|| web_sys::window().and_then(|w| w.location().search().ok()));
-
-        let search_params = parse_search(start_uri.as_deref().unwrap_or(""));
-
-        let mut zen = false;
         if let Some(z) = search_params.get("zen") {
             zen = z.parse::<bool>().unwrap_or(false);
         }
@@ -364,12 +354,26 @@ impl App {
         let tree_ctx = AppTree { zen, context };
 
         let url = search_params.get("url");
-        if let Some(url) = url {
-            let running = start_process(
+        
+        // Clone the device for the stats overlay before it's potentially moved
+        let device_for_stats = device.clone();
+        
+        let running = if let Some(url) = url {
+            Some(start_process(
                 DataSource::Url(url.to_owned()),
                 ProcessArgs::default(),
                 device,
-            );
+            ))
+        } else {
+            None
+        };
+
+        // Create the overlays
+        let dataset_detail_overlay = DatasetDetailOverlay::new();
+        let settings_detail_overlay = SettingsDetailOverlay::new();
+        let stats_detail_overlay = StatsDetailOverlay::new(device_for_stats, state.adapter.get_info());
+        
+        if let Some(running) = running {
             tree_ctx
                 .context
                 .write()
@@ -381,9 +385,12 @@ impl App {
             tree,
             tree_ctx,
             datasets: None,
-            dataset_detail_overlay: DatasetDetailOverlay::new(),
+            dataset_detail_overlay,
+            settings_detail_overlay,
+            stats_detail_overlay,
             select_folder_requested: false,
             select_file_requested: false,
+            select_dataset_folder_requested: false,
         }
     }
 }
@@ -458,6 +465,16 @@ impl eframe::App for App {
                     if ui.checkbox(&mut detail_open, "Datasets").clicked() {
                         self.dataset_detail_overlay.set_open(detail_open);
                     }
+                    
+                    let mut settings_open = self.settings_detail_overlay.is_open();
+                    if ui.checkbox(&mut settings_open, "Settings").clicked() {
+                        self.settings_detail_overlay.set_open(settings_open);
+                    }
+                    
+                    let mut stats_open = self.stats_detail_overlay.is_open();
+                    if ui.checkbox(&mut stats_open, "Stats").clicked() {
+                        self.stats_detail_overlay.set_open(stats_open);
+                    }
                 });
                 
                 ui.menu_button("Help", |ui| {
@@ -494,7 +511,43 @@ impl eframe::App for App {
                         datasets_button.on_hover_text("Browse Datasets");
                     }
                     
-                    // Add more icons here as needed
+                    ui.add_space(5.0);
+                    
+                    // Settings icon
+                    let settings_icon = "⚙️";
+                    let settings_button = ui.add(
+                        egui::Button::new(settings_icon)
+                            .min_size(egui::vec2(30.0, 30.0))
+                    );
+                    
+                    if settings_button.clicked() {
+                        let is_open = self.settings_detail_overlay.is_open();
+                        self.settings_detail_overlay.set_open(!is_open);
+                    }
+                    
+                    // Tooltip for the settings button
+                    if settings_button.hovered() {
+                        settings_button.on_hover_text("Settings");
+                    }
+                    
+                    ui.add_space(5.0);
+                    
+                    // Stats icon
+                    let stats_icon = "📊";
+                    let stats_button = ui.add(
+                        egui::Button::new(stats_icon)
+                            .min_size(egui::vec2(30.0, 30.0))
+                    );
+                    
+                    if stats_button.clicked() {
+                        let is_open = self.stats_detail_overlay.is_open();
+                        self.stats_detail_overlay.set_open(!is_open);
+                    }
+                    
+                    // Tooltip for the stats button
+                    if stats_button.hovered() {
+                        stats_button.on_hover_text("Stats");
+                    }
                 });
             });
 
@@ -565,8 +618,61 @@ impl eframe::App for App {
             }
         }
         
+        // Handle dataset folder selection
+        if self.dataset_detail_overlay.wants_to_select_dataset_folder() {
+            self.dataset_detail_overlay.dataset_folder_selection_started();
+            self.select_dataset_folder_requested = true;
+        }
+        
+        if self.select_dataset_folder_requested {
+            self.select_dataset_folder_requested = false;
+            
+            // Use native dialog
+            #[cfg(not(target_family = "wasm"))]
+            {
+                // For native, use rfd directly (synchronous version)
+                if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                    self.dataset_detail_overlay.set_selected_dataset_folder(path);
+                } else {
+                    self.dataset_detail_overlay.cancel_dataset_folder_selection();
+                }
+            }
+            
+            #[cfg(target_family = "wasm")]
+            {
+                // For WASM, we would need a different approach
+                // This is just a placeholder
+                self.dataset_detail_overlay.cancel_dataset_folder_selection();
+            }
+        }
+        
         // Show the dataset detail overlay if it's open
         let mut context = self.tree_ctx.context.write().expect("Lock poisoned");
         self.dataset_detail_overlay.show(ctx, &mut context);
+        
+        // Show the settings detail overlay if it's open
+        self.settings_detail_overlay.show(ctx, &mut context);
+        
+        // Show the stats detail overlay if it's open
+        self.stats_detail_overlay.show(ctx, &mut context);
+        
+        // Forward messages to the stats overlay
+        if let Some(process) = context.running_process.as_mut() {
+            // Use a loop with a counter to avoid infinite loops
+            let mut count = 0;
+            let max_messages = 100; // Limit to avoid infinite loops
+            loop {
+                match process.messages.try_recv() {
+                    Ok(message) => {
+                        self.stats_detail_overlay.on_message(&message);
+                        count += 1;
+                        if count >= max_messages {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+        }
     }
 }

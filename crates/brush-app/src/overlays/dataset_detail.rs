@@ -107,17 +107,17 @@ impl DatasetDetailOverlay {
             selected_dataset: None,
             
             // UI state
-            open: true, // Start with window open
+            open: false, // Start with window closed
             position: pos2(100.0, 100.0),
-            size: Vec2::new(400.0, 600.0), // Reduced width to 50% of original
+            size: Vec2::new(600.0, 400.0), // Further reduced height to fit on screen better
             
             // For dynamic sizing
-            last_table_height: 300.0,
+            last_table_height: 150.0, // Reduced table height
             auto_open_done: false,
             height_changed: false,
             last_dataset_count: 0,
-            prev_size: Vec2::new(0.0, 0.0),
-            pending_file_import: None, // Initialize pending_file_import
+            prev_size: Vec2::new(600.0, 400.0), // Match the default size
+            pending_file_import: None,
             
             // File system watcher
             file_watcher: None,
@@ -637,20 +637,25 @@ impl DatasetDetailOverlay {
         let mut should_add_dataset = false;
         let mut dataset_to_process: Option<PathBuf> = None;
         
-        // Create the window with absolutely minimal settings to allow full resizing freedom
-        let window = egui::Window::new("Local Datasets") // Changed title to "Local Datasets"
+        // Create the window with settings to ensure proper resizability
+        let window = egui::Window::new("Local Datasets")
             .id(window_id)
-            .open(&mut window_open) // Use local variable instead of self.open
+            .open(&mut window_open)
             .resizable(true)
             .movable(true)
-            .collapsible(false)
+            .collapsible(true)
             .default_pos(self.position)
             .default_size(self.size)
-            .min_width(300.0) // Reduced minimum width
+            .min_width(300.0)
             .min_height(300.0);
         
         // Show the window and get the response
         let response = window.show(ctx, |ui| {
+            // Set a specific size for the content to ensure the window is resizable
+            let available_size = ui.available_size();
+            ui.set_max_width(available_size.x);
+            ui.set_max_height(available_size.y);
+            
             // Get the actual window size for debugging
             let _window_size = ui.available_size();
             
@@ -781,9 +786,10 @@ impl DatasetDetailOverlay {
                     // Get remaining height after UI elements above
                     let _remaining_height = ui.available_height();
                     
-                    // Create a scrollable area that fills the remaining space
+                    // Create a scrollable area with a fixed maximum height
                     egui::ScrollArea::vertical()
                         .auto_shrink([false; 2]) // Don't shrink in either direction
+                        .max_height(150.0) // Limit the height to ensure presets are visible
                         .show(ui, |ui| {
                             // Special case for empty datasets
                             if self.datasets.is_empty() {
@@ -809,6 +815,65 @@ impl DatasetDetailOverlay {
                                 self.draw_dataset_list(ui, &mut dataset_to_process);
                             }
                         });
+                        
+                    // Add presets section at the bottom
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(5.0);
+                    
+                    // Collapsible presets section - default to open
+                    let presets_header = egui::CollapsingHeader::new("Presets")
+                        .default_open(true) // Open by default
+                        .show(ui, |ui| {
+                        // Mipnerf scenes section
+                        ui.heading("Mipnerf scenes");
+                        
+                        egui::Grid::new("mip_grid")
+                            .num_columns(3)
+                            .spacing([40.0, 4.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                self.add_url_button("bicycle", "https://drive.google.com/file/d/1LawlC-YjHSMl5rwRmEOMQEbJUioaYI5p/view?usp=drive_link", ui);
+                                self.add_url_button("bonsai", "https://drive.google.com/file/d/1IWhmM49q_pfUZzJhA_vXv4POBODSAh32/view?usp=drive_link", ui);
+                                self.add_url_button("counter", "https://drive.google.com/file/d/1564FHRsObZDGUlRx4RTFBTCi8jDPzTjj/view?usp=drive_link", ui);
+                                ui.end_row();
+
+                                self.add_url_button("garden", "https://drive.google.com/file/d/1WROBCrVu3YqA60mbRGmSRYXOJB4N5KAk/view?usp=drive_link", ui);
+                                self.add_url_button("kitchen", "https://drive.google.com/file/d/1VSJM4b3pcQYiZj4xWSIIzHhwbzMcFWZv/view?usp=drive_link", ui);
+                                self.add_url_button("room", "https://drive.google.com/file/d/1ieRBqlouADIAbCy8ryjI7M2PsfSNR23u/view?usp=drive_link", ui);
+                                ui.end_row();
+
+                                self.add_url_button("stump", "https://drive.google.com/file/d/1noPG4AowuT__xFV4uHODzOW7te9Kbb-T/view?usp=drive_link", ui);
+                                ui.end_row();
+                            });
+
+                        // Synthetic blender scenes section
+                        ui.heading("Synthetic blender scenes");
+                        egui::Grid::new("blend_grid")
+                            .num_columns(3)
+                            .spacing([40.0, 4.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                self.add_url_button("chair", "https://drive.google.com/file/d/1EUcmoo5c2Ab9SiyWc8dZxbOxkEKWTU4C/view?usp=drive_link", ui);
+                                self.add_url_button("drums", "https://drive.google.com/file/d/1UpBQoUJ9ShKgsyM7WaPy0a6qqtUMSOCx/view?usp=drive_link", ui);
+                                self.add_url_button("ficus", "https://drive.google.com/file/d/1hwE1z0GSRHfMGXx3TyhuyqT-pDReeRik/view?usp=drive_link", ui);
+                                ui.end_row();
+
+                                self.add_url_button("hotdog", "https://drive.google.com/file/d/1EtIyCOyFAbTKHlMvNSwCFr5C1peyI107/view?usp=drive_link", ui);
+                                self.add_url_button("lego", "https://drive.google.com/file/d/16TY5KxWUq7OzjkkLDBGNKZ0P5Laf-oaL/view?usp=drive_link", ui);
+                                self.add_url_button("materials", "https://drive.google.com/file/d/1MWxV_NReK-UW4zKMbDIxQNiPwALZGSpd/view?usp=drive_link", ui);
+                                ui.end_row();
+
+                                self.add_url_button("mic", "https://drive.google.com/file/d/1s1PpJe71OECKnrUeNVdzjhKk-JXKlngI/view?usp=drive_link", ui);
+                                self.add_url_button("ship", "https://drive.google.com/file/d/1Wvne6m7voRj8LvSosvq9vKMp8UYMCrER/view?usp=drive_link", ui);
+                                ui.end_row();
+                            });
+                    });
+                    
+                    // Add hover effect for the header
+                    if presets_header.header_response.hovered() {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    }
                 });
             });
             
@@ -1378,6 +1443,17 @@ impl DatasetDetailOverlay {
             
             // Setup the file watcher for the new folder
             self.setup_file_watcher();
+        }
+    }
+
+    // Helper method for URL buttons with tooltips
+    fn add_url_button(&self, label: &str, url: &str, ui: &mut egui::Ui) {
+        let hyperlink = ui.add(Hyperlink::from_label_and_url(label, url).open_in_new_tab(true));
+        
+        // Add tooltip on hover to show the full URL
+        if hyperlink.hovered() {
+            hyperlink.on_hover_text(url);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
     }
 } 
