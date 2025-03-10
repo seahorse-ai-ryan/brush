@@ -86,17 +86,40 @@ impl ScenePanel {
         }
 
         let mut size = size.floor();
+        
+        // Calculate the current aspect ratio of the available space
+        let current_aspect = size.x / size.y;
 
-        if let Some(aspect_ratio) = context.view_aspect {
-            if size.x / size.y > aspect_ratio {
-                size.x = size.y * aspect_ratio;
-            } else {
-                size.y = size.x / aspect_ratio;
-            }
+        if let Some(view_aspect) = context.view_aspect {
+            // If we have a view aspect ratio, we can choose to either:
+            // 1. Use the view's aspect ratio (current behavior)
+            // 2. Use the current window aspect ratio (new behavior)
+            // 3. Use a hybrid approach (compromise)
+            
+            // For now, let's use the current window aspect ratio
+            // This will make the rendering area fill the available space
+            // and adapt to window resizing
+            
+            // Option 1: Use view aspect ratio (original behavior)
+            // if size.x / size.y > view_aspect {
+            //     size.x = size.y * view_aspect;
+            // } else {
+            //     size.y = size.x / view_aspect;
+            // }
+            
+            // Option 2: Use current window aspect ratio (new behavior)
+            // No adjustment needed, use the full available size
+            
+            // Option 3: Hybrid approach - use current aspect but update camera FOV
+            // Update the camera's field of view to match the current aspect ratio
+            let focal_y = fov_to_focal(context.camera.fov_y, size.y as u32) as f32;
+            context.camera.fov_x = focal_to_fov(focal_y as f64, size.x as u32);
         } else {
+            // No view aspect ratio, adjust camera FOV to match current aspect
             let focal_y = fov_to_focal(context.camera.fov_y, size.y as u32) as f32;
             context.camera.fov_x = focal_to_fov(focal_y as f64, size.x as u32);
         }
+        
         let size = glam::uvec2(size.x.round() as u32, size.y.round() as u32);
 
         let (rect, response) = ui.allocate_exact_size(
