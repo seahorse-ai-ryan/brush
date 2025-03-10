@@ -19,6 +19,9 @@ use egui_tiles::SimplificationOptions;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3};
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::time::Duration;
+use egui::{Align2, RichText};
 
 #[cfg(not(target_family = "wasm"))]
 use rfd;
@@ -451,42 +454,8 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.receive_messages();
 
-        // Top bar menu
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Exit").clicked() {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                    }
-                });
-                
-                ui.menu_button("View", |ui| {
-                    let mut detail_open = self.dataset_detail_overlay.is_open();
-                    if ui.checkbox(&mut detail_open, "Datasets").clicked() {
-                        self.dataset_detail_overlay.set_open(detail_open);
-                    }
-                    
-                    let mut settings_open = self.settings_detail_overlay.is_open();
-                    if ui.checkbox(&mut settings_open, "Settings").clicked() {
-                        self.settings_detail_overlay.set_open(settings_open);
-                    }
-                    
-                    let mut stats_open = self.stats_detail_overlay.is_open();
-                    if ui.checkbox(&mut stats_open, "Stats").clicked() {
-                        self.stats_detail_overlay.set_open(stats_open);
-                    }
-                });
-                
-                ui.menu_button("Help", |ui| {
-                    if ui.button("About").clicked() {
-                        // Show about dialog
-                    }
-                });
-            });
-        });
-
         // Left sidebar with icons
-        egui::SidePanel::left("left_icon_bar")
+        egui::SidePanel::left("left_panel")
             .resizable(false)
             .default_width(40.0)
             .width_range(40.0..=40.0)
@@ -497,8 +466,14 @@ impl eframe::App for App {
                     // Datasets icon
                     let datasets_icon = "📁";
                     let datasets_button = ui.add(
-                        egui::Button::new(datasets_icon)
+                        egui::Button::new(egui::RichText::new(datasets_icon).size(20.0))
                             .min_size(egui::vec2(30.0, 30.0))
+                            .rounding(5.0)
+                            .fill(if self.dataset_detail_overlay.is_open() {
+                                ui.visuals().selection.bg_fill
+                            } else {
+                                ui.visuals().widgets.inactive.bg_fill
+                            })
                     );
                     
                     if datasets_button.clicked() {
@@ -514,10 +489,16 @@ impl eframe::App for App {
                     ui.add_space(5.0);
                     
                     // Settings icon
-                    let settings_icon = "⚙️";
+                    let settings_icon = "⚙";
                     let settings_button = ui.add(
-                        egui::Button::new(settings_icon)
+                        egui::Button::new(egui::RichText::new(settings_icon).size(20.0))
                             .min_size(egui::vec2(30.0, 30.0))
+                            .rounding(5.0)
+                            .fill(if self.settings_detail_overlay.is_open() {
+                                ui.visuals().selection.bg_fill
+                            } else {
+                                ui.visuals().widgets.inactive.bg_fill
+                            })
                     );
                     
                     if settings_button.clicked() {
@@ -535,8 +516,14 @@ impl eframe::App for App {
                     // Stats icon
                     let stats_icon = "📊";
                     let stats_button = ui.add(
-                        egui::Button::new(stats_icon)
+                        egui::Button::new(egui::RichText::new(stats_icon).size(20.0))
                             .min_size(egui::vec2(30.0, 30.0))
+                            .rounding(5.0)
+                            .fill(if self.stats_detail_overlay.is_open() {
+                                ui.visuals().selection.bg_fill
+                            } else {
+                                ui.visuals().widgets.inactive.bg_fill
+                            })
                     );
                     
                     if stats_button.clicked() {
@@ -546,7 +533,7 @@ impl eframe::App for App {
                     
                     // Tooltip for the stats button
                     if stats_button.hovered() {
-                        stats_button.on_hover_text("Stats");
+                        stats_button.on_hover_text("Statistics");
                     }
                 });
             });
@@ -557,6 +544,25 @@ impl eframe::App for App {
             .frame(main_panel_frame)
             .show(ctx, |ui| {
                 self.tree.ui(&mut self.tree_ctx, ui);
+                
+                // Add a resize indicator in the bottom-right corner of the main window
+                // Only show on desktop platforms, not on mobile or web
+                #[cfg(not(any(target_os = "android", target_os = "ios", target_family = "wasm")))]
+                {
+                    let resize_rect = egui::Rect::from_min_size(
+                        ui.max_rect().right_bottom() - egui::vec2(16.0, 16.0),
+                        egui::vec2(16.0, 16.0)
+                    );
+                    if ui.rect_contains_pointer(resize_rect) {
+                        ui.painter().text(
+                            resize_rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "↘",
+                            egui::FontId::proportional(14.0),
+                            ui.visuals().weak_text_color()
+                        );
+                    }
+                }
             });
             
         // Handle folder selection

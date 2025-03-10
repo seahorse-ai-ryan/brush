@@ -1,5 +1,5 @@
 use crate::app::AppContext;
-use egui::{Context, Pos2, Vec2, pos2};
+use egui::{Context, Pos2, Vec2, pos2, Align2};
 use brush_dataset::{LoadDataseConfig, ModelConfig};
 use brush_process::{
     process_loop::{ProcessArgs, ProcessConfig, RerunConfig},
@@ -33,8 +33,8 @@ impl SettingsDetailOverlay {
             
             // UI state
             open: false, // Start with window closed
-            position: pos2(150.0, 150.0), // Offset position to avoid overlap
-            size: Vec2::new(400.0, 500.0), // Reduced height to fit content better
+            position: pos2(200.0, 200.0),
+            size: Vec2::new(320.0, 420.0), // Adjusted size to better fit content
         }
     }
     
@@ -58,7 +58,7 @@ impl SettingsDetailOverlay {
         let mut window_open = self.open;
         
         // Create the window with settings to ensure proper resizability
-        let window = egui::Window::new("Settings")
+        let window = egui::Window::new("⚙ Settings")
             .id(window_id)
             .open(&mut window_open)
             .resizable(true)
@@ -75,9 +75,27 @@ impl SettingsDetailOverlay {
             ui.set_width(ui.available_width());
             ui.set_height(ui.available_height());
             
+            // Add a subtle resize indicator in the bottom-right corner
+            let resize_rect = egui::Rect::from_min_size(
+                ui.max_rect().right_bottom() - egui::vec2(16.0, 16.0),
+                egui::vec2(16.0, 16.0)
+            );
+            if ui.rect_contains_pointer(resize_rect) {
+                ui.painter().text(
+                    resize_rect.center(),
+                    Align2::CENTER_CENTER,
+                    "↘",
+                    egui::FontId::proportional(14.0),
+                    ui.visuals().weak_text_color()
+                );
+            }
+            
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
-                .show_viewport(ui, |ui, _viewport| {
+                .show(ui, |ui| {
+                    ui.heading("Application Settings");
+                    ui.add_space(10.0);
+                    
                     ui.heading("Model Settings");
                     ui.label("Spherical Harmonics Degree:");
                     ui.add(Slider::new(&mut self.args.model_config.sh_degree, 0..=4));
@@ -201,13 +219,10 @@ impl SettingsDetailOverlay {
                 });
         });
         
-        // Update self.open based on window_open
-        if self.open != window_open {
-            self.open = window_open;
-        }
-        
-        // Store window size for next frame if available
+        // Update open state and position/size if window was moved or resized
         if let Some(response) = response {
+            self.open = window_open;
+            self.position = response.response.rect.min;
             self.size = response.response.rect.size();
         }
     }

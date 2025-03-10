@@ -1,5 +1,5 @@
 use crate::app::AppContext;
-use egui::{Context, Pos2, Vec2, pos2};
+use egui::{Context, Pos2, Vec2, pos2, Align2};
 use brush_process::process_loop::ProcessMessage;
 use burn_cubecl::cubecl::Runtime;
 use burn_wgpu::{WgpuDevice, WgpuRuntime};
@@ -19,11 +19,17 @@ pub(crate) struct StatsDetailOverlay {
     frames: u32,
     start_load_time: Instant,
     adapter_info: AdapterInfo,
+    gpu_stats: GpuStats,
     
     // UI state
     open: bool,
     position: Pos2,
     size: Vec2,
+}
+
+#[derive(Default)]
+struct GpuStats {
+    // GPU statistics fields can be added here
 }
 
 impl StatsDetailOverlay {
@@ -34,17 +40,18 @@ impl StatsDetailOverlay {
             last_train_step: (Instant::now(), 0),
             train_iter_per_s: 0.0,
             last_eval: None,
+            cur_sh_degree: 0,
             training_started: false,
             num_splats: 0,
             frames: 0,
-            cur_sh_degree: 0,
             start_load_time: Instant::now(),
             adapter_info,
+            gpu_stats: GpuStats::default(),
             
             // UI state
             open: false, // Start with window closed
-            position: pos2(200.0, 200.0), // Offset position to avoid overlap
-            size: Vec2::new(450.0, 550.0), // Adjusted size to fit content better
+            position: pos2(250.0, 250.0),
+            size: Vec2::new(300.0, 480.0), // Reduced width to better fit content
         }
     }
     
@@ -136,7 +143,7 @@ impl StatsDetailOverlay {
         let mut window_open = self.open;
         
         // Create the window with settings to ensure proper resizability
-        let window = egui::Window::new("Stats")
+        let window = egui::Window::new("📊 Statistics")
             .id(window_id)
             .open(&mut window_open)
             .resizable(true)
@@ -153,9 +160,27 @@ impl StatsDetailOverlay {
             ui.set_width(ui.available_width());
             ui.set_height(ui.available_height());
             
+            // Add a subtle resize indicator in the bottom-right corner
+            let resize_rect = egui::Rect::from_min_size(
+                ui.max_rect().right_bottom() - egui::vec2(16.0, 16.0),
+                egui::vec2(16.0, 16.0)
+            );
+            if ui.rect_contains_pointer(resize_rect) {
+                ui.painter().text(
+                    resize_rect.center(),
+                    Align2::CENTER_CENTER,
+                    "↘",
+                    egui::FontId::proportional(14.0),
+                    ui.visuals().weak_text_color()
+                );
+            }
+            
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
-                .show_viewport(ui, |ui, _viewport| {
+                .show(ui, |ui| {
+                    ui.heading("System Statistics");
+                    ui.add_space(10.0);
+                    
                     egui::Grid::new("stats_grid")
                         .num_columns(2)
                         .spacing([40.0, 4.0])
@@ -218,44 +243,41 @@ impl StatsDetailOverlay {
                             ui.end_row();
                         });
 
-                    // On WASM, adapter info is mostly private, not worth showing.
-                    if !cfg!(target_family = "wasm") {
-                        ui.add_space(10.0);
-                        
-                        egui::Grid::new("gpu_grid")
-                            .num_columns(2)
-                            .spacing([40.0, 4.0])
-                            .striped(true)
-                            .show(ui, |ui| {
-                                ui.label("GPU");
-                                ui.end_row();
+                        // On WASM, adapter info is mostly private, not worth showing.
+                        if !cfg!(target_family = "wasm") {
+                            ui.add_space(10.0);
+                            
+                            egui::Grid::new("gpu_grid")
+                                .num_columns(2)
+                                .spacing([40.0, 4.0])
+                                .striped(true)
+                                .show(ui, |ui| {
+                                    ui.label("GPU");
+                                    ui.end_row();
 
-                                ui.label("Name");
-                                ui.label(&self.adapter_info.name);
-                                ui.end_row();
+                                    ui.label("Name");
+                                    ui.label(&self.adapter_info.name);
+                                    ui.end_row();
 
-                                ui.label("Type");
-                                ui.label(format!("{:?}", self.adapter_info.device_type));
-                                ui.end_row();
+                                    ui.label("Type");
+                                    ui.label(format!("{:?}", self.adapter_info.device_type));
+                                    ui.end_row();
 
-                                ui.label("Driver");
-                                ui.label(format!(
-                                    "{}, {}",
-                                    self.adapter_info.driver, self.adapter_info.driver_info
-                                ));
-                                ui.end_row();
-                            });
-                    }
+                                    ui.label("Driver");
+                                    ui.label(format!(
+                                        "{}, {}",
+                                        self.adapter_info.driver, self.adapter_info.driver_info
+                                    ));
+                                    ui.end_row();
+                                });
+                        }
                 });
         });
         
-        // Update self.open based on window_open
-        if self.open != window_open {
-            self.open = window_open;
-        }
-        
-        // Store window size for next frame if available
+        // Update open state and position/size if window was moved or resized
         if let Some(response) = response {
+            self.open = window_open;
+            self.position = response.response.rect.min;
             self.size = response.response.rect.size();
         }
     }

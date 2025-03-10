@@ -1,6 +1,6 @@
 use crate::app::AppContext;
 use brush_train::scene::{Scene, SceneView, ViewType};
-use egui::{Color32, Context, Hyperlink, Pos2, RichText, TextureHandle, Vec2, pos2};
+use egui::{Color32, Context, Hyperlink, Pos2, RichText, TextureHandle, Vec2, pos2, Align2};
 use std::path::{PathBuf, Path};
 use std::time::SystemTime;
 use std::fs;
@@ -638,7 +638,7 @@ impl DatasetDetailOverlay {
         let mut dataset_to_process: Option<PathBuf> = None;
         
         // Create the window with settings to ensure proper resizability
-        let window = egui::Window::new("Local Datasets")
+        let window = egui::Window::new("📁 Datasets")
             .id(window_id)
             .open(&mut window_open)
             .resizable(true)
@@ -655,6 +655,21 @@ impl DatasetDetailOverlay {
             ui.vertical(|ui| {
                 ui.set_width(ui.available_width());
                 ui.set_height(ui.available_height());
+                
+                // Add a subtle resize indicator in the bottom-right corner
+                let resize_rect = egui::Rect::from_min_size(
+                    ui.max_rect().right_bottom() - egui::vec2(16.0, 16.0),
+                    egui::vec2(16.0, 16.0)
+                );
+                if ui.rect_contains_pointer(resize_rect) {
+                    ui.painter().text(
+                        resize_rect.center(),
+                        Align2::CENTER_CENTER,
+                        "↘",
+                        egui::FontId::proportional(14.0),
+                        ui.visuals().weak_text_color()
+                    );
+                }
                 
                 // Left panel with dataset list
                 ui.vertical(|ui| {
@@ -779,12 +794,16 @@ impl DatasetDetailOverlay {
                     });
                     
                     // Get remaining height after UI elements above
-                    let _remaining_height = ui.available_height();
+                    let remaining_height = ui.available_height();
                     
-                    // Create a scrollable area with a fixed maximum height
+                    // Calculate a dynamic height based on window size and content
+                    // Use at least 200px or 60% of the remaining height, whichever is larger
+                    let table_height = (remaining_height * 0.6).max(200.0);
+                    
+                    // Create a scrollable area with a dynamic height
                     egui::ScrollArea::vertical()
                         .auto_shrink([false; 2]) // Don't shrink in either direction
-                        .max_height(150.0) // Limit the height to ensure presets are visible
+                        .max_height(table_height) // Use dynamic height based on window size
                         .show(ui, |ui| {
                             // Special case for empty datasets
                             if self.datasets.is_empty() {
