@@ -57,6 +57,80 @@ files_affected: ["path/to/file1.rs", "path/to/file2.rs"]
 <!-- ENTRIES START -->
 
 ---
+timestamp: "2024-05-27 16:45:00 UTC"
+agent: "Claude 3.7 Sonnet"
+issue_category: ["UI", "state management", "message passing", "async"]
+files_affected: [
+  "crates/brush-app/src/overlays/controls_detail.rs", 
+  "crates/brush-app/src/app.rs",
+  "crates/brush-process/src/process_loop/process.rs"
+]
+---
+
+### Issue: UI toggle state not properly synchronized with backend processing
+
+**Context**: The application had a "Live update splats" toggle button in the Controls overlay that visually toggled but didn't actually affect the rendering updates. Additionally, the training toggle state wasn't properly reset when switching to a new dataset.
+
+**Error Symptoms**: 
+- The "Live update splats" button would visually toggle on/off, but splats continued to update regardless
+- When switching to a new dataset while training was paused, the paused state persisted incorrectly
+- UI state and backend processing state were out of sync
+
+**Root Cause**: 
+1. The Controls overlay maintained its own state for UI toggles, but this state wasn't properly communicated to the backend processing
+2. The message passing system needed a new message type (`ControlMessage::LiveUpdate`) to handle the live update toggle
+3. The training process loop needed to filter messages based on the live update state
+4. State reset wasn't happening at the right point in the workflow (needed to happen on `StartLoading` not just `NewSource`)
+
+**Solution**: 
+1. Added a new control message type for live updates:
+```rust
+pub enum ControlMessage {
+    Paused(bool),
+    LiveUpdate(bool),
+}
+```
+
+2. Modified the process loop to filter TrainStep messages based on the live update state:
+```rust
+// Send the message if live_update is true or if it's not a TrainStep message
+let should_send = match &msg {
+    ProcessMessage::TrainStep { .. } => live_update,
+    _ => true,
+};
+
+if should_send {
+    if output.send(msg).await.is_err() {
+        return Ok(());
+    }
+}
+```
+
+3. Added state reset on both `NewSource` and `StartLoading` messages:
+```rust
+ProcessMessage::StartLoading { training } => {
+    context.training = training;
+    context.loading = true;
+    
+    // Reset the Controls overlay state when a new dataset starts loading
+    self.controls_detail_overlay.reset_state();
+}
+```
+
+**Better Approach**: A more robust approach would be to implement a proper state management system that:
+1. Maintains a single source of truth for application state
+2. Provides clear interfaces for UI components to read and update state
+3. Automatically propagates state changes to all affected components
+4. Handles state persistence and restoration consistently
+
+**Generalizable Lesson**: When implementing UI controls that affect backend processing:
+1. Ensure there's a clear message passing mechanism between UI and backend
+2. Consider all the points in the workflow where state needs to be reset
+3. Design UI components to reflect the actual state of the system, not just their local state
+4. For toggles and controls, implement bidirectional state synchronization
+5. When adding new features, consider how they interact with existing state management patterns
+
+---
 timestamp: "2024-05-26 15:30:00 UTC"
 agent: "Claude 3.7 Sonnet"
 issue_category: ["UI", "egui", "window management", "state persistence"]
