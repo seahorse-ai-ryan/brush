@@ -227,6 +227,10 @@ impl App {
         create_callback: tokio::sync::oneshot::Sender<AppCreateCb>,
         start_uri_override: Option<String>,
     ) -> Self {
+        // Brush is always in dark mode for now, as it looks better and I don't care much to
+        // put in the work to support both light and dark mode!
+        cc.egui_ctx.set_visuals(egui::Visuals::dark());
+
         // For now just assume we're running on the default
         let state = cc
             .wgpu_render_state
