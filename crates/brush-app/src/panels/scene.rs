@@ -264,23 +264,6 @@ impl AppPanel for ScenePanel {
         let cur_time = Instant::now();
         self.last_draw = Some(cur_time);
 
-        // Debug: Show the available space in the panel
-        let available_rect = ui.available_rect_before_wrap();
-        ui.painter().rect_filled(
-            available_rect,
-            0.0,
-            Color32::from_rgba_premultiplied(255, 0, 0, 10) // Very transparent red
-        );
-        
-        // Debug: Add text showing dimensions
-        ui.painter().text(
-            available_rect.left_bottom() + egui::vec2(5.0, -5.0),
-            egui::Align2::LEFT_BOTTOM,
-            format!("Available: {}x{}", available_rect.width(), available_rect.height()),
-            egui::FontId::proportional(10.0),
-            Color32::RED
-        );
-
         // Empty scene, nothing to show.
         if !context.training() && self.view_splats.is_empty() && self.err.is_none() && !self.zen {
             ui.heading("Load a ply file or dataset to get started.");
@@ -361,25 +344,6 @@ For bigger training runs consider using the native app."#,
                     self.paused = !self.paused;
                 }
             }
-        }
-        
-        // Debug: Show the remaining space at the end of the panel
-        let remaining_rect = ui.available_rect_before_wrap();
-        ui.painter().rect_filled(
-            remaining_rect,
-            0.0,
-            Color32::from_rgba_premultiplied(0, 0, 255, 10) // Very transparent blue
-        );
-        
-        // Debug: Add text showing dimensions
-        if remaining_rect.height() > 0.0 {
-            ui.painter().text(
-                remaining_rect.left_top() + egui::vec2(5.0, 15.0),
-                egui::Align2::LEFT_TOP,
-                format!("Remaining: {}x{}", remaining_rect.width(), remaining_rect.height()),
-                egui::FontId::proportional(10.0),
-                Color32::BLUE
-            );
         }
     }
 

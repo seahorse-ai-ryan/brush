@@ -19,7 +19,7 @@ impl ControlsDetailOverlay {
             // UI state
             open: false, // Start with window closed
             position: pos2(300.0, 300.0),
-            size: Vec2::new(220.0, 100.0), // Smaller height for controls
+            size: Vec2::new(229.5, 64.0), // Reduced height to 50% of previous value
             
             // Control state
             paused: false,
@@ -170,11 +170,23 @@ impl ControlsDetailOverlay {
                 });
         });
         
-        // Update open state and position/size if window was moved or resized
-        if let Some(response) = response {
-            self.open = window_open;
-            self.position = response.response.rect.min;
-            self.size = response.response.rect.size();
+        // Check if the window was moved and update our stored position
+        if let Some(inner_response) = response {
+            let new_pos = inner_response.response.rect.min;
+            if new_pos != self.position {
+                self.position = new_pos;
+            }
+            
+            // Update size if it changed
+            let new_size = inner_response.response.rect.size();
+            if new_size != self.size {
+                self.size = new_size;
+            }
+            
+            // Update window open state
+            if window_open != self.open {
+                self.set_open(window_open);
+            }
         }
     }
     

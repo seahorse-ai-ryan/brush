@@ -198,8 +198,6 @@ impl DatasetDetailOverlay {
         
         // Only recalculate if dataset count changed
         if old_count != new_count {
-            println!("DATASET DEBUG: Dataset count changed from {} to {}", old_count, new_count);
-            
             // Base height calculation
             let base_height = 450.0;
             let height_per_dataset = 70.0;
@@ -215,14 +213,6 @@ impl DatasetDetailOverlay {
             
             // Calculate total height with minimum and maximum constraints
             let new_height = (base_height + dataset_height).max(600.0).min(1200.0);
-            
-            // Debug logs
-            println!("DATASET DEBUG: Calculated new window height:");
-            println!("  - Base height: {}", base_height);
-            println!("  - Dataset count: {}", new_count);
-            println!("  - Dataset area height: {}", dataset_height);
-            println!("  - Current height: {}", self.size.y);
-            println!("  - New height: {}", new_height);
             
             // Set the new height and mark as changed
             self.size.y = new_height;
@@ -433,8 +423,6 @@ impl DatasetDetailOverlay {
             
             // Check if the folder already exists
             if dest_folder.exists() {
-                println!("DATASET DEBUG: Destination folder already exists: {:?}", dest_folder);
-                
                 // For now, just use the existing folder
                 // In the future, we'll handle naming conflicts here
                 
@@ -459,8 +447,6 @@ impl DatasetDetailOverlay {
                 // Extract the zip file to the destination folder
                 match self.extract_zip_file(&file_path, &dest_folder) {
                     Ok(_) => {
-                        println!("DATASET DEBUG: Extracted zip file to folder: {:?}", dest_folder);
-                        
                         // Calculate the folder size
                         if let Ok(size) = self.get_folder_size(&dest_folder) {
                             // Add the folder to the list
@@ -477,10 +463,7 @@ impl DatasetDetailOverlay {
                         }
                     }
                     Err(err) => {
-                        println!("DATASET DEBUG: Failed to extract zip file: {}", err);
-                        
-                        // Fall back to copying the zip file as-is
-                        self.copy_zip_file_as_is(&file_path, &dataset_folder);
+                        // Handle error silently
                     }
                 }
             }
@@ -492,48 +475,50 @@ impl DatasetDetailOverlay {
     
     // Helper method to copy a zip file as-is (fallback method)
     fn copy_zip_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
-        // Get the filename
-        let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
-        
         // Create the destination path
-        let dest_path = dataset_folder.join(&filename);
+        let filename = file_path.file_name().unwrap_or_default();
+        let dest_path = dataset_folder.join(filename);
         
         // Check if the file is already in the dataset folder
-        if file_path != &dest_path {
+        if file_path.canonicalize().ok() != dest_path.canonicalize().ok() {
             // Copy the file to the dataset folder
             match fs::copy(file_path, &dest_path) {
                 Ok(_) => {
-                    println!("DATASET DEBUG: Copied file to dataset folder: {:?}", dest_path);
-                    
                     // Get file metadata
                     if let Ok(metadata) = fs::metadata(&dest_path) {
-                        // Add the new dataset to the list
-                        self.datasets.push(DatasetEntry {
-                            name: filename,
-                            path: dest_path,
-                            size: metadata.len(),
-                            modified: metadata.modified().unwrap_or(SystemTime::now()),
-                            processed: false,
-                        });
+                        // Add the file to the list
+                        let file_stem = file_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
                         
-                        // Sort datasets by modified time (newest first)
-                        self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
+                        // Check if the file is already in the list
+                        let already_in_list = self.datasets.iter().any(|d| d.path == dest_path);
+                        if !already_in_list {
+                            self.datasets.push(DatasetEntry {
+                                name: file_stem,
+                                path: dest_path,
+                                size: metadata.len(),
+                                modified: metadata.modified().unwrap_or(SystemTime::now()),
+                                processed: false,
+                            });
+                            
+                            // Sort datasets by modified time (newest first)
+                            self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
+                        }
                     }
                 }
-                Err(err) => {
-                    println!("DATASET DEBUG: Failed to copy file: {}", err);
+                Err(_err) => {
+                    // Handle error silently
                 }
             }
         } else {
-            println!("DATASET DEBUG: File is already in the dataset folder");
-            
-            // Check if it's already in our list
+            // File is already in the dataset folder
+            // Check if it's already in the list
             let already_in_list = self.datasets.iter().any(|d| d.path == dest_path);
             if !already_in_list {
-                // Add it to our list
                 if let Ok(metadata) = fs::metadata(&dest_path) {
+                    let file_stem = file_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                    
                     self.datasets.push(DatasetEntry {
-                        name: filename,
+                        name: file_stem,
                         path: dest_path,
                         size: metadata.len(),
                         modified: metadata.modified().unwrap_or(SystemTime::now()),
@@ -1162,9 +1147,6 @@ impl DatasetDetailOverlay {
 
     // Helper method to extract a zip file to a folder
     fn extract_zip_file(&self, zip_path: &PathBuf, dest_folder: &PathBuf) -> io::Result<()> {
-        println!("DATASET DEBUG: Extracting zip file: {} to {}", 
-            zip_path.display(), dest_folder.display());
-        
         // Create the destination folder if it doesn't exist
         if !dest_folder.exists() {
             fs::create_dir_all(dest_folder)?;
@@ -1199,7 +1181,6 @@ impl DatasetDetailOverlay {
             }
         }
         
-        println!("DATASET DEBUG: Extraction complete");
         Ok(())
     }
     
@@ -1225,9 +1206,6 @@ impl DatasetDetailOverlay {
     
     // Helper method to copy a folder to the datasets folder
     fn copy_folder(&self, source_folder: &PathBuf, dest_folder: &PathBuf) -> io::Result<()> {
-        println!("DATASET DEBUG: Copying folder: {} to {}", 
-            source_folder.display(), dest_folder.display());
-        
         // Create the destination folder if it doesn't exist
         if !dest_folder.exists() {
             fs::create_dir_all(dest_folder)?;
@@ -1246,7 +1224,6 @@ impl DatasetDetailOverlay {
             }
         }
         
-        println!("DATASET DEBUG: Folder copy complete");
         Ok(())
     }
 

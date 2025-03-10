@@ -46,6 +46,10 @@ impl SettingsDetailOverlay {
         self.open = open;
     }
     
+    pub(crate) fn set_position(&mut self, position: Pos2) {
+        self.position = position;
+    }
+    
     pub(crate) fn show(&mut self, ctx: &Context, _context: &mut AppContext) {
         if !self.open {
             return;

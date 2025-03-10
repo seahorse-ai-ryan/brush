@@ -1028,16 +1028,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "brush-timing"
-version = "0.2.0"
-dependencies = [
- "brush-dataset",
- "brush-process",
- "burn-wgpu",
- "tokio",
-]
-
-[[package]]
 name = "brush-train"
 version = "0.2.0"
 dependencies = [
@@ -8267,7 +8257,6 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
- "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2",

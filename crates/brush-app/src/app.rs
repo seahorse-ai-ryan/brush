@@ -433,9 +433,25 @@ impl App {
         };
 
         // Create the overlays
-        let dataset_detail_overlay = DatasetDetailOverlay::new();
-        let settings_detail_overlay = SettingsDetailOverlay::new();
-        let stats_detail_overlay = StatsDetailOverlay::new(device_for_stats, state.adapter.get_info());
+        let mut dataset_detail_overlay = DatasetDetailOverlay::new();
+        let mut settings_detail_overlay = SettingsDetailOverlay::new();
+        let mut stats_detail_overlay = StatsDetailOverlay::new(device_for_stats, state.adapter.get_info());
+        let mut controls_detail_overlay = ControlsDetailOverlay::new();
+        
+        // Set all overlays to open by default with specific positions
+        dataset_detail_overlay.set_open(true);
+        dataset_detail_overlay.set_position(egui::pos2(120.0, 40.0)); // Upper left, moved further right to avoid nav panel
+        
+        settings_detail_overlay.set_open(true);
+        settings_detail_overlay.set_position(egui::pos2(cc.egui_ctx.screen_rect().right() - 350.0, 40.0)); // Upper right, just below top
+        
+        stats_detail_overlay.set_open(true);
+        stats_detail_overlay.set_position(egui::pos2(cc.egui_ctx.screen_rect().right() - 350.0, 
+                                                    cc.egui_ctx.screen_rect().bottom() - 250.0)); // Bottom right, with space below
+        
+        controls_detail_overlay.set_open(true);
+        // Set the Controls window position to where the user manually positioned it
+        controls_detail_overlay.set_position(egui::pos2(614.0, 794.0));
         
         // If reset_windows flag is set, clear the window state from storage
         if reset_windows {
@@ -459,7 +475,7 @@ impl App {
             dataset_detail_overlay,
             settings_detail_overlay,
             stats_detail_overlay,
-            controls_detail_overlay: ControlsDetailOverlay::new(),
+            controls_detail_overlay,
             select_folder_requested: false,
             select_file_requested: false,
             select_dataset_folder_requested: false,
@@ -552,7 +568,7 @@ impl eframe::App for App {
                     let datasets_button = ui.add(
                         egui::Button::new(egui::RichText::new(datasets_icon).size(20.0))
                             .min_size(egui::vec2(30.0, 30.0))
-                            .rounding(5.0)
+                            .corner_radius(5.0)
                             .fill(if self.dataset_detail_overlay.is_open() {
                                 ui.visuals().selection.bg_fill
                             } else {
@@ -577,7 +593,7 @@ impl eframe::App for App {
                     let settings_button = ui.add(
                         egui::Button::new(egui::RichText::new(settings_icon).size(20.0))
                             .min_size(egui::vec2(30.0, 30.0))
-                            .rounding(5.0)
+                            .corner_radius(5.0)
                             .fill(if self.settings_detail_overlay.is_open() {
                                 ui.visuals().selection.bg_fill
                             } else {
@@ -602,7 +618,7 @@ impl eframe::App for App {
                     let stats_button = ui.add(
                         egui::Button::new(egui::RichText::new(stats_icon).size(20.0))
                             .min_size(egui::vec2(30.0, 30.0))
-                            .rounding(5.0)
+                            .corner_radius(5.0)
                             .fill(if self.stats_detail_overlay.is_open() {
                                 ui.visuals().selection.bg_fill
                             } else {
@@ -627,7 +643,7 @@ impl eframe::App for App {
                     let controls_button = ui.add(
                         egui::Button::new(egui::RichText::new(controls_icon).size(20.0))
                             .min_size(egui::vec2(30.0, 30.0))
-                            .rounding(5.0)
+                            .corner_radius(5.0)
                             .fill(if self.controls_detail_overlay.is_open() {
                                 ui.visuals().selection.bg_fill
                             } else {
