@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::channel::reactive_receiver;
 use crate::orbit_controls::CameraController;
-use crate::overlays::{DatasetDetailOverlay, SettingsDetailOverlay, StatsDetailOverlay};
+use crate::overlays::{DatasetDetailOverlay, SettingsDetailOverlay, StatsDetailOverlay, ControlsDetailOverlay};
 use crate::panels::{DatasetPanel, ScenePanel};
 #[cfg(feature = "tracing")]
 use crate::panels::TracingPanel;
@@ -109,6 +109,7 @@ pub struct App {
     dataset_detail_overlay: DatasetDetailOverlay,
     settings_detail_overlay: SettingsDetailOverlay,
     stats_detail_overlay: StatsDetailOverlay,
+    controls_detail_overlay: ControlsDetailOverlay,
     select_folder_requested: bool,
     select_file_requested: bool,
     select_dataset_folder_requested: bool,
@@ -391,6 +392,7 @@ impl App {
             dataset_detail_overlay,
             settings_detail_overlay,
             stats_detail_overlay,
+            controls_detail_overlay: ControlsDetailOverlay::new(),
             select_folder_requested: false,
             select_file_requested: false,
             select_dataset_folder_requested: false,
@@ -535,6 +537,31 @@ impl eframe::App for App {
                     if stats_button.hovered() {
                         stats_button.on_hover_text("Statistics");
                     }
+                    
+                    ui.add_space(5.0);
+                    
+                    // Controls icon
+                    let controls_icon = "🎮";
+                    let controls_button = ui.add(
+                        egui::Button::new(egui::RichText::new(controls_icon).size(20.0))
+                            .min_size(egui::vec2(30.0, 30.0))
+                            .rounding(5.0)
+                            .fill(if self.controls_detail_overlay.is_open() {
+                                ui.visuals().selection.bg_fill
+                            } else {
+                                ui.visuals().widgets.inactive.bg_fill
+                            })
+                    );
+                    
+                    if controls_button.clicked() {
+                        let is_open = self.controls_detail_overlay.is_open();
+                        self.controls_detail_overlay.set_open(!is_open);
+                    }
+                    
+                    // Tooltip for the controls button
+                    if controls_button.hovered() {
+                        controls_button.on_hover_text("Training Controls");
+                    }
                 });
             });
 
@@ -661,6 +688,9 @@ impl eframe::App for App {
         
         // Show the stats detail overlay if it's open
         self.stats_detail_overlay.show(ctx, &mut context);
+        
+        // Show the controls detail overlay if it's open
+        self.controls_detail_overlay.show(ctx, &mut context);
         
         // Forward messages to the stats overlay
         if let Some(process) = context.running_process.as_mut() {

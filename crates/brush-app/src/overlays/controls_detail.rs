@@ -1,0 +1,177 @@
+use crate::app::AppContext;
+use brush_process::process_loop::ControlMessage;
+use egui::{Context, Pos2, Vec2, pos2, Align2, Color32};
+
+pub(crate) struct ControlsDetailOverlay {
+    // UI state
+    open: bool,
+    position: Pos2,
+    size: Vec2,
+    
+    // Control state
+    paused: bool,
+    live_update: bool,
+}
+
+impl ControlsDetailOverlay {
+    pub(crate) fn new() -> Self {
+        Self {
+            // UI state
+            open: false, // Start with window closed
+            position: pos2(300.0, 300.0),
+            size: Vec2::new(300.0, 200.0), // Compact size for controls
+            
+            // Control state
+            paused: false,
+            live_update: true,
+        }
+    }
+    
+    pub(crate) fn is_open(&self) -> bool {
+        self.open
+    }
+    
+    pub(crate) fn set_open(&mut self, open: bool) {
+        self.open = open;
+    }
+    
+    pub(crate) fn show(&mut self, ctx: &Context, context: &mut AppContext) {
+        if !self.open {
+            return;
+        }
+        
+        // Create a unique window ID - make it static to maintain window state
+        let window_id = egui::Id::new("controls_detail_window");
+        
+        // Track open state locally to avoid borrow issues
+        let mut window_open = self.open;
+        
+        // Create the window with settings to ensure proper resizability
+        let window = egui::Window::new("🎮 Controls")
+            .id(window_id)
+            .open(&mut window_open)
+            .resizable(true)
+            .movable(true)
+            .collapsible(true)
+            .default_pos(self.position)
+            .default_size(self.size)
+            .min_width(250.0)
+            .min_height(150.0);
+        
+        // Show the window and get the response
+        let response = window.show(ctx, |ui| {
+            // Use a ScrollArea that fills the available space
+            ui.set_width(ui.available_width());
+            ui.set_height(ui.available_height());
+            
+            // Add a subtle resize indicator in the bottom-right corner
+            let resize_rect = egui::Rect::from_min_size(
+                ui.max_rect().right_bottom() - egui::vec2(16.0, 16.0),
+                egui::vec2(16.0, 16.0)
+            );
+            if ui.rect_contains_pointer(resize_rect) {
+                ui.painter().text(
+                    resize_rect.center(),
+                    Align2::CENTER_CENTER,
+                    "↘",
+                    egui::FontId::proportional(14.0),
+                    ui.visuals().weak_text_color()
+                );
+            }
+            
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.heading("Training Controls");
+                    ui.add_space(10.0);
+                    
+                    if context.loading() {
+                        ui.horizontal(|ui| {
+                            ui.label("Loading... Please wait.");
+                            ui.spinner();
+                        });
+                    }
+                    
+                    if context.training() {
+                        ui.horizontal(|ui| {
+                            let label = if self.paused {
+                                "⏸ paused"
+                            } else {
+                                "⏵ training"
+                            };
+                            
+                            if ui.selectable_label(!self.paused, label).clicked() {
+                                self.paused = !self.paused;
+                                context.control_message(ControlMessage::Paused(self.paused));
+                            }
+                            
+                            ui.add_space(15.0);
+                            
+                            ui.scope(|ui| {
+                                ui.style_mut().visuals.selection.bg_fill = Color32::DARK_RED;
+                                if ui
+                                    .selectable_label(self.live_update, "🔴 Live update splats")
+                                    .clicked()
+                                {
+                                    self.live_update = !self.live_update;
+                                }
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        let export_button = ui.button("⬆ Export");
+                        if export_button.clicked() {
+                            // For now, just show a message that this would export the model
+                            // In a real implementation, we would need to add an Export variant to ControlMessage
+                            // or implement a different mechanism to handle exports
+                        }
+                        
+                        if export_button.hovered() {
+                            export_button.on_hover_text("Export functionality will be implemented in the Scene panel");
+                        }
+                    } else {
+                        ui.label("No active training session.");
+                    }
+                    
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(10.0);
+                    
+                    ui.heading("Navigation Controls");
+                    ui.add_space(5.0);
+                    
+                    ui.label("• Left click and drag to orbit");
+                    ui.label("• Right click, or left click + spacebar, and drag to look around");
+                    ui.label("• Middle click, or left click + control, and drag to pan");
+                    ui.label("• Scroll to zoom");
+                    ui.label("• WASD to fly, Q&E to move up & down");
+                    ui.label("• Z&C to roll, X to reset roll");
+                    ui.label("• Shift to move faster");
+                });
+        });
+        
+        // Update open state and position/size if window was moved or resized
+        if let Some(response) = response {
+            self.open = window_open;
+            self.position = response.response.rect.min;
+            self.size = response.response.rect.size();
+        }
+    }
+    
+    pub(crate) fn get_live_update(&self) -> bool {
+        self.live_update
+    }
+    
+    pub(crate) fn set_live_update(&mut self, live_update: bool) {
+        self.live_update = live_update;
+    }
+    
+    pub(crate) fn get_paused(&self) -> bool {
+        self.paused
+    }
+    
+    pub(crate) fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
+    }
+} 
