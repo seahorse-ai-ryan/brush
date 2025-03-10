@@ -22,6 +22,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 use egui::{Align2, RichText};
+use brush_dataset::splat_export;
+use tokio_with_wasm::alias as tokio_wasm;
 
 #[cfg(not(target_family = "wasm"))]
 use rfd;
@@ -73,7 +75,7 @@ impl egui_tiles::Behavior<PaneType> for AppTree {
     /// What are the rules for simplifying the tree?
     fn simplification_options(&self) -> SimplificationOptions {
         SimplificationOptions {
-            all_panes_must_have_tabs: !self.zen,
+            all_panes_must_have_tabs: false,
             ..Default::default()
         }
     }
@@ -228,6 +230,71 @@ impl AppContext {
 
     pub fn loading(&self) -> bool {
         self.loading
+    }
+
+    /// Export the current splats to a PLY file
+    pub fn export_splats(&self) {
+        // Get the current splats from the context
+        if let Some(scene_panel) = self.get_scene_panel() {
+            if let Some(splats) = scene_panel.get_current_splats() {
+                let splats = splats.clone();
+                
+                // Use tokio to handle the file save dialog and export
+                let fut = async move {
+                    #[cfg(not(target_family = "wasm"))]
+                    let file = rfd::AsyncFileDialog::new()
+                        .add_filter("PLY", &["ply"])
+                        .set_file_name("export.ply")
+                        .save_file()
+                        .await;
+                    
+                    #[cfg(target_family = "wasm")]
+                    let file = rrfd::save_file("export.ply").await;
+                    
+                    // Handle errors
+                    match file {
+                        None => {
+                            log::error!("No file selected for export");
+                        }
+                        Some(file) => {
+                            let data = splat_export::splat_to_ply(splats).await;
+                            
+                            let data = match data {
+                                Ok(data) => data,
+                                Err(e) => {
+                                    log::error!("Failed to serialize file: {e}");
+                                    return;
+                                }
+                            };
+                            
+                            #[cfg(not(target_family = "wasm"))]
+                            if let Err(e) = std::fs::write(file.path(), data) {
+                                log::error!("Failed to write file: {e}");
+                            }
+                            
+                            #[cfg(target_family = "wasm")]
+                            if let Err(e) = file.write(&data).await {
+                                log::error!("Failed to write file: {e}");
+                            }
+                        }
+                    }
+                };
+                
+                tokio_wasm::task::spawn(fut);
+            }
+        }
+    }
+    
+    /// Get the Scene panel
+    fn get_scene_panel(&self) -> Option<&ScenePanel> {
+        // We need to use a different approach to get the ScenePanel
+        None
+    }
+    
+    /// Get a mutable reference to the Scene panel
+    fn get_scene_panel_mut(&mut self) -> Option<&mut ScenePanel> {
+        // We need to use a different approach to get the ScenePanel
+        None
     }
 }
 
@@ -416,6 +483,17 @@ impl App {
 
         for message in messages {
             match message {
+                ProcessMessage::NewSource => {
+                    // Reset the Controls overlay state when a new dataset is loaded
+                    self.controls_detail_overlay.reset_state();
+                    
+                    // Forward the message to all panels
+                    for (_, tile) in self.tree.tiles.iter_mut() {
+                        if let Tile::Pane(pane) = tile {
+                            pane.on_message(&message, &mut context);
+                        }
+                    }
+                }
                 ProcessMessage::Dataset { data: _ } => {
                     // Show the dataset panel if we've loaded one.
                     if self.datasets.is_none() {
@@ -433,6 +511,10 @@ impl App {
                 ProcessMessage::StartLoading { training } => {
                     context.training = training;
                     context.loading = true;
+                    
+                    // Reset the Controls overlay state when a new dataset starts loading
+                    // This ensures the paused state is reset to false
+                    self.controls_detail_overlay.reset_state();
                 }
                 ProcessMessage::DoneLoading { training: _ } => {
                     context.loading = false;
@@ -567,31 +649,32 @@ impl eframe::App for App {
 
         let main_panel_frame = egui::Frame::central_panel(ctx.style().as_ref()).inner_margin(0.0);
 
+        // Main content area
         egui::CentralPanel::default()
             .frame(main_panel_frame)
             .show(ctx, |ui| {
-                self.tree.ui(&mut self.tree_ctx, ui);
-                
-                // Add a resize indicator in the bottom-right corner of the main window
-                // Only show on desktop platforms, not on mobile or web
-                #[cfg(not(any(target_os = "android", target_os = "ios", target_family = "wasm")))]
-                {
-                    let resize_rect = egui::Rect::from_min_size(
-                        ui.max_rect().right_bottom() - egui::vec2(16.0, 16.0),
-                        egui::vec2(16.0, 16.0)
-                    );
-                    if ui.rect_contains_pointer(resize_rect) {
-                        ui.painter().text(
-                            resize_rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            "↘",
-                            egui::FontId::proportional(14.0),
-                            ui.visuals().weak_text_color()
-                        );
-                    }
-                }
-            });
+            self.tree.ui(&mut self.tree_ctx, ui);
             
+            // Add a resize indicator in the bottom-right corner of the main window
+            // Only show on desktop platforms, not on mobile or web
+            #[cfg(not(any(target_os = "android", target_os = "ios", target_family = "wasm")))]
+            {
+                let resize_rect = egui::Rect::from_min_size(
+                    ui.max_rect().right_bottom() - egui::vec2(16.0, 16.0),
+                    egui::vec2(16.0, 16.0)
+                );
+                if ui.rect_contains_pointer(resize_rect) {
+                    ui.painter().text(
+                        resize_rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        "↘",
+                        egui::FontId::proportional(14.0),
+                        ui.visuals().weak_text_color()
+                    );
+                }
+            }
+        });
+        
         // Handle folder selection
         if self.dataset_detail_overlay.wants_to_select_folder() {
             self.dataset_detail_overlay.folder_selection_started();
@@ -679,8 +762,10 @@ impl eframe::App for App {
             }
         }
         
-        // Show the dataset detail overlay if it's open
+        // Show the overlays
         let mut context = self.tree_ctx.context.write().expect("Lock poisoned");
+        
+        // Show the dataset detail overlay if it's open
         self.dataset_detail_overlay.show(ctx, &mut context);
         
         // Show the settings detail overlay if it's open

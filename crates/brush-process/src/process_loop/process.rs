@@ -80,6 +80,7 @@ pub enum ProcessMessage {
 #[derive(Debug, Clone)]
 pub enum ControlMessage {
     Paused(bool),
+    LiveUpdate(bool),
 }
 
 async fn process_loop(
@@ -272,6 +273,7 @@ async fn train_process_loop(
     let mut stream = std::pin::pin!(stream);
 
     let mut train_paused = false;
+    let mut live_update = true;
 
     loop {
         let control = if train_paused {
@@ -285,6 +287,9 @@ async fn train_process_loop(
                 ControlMessage::Paused(paused) => {
                     train_paused = paused;
                 }
+                ControlMessage::LiveUpdate(update) => {
+                    live_update = update;
+                }
             }
         }
 
@@ -297,6 +302,7 @@ async fn train_process_loop(
         // Bubble up errors in message.
         let msg = msg?;
 
+        // Handle the message based on its type
         match msg {
             train_stream::TrainMessage::TrainStep {
                 splats,
@@ -432,7 +438,8 @@ async fn train_process_loop(
                 // How frequently to update the UI after a training step.
                 const UPDATE_EVERY: u32 = 5;
 
-                if (iter % UPDATE_EVERY == 0 || is_last_step)
+                // Only send the TrainStep message if live_update is true
+                if live_update && (iter % UPDATE_EVERY == 0 || is_last_step)
                     && output
                         .send(ProcessMessage::TrainStep {
                             splats,

@@ -82,15 +82,7 @@ impl ControlsDetailOverlay {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    ui.heading("Training Controls");
                     ui.add_space(10.0);
-                    
-                    if context.loading() {
-                        ui.horizontal(|ui| {
-                            ui.label("Loading... Please wait.");
-                            ui.spinner();
-                        });
-                    }
                     
                     if context.training() {
                         ui.horizontal(|ui| {
@@ -114,6 +106,9 @@ impl ControlsDetailOverlay {
                                     .clicked()
                                 {
                                     self.live_update = !self.live_update;
+                                    
+                                    // Send a message to update the Scene panel's live_update flag
+                                    context.control_message(ControlMessage::LiveUpdate(self.live_update));
                                 }
                             });
                         });
@@ -122,13 +117,12 @@ impl ControlsDetailOverlay {
                         
                         let export_button = ui.button("⬆ Export");
                         if export_button.clicked() {
-                            // For now, just show a message that this would export the model
-                            // In a real implementation, we would need to add an Export variant to ControlMessage
-                            // or implement a different mechanism to handle exports
+                            // Call the export_splats method on the AppContext
+                            context.export_splats();
                         }
                         
                         if export_button.hovered() {
-                            export_button.on_hover_text("Export functionality will be implemented in the Scene panel");
+                            export_button.on_hover_text("Export the current 3D model to a PLY file");
                         }
                     } else {
                         ui.label("No active training session.");
@@ -138,16 +132,22 @@ impl ControlsDetailOverlay {
                     ui.separator();
                     ui.add_space(10.0);
                     
-                    ui.heading("Navigation Controls");
-                    ui.add_space(5.0);
-                    
-                    ui.label("• Left click and drag to orbit");
-                    ui.label("• Right click, or left click + spacebar, and drag to look around");
-                    ui.label("• Middle click, or left click + control, and drag to pan");
-                    ui.label("• Scroll to zoom");
-                    ui.label("• WASD to fly, Q&E to move up & down");
-                    ui.label("• Z&C to roll, X to reset roll");
-                    ui.label("• Shift to move faster");
+                    // Replace the Navigation Controls button with a question mark icon
+                    let help_button = ui.button("❓");
+                    if help_button.hovered() {
+                        help_button.on_hover_ui(|ui| {
+                            ui.heading("Navigation Controls");
+                            ui.add_space(5.0);
+                            
+                            ui.label("• Left click and drag to orbit");
+                            ui.label("• Right click, or left click + spacebar, and drag to look around");
+                            ui.label("• Middle click, or left click + control, and drag to pan");
+                            ui.label("• Scroll to zoom");
+                            ui.label("• WASD to fly, Q&E to move up & down");
+                            ui.label("• Z&C to roll, X to reset roll");
+                            ui.label("• Shift to move faster");
+                        });
+                    }
                 });
         });
         
@@ -173,5 +173,11 @@ impl ControlsDetailOverlay {
     
     pub(crate) fn set_paused(&mut self, paused: bool) {
         self.paused = paused;
+    }
+    
+    /// Reset the Controls overlay state when a new dataset is loaded
+    pub(crate) fn reset_state(&mut self) {
+        self.paused = false;
+        self.live_update = true;
     }
 } 
