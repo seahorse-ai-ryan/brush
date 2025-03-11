@@ -65,6 +65,7 @@ impl Default for AutoSaveConfig {
 }
 
 /// Central service for handling export operations
+#[derive(Clone)]
 pub struct ExportService {
     /// Directory where exports will be saved
     export_dir: Option<PathBuf>,
@@ -203,13 +204,8 @@ impl ExportService {
         splats: &Splats<<TrainBack as AutodiffBackend>::InnerBackend>,
         output_path: &Path,
     ) -> Result<(), ExportError> {
-        // Use tokio to handle the export asynchronously
-        let splats = splats.clone();
-        
-        // Convert splats to PLY format
-        let data = match tokio::runtime::Handle::current().block_on(async {
-            brush_dataset::splat_export::splat_to_ply(splats).await
-        }) {
+        // Convert splats to PLY format directly without using block_on
+        let data = match brush_dataset::splat_export::splat_to_ply_sync(splats.clone()) {
             Ok(data) => data,
             Err(e) => {
                 error!("Failed to serialize splats to PLY: {}", e);

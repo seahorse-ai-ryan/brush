@@ -71,9 +71,21 @@ impl StatsDetailOverlay {
     pub(crate) fn on_message(&mut self, message: &ProcessMessage) {
         match message {
             ProcessMessage::NewSource => {
+                // Save the current open state
+                let was_open = self.open;
+                let position = self.position;
+                
+                // Reset the overlay but preserve open state
                 *self = Self::new(self.device.clone(), self.adapter_info.clone());
+                
+                // Restore the open state and position
+                self.open = was_open;
+                self.position = position;
             }
             ProcessMessage::StartLoading { training } => {
+                // Reset stats but preserve open state
+                let was_open = self.open;
+                
                 self.start_load_time = Instant::now();
                 self.last_train_step = (Instant::now(), 0);
                 self.train_iter_per_s = 0.0;
@@ -81,6 +93,9 @@ impl StatsDetailOverlay {
                 self.cur_sh_degree = 0;
                 self.last_eval = None;
                 self.training_started = *training;
+                
+                // Restore the open state
+                self.open = was_open;
             }
             ProcessMessage::ViewSplats {
                 up_axis: _,
@@ -156,8 +171,8 @@ impl StatsDetailOverlay {
             .collapsible(true)
             .default_pos(self.position)
             .default_size(self.size)
-            .min_width(180.0)
-            .min_height(200.0);
+            .min_width(300.0)
+            .min_height(300.0);
         
         // Show the window and get the response
         let response = window.show(ctx, |ui| {

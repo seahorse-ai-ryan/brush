@@ -1,5 +1,5 @@
 use crate::app::AppContext;
-use brush_process::process_loop::ControlMessage;
+use brush_process::process_loop::{ControlMessage, ProcessMessage};
 use egui::{Context, Pos2, Vec2, pos2, Align2, Color32};
 
 pub(crate) struct ControlsDetailOverlay {
@@ -84,6 +84,7 @@ impl ControlsDetailOverlay {
                 .show(ui, |ui| {
                     ui.add_space(5.0);
                     
+                    // Check the AppContext's training state directly
                     if context.training() {
                         ui.horizontal(|ui| {
                             let label = if self.paused {
@@ -146,11 +147,12 @@ impl ControlsDetailOverlay {
                             }
                         });
                     } else {
+                        // Display a message when not training
                         ui.label("No active training session.");
                         
+                        // Still show the help button for navigation controls
                         ui.add_space(5.0);
                         
-                        // Help button for non-training state
                         let help_button = ui.button("❓");
                         if help_button.hovered() {
                             help_button.on_hover_ui(|ui| {
@@ -215,5 +217,41 @@ impl ControlsDetailOverlay {
     pub(crate) fn reset_state(&mut self) {
         self.paused = false;
         self.live_update = true;
+    }
+
+    /// Handle process messages to update the Controls overlay state
+    pub(crate) fn on_message(&mut self, message: &brush_process::process_loop::ProcessMessage) {
+        match message {
+            brush_process::process_loop::ProcessMessage::NewSource => {
+                // Reset control state but preserve open state
+                let was_open = self.open;
+                self.paused = false;
+                self.live_update = true;
+                self.open = was_open;
+            },
+            brush_process::process_loop::ProcessMessage::StartLoading { training } => {
+                // Update state based on training mode
+                if *training {
+                    // Keep the panel open when training starts
+                    self.open = true;
+                    
+                    // Reset control state
+                    self.paused = false;
+                    self.live_update = true;
+                }
+            },
+            brush_process::process_loop::ProcessMessage::DoneLoading { training } => {
+                // Update state based on training mode
+                if *training {
+                    // Keep the panel open when training is done loading
+                    self.open = true;
+                }
+            },
+            brush_process::process_loop::ProcessMessage::TrainStep { .. } => {
+                // Make sure the panel is open when training steps are received
+                self.open = true;
+            },
+            _ => {}
+        }
     }
 } 

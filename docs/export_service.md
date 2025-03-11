@@ -1,45 +1,38 @@
-# Export Service Plan
+# Export Service
 
 ## Overview
 
-This document outlines the plan for implementing a centralized Export Service in Brush. The service will decouple export functionality from specific UI components, enabling any UI element to trigger exports while maintaining a consistent export workflow.
+This document describes the centralized Export Service in Brush. The service decouples export functionality from specific UI components, enabling any UI element to trigger exports while maintaining a consistent export workflow.
 
-## Current Implementation Issues
+## Implementation Features
 
-1. Export functionality is currently tightly coupled to the Scene panel
-2. The Export button in the Controls window needs to access Scene panel functionality
-3. No centralized way to handle different export formats (PLY, etc.)
-4. Difficult to implement batch processing of datasets
-5. Auto-saving functionality is not centralized and may be duplicated across components
+The `ExportService` provides:
 
-## Proposed Solution: Centralized Export Service
-
-We will implement a dedicated `ExportService` that will:
-
-1. Provide a centralized API for exporting splats in various formats
-2. Decouple export logic from UI components
-3. Enable any UI element to trigger exports
-4. Support batch processing of datasets
-5. Make it easier to add new export formats in the future
-6. Handle auto-saving of models at specified training intervals
+1. A centralized API for exporting splats in various formats
+2. Decoupled export logic from UI components
+3. The ability for any UI element to trigger exports
+4. Support for batch processing of datasets
+5. Easy extensibility for new export formats
+6. Auto-saving of models at specified training intervals
+7. Consistent, meaningful filenames based on the current dataset
 
 ## Architecture
 
 ### 1. Export Service Module
 
-Create a new module `export_service.rs` that will:
+The `export_service.rs` module:
 
-- Define the `ExportService` struct
-- Implement methods for different export formats
-- Handle file system operations
-- Manage export configurations
-- Provide auto-save functionality
+- Defines the `ExportService` struct
+- Implements methods for different export formats
+- Handles file system operations
+- Manages export configurations
+- Provides auto-save functionality
 
 ```rust
-// Simplified example structure
+// Simplified structure
 pub struct ExportService {
     // Configuration and state
-    export_dir: PathBuf,
+    export_dir: Option<PathBuf>,
     default_format: ExportFormat,
     auto_save_config: Option<AutoSaveConfig>,
     last_auto_save_step: u32,
@@ -59,7 +52,7 @@ pub struct AutoSaveConfig {
 }
 
 impl ExportService {
-    pub fn new(export_dir: PathBuf) -> Self { ... }
+    pub fn new(export_dir: Option<PathBuf>) -> Self { ... }
     
     pub fn export_splats(&self, splats: &Splats, format: ExportFormat, filename: &str) -> Result<PathBuf, ExportError> { ... }
     
@@ -77,7 +70,7 @@ impl ExportService {
 
 ### 2. Integration with AppContext
 
-Add the `ExportService` to the `AppContext` to make it accessible throughout the application:
+The `ExportService` is integrated into the `AppContext` to make it accessible throughout the application:
 
 ```rust
 pub struct AppContext {
@@ -86,7 +79,10 @@ pub struct AppContext {
     pub camera: Camera,
     // ...
     
-    // New field
+    // Track the current dataset name for export filenames
+    current_dataset_name: Option<String>,
+    
+    // Export service
     pub export_service: ExportService,
 }
 
@@ -99,20 +95,89 @@ impl AppContext {
             }
         }
     }
+    
+    // Set the current dataset name
+    pub fn set_current_dataset_name(&mut self, name: String) {
+        self.current_dataset_name = Some(name);
+    }
+    
+    // Get the current dataset name
+    pub fn current_dataset_name(&self) -> Option<&String> {
+        self.current_dataset_name.as_ref()
+    }
+    
+    // Generate a filename for export based on dataset name and current timestamp
+    fn generate_export_filename(&self) -> String {
+        // Use the current dataset name if available
+        let dataset_name = if let Some(name) = self.current_dataset_name() {
+            name.clone()
+        } else {
+            // Fall back to extracting from path if no current dataset name is set
+            // (path extraction logic)
+            "dataset".to_string()
+        };
+        
+        // Get current timestamp
+        let now = chrono::Local::now();
+        let timestamp = now.format("%Y%m%d_%H%M%S");
+        
+        // Combine dataset name and timestamp
+        format!("{}_{}.ply", dataset_name, timestamp)
+    }
 }
 ```
 
-### 3. UI Integration
+### 3. Dataset Name Tracking
+
+To ensure consistent and meaningful export filenames, dataset name tracking is implemented:
+
+1. **Capture Dataset Name on Processing**:
+   ```rust
+   // In dataset_detail.rs
+   pub(crate) fn process_dataset(&self, dataset_path: &PathBuf, context: &mut AppContext) {
+       // Get the dataset name from the path
+       let dataset_name = dataset_path.file_name()
+           .unwrap_or_default()
+           .to_string_lossy()
+           .to_string();
+       
+       // Set the current dataset name in the context
+       context.set_current_dataset_name(dataset_name);
+       
+       // Process the dataset...
+   }
+   ```
+
+2. **Preserve Dataset Name Across State Changes**:
+   ```rust
+   // In app.rs
+   pub fn connect_to(&mut self, process: RunningProcess<TrainBack>) {
+       // Save the current dataset name before resetting
+       let current_dataset_name = self.current_dataset_name.clone();
+       
+       // Reset context & view
+       *self = Self::new(self.device.clone(), self.ctx.clone(), &self.cam_settings);
+       
+       // Restore the current dataset name
+       self.current_dataset_name = current_dataset_name;
+       
+       // Continue with process connection...
+   }
+   ```
+
+### 4. UI Integration
 
 #### Controls Panel
 
-Update the Controls panel to use the Export Service:
+The Controls panel uses the Export Service:
 
 ```rust
 // In controls_detail.rs
 if export_button.clicked() {
     if let Some(splats) = context.get_current_splats() {
-        match context.export_service.export_ply(splats, "export.ply") {
+        // Use the generated filename based on current dataset name
+        let filename = context.generate_export_filename();
+        match context.export_service.export_ply(splats, &filename) {
             Ok(path) => {
                 // Show success message
             },
@@ -128,16 +193,11 @@ if export_button.clicked() {
 
 #### Scene Panel
 
-Refactor the Scene panel to use the Export Service instead of implementing export logic directly:
-
-```rust
-// Remove direct export implementation from Scene panel
-// Replace with calls to the Export Service
-```
+The Scene panel uses the Export Service instead of implementing export logic directly.
 
 #### Settings Panel
 
-Add UI controls for configuring auto-save:
+The Settings panel includes UI controls for configuring auto-save:
 
 ```rust
 // In settings_detail.rs
@@ -159,44 +219,15 @@ if auto_save_enabled {
 }
 ```
 
-### 4. CLI Integration
+### 5. CLI Integration
 
-Update the CLI to use the Export Service for consistency:
+The CLI uses the Export Service for consistency:
 
 ```rust
 // In CLI command handling
 let export_service = ExportService::new(output_dir);
 export_service.export_ply(&splats, output_filename)?;
 ```
-
-## Implementation Plan
-
-### Phase 1: Create the Export Service
-
-1. Create the `export_service.rs` module with basic structure
-2. Implement PLY export functionality (migrated from Scene panel)
-3. Add auto-save functionality
-4. Add unit tests for the service
-
-### Phase 2: Integrate with AppContext
-
-1. Add the Export Service to AppContext
-2. Create helper methods in AppContext to access the service
-3. Update initialization code to create the service
-4. Implement training step hooks for auto-save
-
-### Phase 3: Update UI Components
-
-1. Refactor Scene panel to use the Export Service
-2. Update Controls panel to use the Export Service for the Export button
-3. Add auto-save configuration to Settings panel
-4. Add appropriate error handling and user feedback
-
-### Phase 4: CLI Integration and Batch Processing
-
-1. Update CLI to use the Export Service
-2. Implement batch processing functionality
-3. Add UI for batch export configuration
 
 ## Benefits
 
@@ -206,6 +237,7 @@ export_service.export_ply(&splats, output_filename)?;
 4. **Batch Processing**: Enable processing multiple datasets at once
 5. **Testability**: Export logic can be tested independently of UI
 6. **Auto-save**: Centralized auto-save functionality with consistent configuration
+7. **Meaningful Filenames**: Export filenames consistently reflect the current dataset being processed
 
 ## Future Enhancements
 
@@ -215,6 +247,7 @@ export_service.export_ply(&splats, output_filename)?;
 4. Export presets for common configurations
 5. Background processing for large exports
 6. Advanced auto-save options (different formats at different intervals)
+7. Custom naming templates for exports
 
 ## Comparison with CLI Implementation
 

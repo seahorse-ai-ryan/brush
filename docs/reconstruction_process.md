@@ -181,10 +181,16 @@ Once reconstruction is complete, users can export the results:
 
 2. **Export Process**:
    - User selects the desired export format
-   - Export settings can be adjusted (resolution, quality, etc.)
+   - The application automatically generates a filename based on the dataset name and current timestamp
+   - Format: `[dataset_name]_[YYYYMMDD_HHMMSS].ply`
    - The model is processed and saved to the specified location
 
-3. **Post-Export Options**:
+3. **Filename Generation**:
+   - The dataset name is extracted from the current dataset being processed
+   - A timestamp is added to ensure unique filenames
+   - This naming convention makes it easy to identify exports by dataset and creation time
+
+4. **Post-Export Options**:
    - View the exported file location
    - Open the model in an external application
    - Share the model via supported methods

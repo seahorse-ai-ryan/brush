@@ -857,6 +857,7 @@ dependencies = [
  "burn",
  "burn-cubecl",
  "burn-wgpu",
+ "chrono",
  "clap",
  "console_error_panic_hook",
  "dirs",
@@ -894,6 +895,7 @@ name = "brush-cli"
 version = "0.2.0"
 dependencies = [
  "brush-process",
+ "brush-train",
  "clap",
  "indicatif",
 ]
@@ -1672,7 +1674,9 @@ checksum = "7e36cc9d416881d2e24f9a963be5fb1cd90966419ac844274161d10488b3e825"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 

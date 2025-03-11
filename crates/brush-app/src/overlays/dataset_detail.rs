@@ -200,24 +200,18 @@ impl DatasetDetailOverlay {
         if old_count != new_count {
             // Base height calculation
             let base_height = 450.0;
-            let height_per_dataset = 70.0;
             
-            // Determine appropriate height with reasonable limits
-            let dataset_height = if new_count == 0 {
-                200.0 // Minimum for empty state
-            } else {
-                // Calculate height based on dataset count (up to 12 datasets)
-                let count = new_count.min(12);
-                count as f32 * height_per_dataset
-            };
+            // Calculate height for dataset area (each dataset row is about 60 pixels)
+            let dataset_height = new_count as f32 * 60.0;
             
             // Calculate total height with minimum and maximum constraints
             let new_height = (base_height + dataset_height).max(600.0).min(1200.0);
             
             // Set the new height and mark as changed
-            self.size.y = new_height;
-            self.height_changed = true;
-            self.last_dataset_count = new_count;
+            if (self.size.y - new_height).abs() > 1.0 {
+                self.size.y = new_height;
+                self.height_changed = true;
+            }
         }
     }
     
@@ -463,7 +457,8 @@ impl DatasetDetailOverlay {
                         }
                     }
                     Err(err) => {
-                        // Handle error silently
+                        // Fall back to copying the zip file as-is
+                        self.copy_zip_file_as_is(&file_path, &dataset_folder);
                     }
                 }
             }
@@ -475,50 +470,46 @@ impl DatasetDetailOverlay {
     
     // Helper method to copy a zip file as-is (fallback method)
     fn copy_zip_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
+        // Get the filename
+        let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        
         // Create the destination path
-        let filename = file_path.file_name().unwrap_or_default();
-        let dest_path = dataset_folder.join(filename);
+        let dest_path = dataset_folder.join(&filename);
         
         // Check if the file is already in the dataset folder
-        if file_path.canonicalize().ok() != dest_path.canonicalize().ok() {
+        if file_path != &dest_path {
             // Copy the file to the dataset folder
             match fs::copy(file_path, &dest_path) {
                 Ok(_) => {
                     // Get file metadata
                     if let Ok(metadata) = fs::metadata(&dest_path) {
-                        // Add the file to the list
-                        let file_stem = file_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                        // Add the new dataset to the list
+                        self.datasets.push(DatasetEntry {
+                            name: filename,
+                            path: dest_path,
+                            size: metadata.len(),
+                            modified: metadata.modified().unwrap_or(SystemTime::now()),
+                            processed: false,
+                        });
                         
-                        // Check if the file is already in the list
-                        let already_in_list = self.datasets.iter().any(|d| d.path == dest_path);
-                        if !already_in_list {
-                            self.datasets.push(DatasetEntry {
-                                name: file_stem,
-                                path: dest_path,
-                                size: metadata.len(),
-                                modified: metadata.modified().unwrap_or(SystemTime::now()),
-                                processed: false,
-                            });
-                            
-                            // Sort datasets by modified time (newest first)
-                            self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
-                        }
+                        // Sort datasets by modified time (newest first)
+                        self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
                     }
                 }
-                Err(_err) => {
+                Err(err) => {
                     // Handle error silently
                 }
             }
         } else {
             // File is already in the dataset folder
-            // Check if it's already in the list
+            
+            // Check if it's already in our list
             let already_in_list = self.datasets.iter().any(|d| d.path == dest_path);
             if !already_in_list {
+                // Add it to our list
                 if let Ok(metadata) = fs::metadata(&dest_path) {
-                    let file_stem = file_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-                    
                     self.datasets.push(DatasetEntry {
-                        name: file_stem,
+                        name: filename,
                         path: dest_path,
                         size: metadata.len(),
                         modified: metadata.modified().unwrap_or(SystemTime::now()),
@@ -1068,6 +1059,15 @@ impl DatasetDetailOverlay {
 
     // New method to process a dataset file
     pub(crate) fn process_dataset(&self, dataset_path: &PathBuf, context: &mut AppContext) {
+        // Get the dataset name from the path
+        let dataset_name = dataset_path.file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        
+        // Set the current dataset name in the context
+        context.set_current_dataset_name(dataset_name);
+        
         // Check if the dataset path is a zip file
         if dataset_path.extension().map_or(false, |ext| ext == "zip") {
             // Create a folder name from the zip file name

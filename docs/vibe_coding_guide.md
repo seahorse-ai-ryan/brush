@@ -6,40 +6,19 @@
 {
   "document_type": "contribution_guide",
   "project_name": "Brush",
-  "version": "1.0",
+  "version": "1.1",
   "target_audience": ["agentic_ai_assistants", "human_developers"],
-  "min_capability_level": "advanced_reasoning",
   "key_technologies": ["rust", "wgpu", "egui", "burn", "wasm", "trunk", "tokio"],
   "priority_tasks": ["ui_improvements", "cross_platform_compatibility", "user_experience"],
-  "last_updated": "2024-03-07"
+  "last_updated": "2024-03-11"
 }
 ```
-
-> **IMPORTANT NOTE**: This guide is specifically designed for agentic AI assistants with advanced reasoning capabilities and may not be appropriate for simpler LLMs. The instructions assume the ability to maintain context, execute multi-step reasoning, and perform complex code analysis.
 
 ## Welcome
 
 Welcome to contributing to Brush, an open-source project based on [ArthurBrussee/brush](https://github.com/ArthurBrussee/brush)!
 
 This document is designed to guide both human "vibe coders" and AI coding agents in contributing to the Brush application. Brush is focused on making 3D neural reconstruction accessible to everyone, building upon the foundation laid by the original brush project. This guide will provide context, point you to helpful resources, and outline best practices for development within this project, even if you are working in a forked repository.
-
-### Personal AI Customization
-
-```yaml
-# AI AGENT INSTRUCTION: PERSONAL PROMPT SUGGESTION
-trigger_condition: "first interaction with a developer"
-priority: low
-action_type: helpful_suggestion
-steps:
-  - offer_personal_setup: "I see you're working on Brush. Would you like me to help set up some personal AI prompt files to customize how I assist you with this codebase? This can help me better align with your coding style and workflow preferences."
-  - if_user_interested:
-      - suggest_personal_prompt_files:
-          - coding_preferences.md
-          - debugging_workflow.md
-          - quick_commands.md
-      - recommend_location: "~/.cursor/prompts/"
-  - explain_separation: "These personal prompts complement project-wide guidelines while allowing for individual preferences"
-```
 
 ## Project Context
 
@@ -110,99 +89,29 @@ To provide the most helpful assistance, please begin by asking the user about th
 
 ## AI Agent-Specific Guidance
 
-### Repository Synchronization Check
+### Documentation Practices
 
-```yaml
-# AI AGENT INSTRUCTION: REPOSITORY SYNC CHECK
-trigger_condition: "developer hasn't mentioned syncing to public Brush repository recently"
-priority: high
-action_type: proactive_suggestion
-steps:
-  - ask_if_user_wants_to_check_for_updates: true
-  - if_user_agrees:
-      - check_remote_configuration
-      - add_upstream_remote_if_needed
-      - fetch_latest_changes
-      - merge_or_rebase_as_appropriate
-  - after_sync:
-      - compile_application
-      - test_application
-      - verify_functionality
-```
+When working on the Brush codebase, consider these documentation practices:
 
-### Checkpoint Recommendations
+1. **Lessons Learned**: When resolving complex bugs or errors, especially those related to Rust's ownership system or cross-platform issues, consider documenting the solution in the `ai_agent_lessons_learned.md` file. This helps future developers avoid similar pitfalls.
 
-```yaml
-# AI AGENT INSTRUCTION: CHECKPOINT RECOMMENDATION
-trigger_condition: "ONLY after MULTIPLE successful edits AND one of the following:"
-qualifying_conditions:
-  - significant_wall_clock_time: "30+ minutes since last commit"
-  - substantial_changes: "Changes across multiple files or significant functionality added"
-  - logical_completion: "A complete feature or bugfix has been implemented and tested"
-  - user_initiated_break: "User indicates they're taking a break or ending a session"
-priority: low
-action_type: non_intrusive_suggestion
-steps:
-  - assess_if_appropriate_time:
-      - avoid_interrupting_user_flow
-      - consider_size_and_impact_of_changes
-      - respect_user_workflow_preferences
-  - if_appropriate:
-      - suggest_saving_checkpoint: true
-      - if_user_agrees:
-          - commit_changes_with_descriptive_message
-          - push_to_remote_if_appropriate
-          - verify_application_builds_and_runs
-  - remind_about_benefits:
-      - prevent_loss_of_work
-      - easier_to_identify_when_issues_were_introduced
-  - do_not_suggest_again_for: "at least 30 minutes unless explicitly requested"
-```
+2. **Code Comments**: Add clear, concise comments for complex logic, especially in areas involving 3D graphics, ML algorithms, or platform-specific code.
 
-### Learning from Mistakes
+3. **Commit Messages**: Suggest descriptive commit messages that explain both what was changed and why.
 
-```yaml
-# AI AGENT INSTRUCTION: DOCUMENT LESSONS LEARNED
-trigger_condition: "after resolving non-obvious bugs or errors"
-qualifying_error_types:
-  - required_multiple_iterations_to_fix
-  - produced_significant_compiler_errors
-  - involved_rust_type_system_ownership_borrowing_issues
-  - related_to_platform_specific_behavior
-priority: medium
-action_type: proactive_suggestion
-steps:
-  - ask_user_about_documenting_lesson: true
-  - if_user_agrees:
-      - create_or_update_file: "/docs/ai_agent_lessons_learned.md"
-      - include_metadata:
-          - timestamp
-          - agent_name_and_version
-          - intended_change_description
-          - error_summary
-          - better_approach
-      - insert_at_top_of_file: true
-      - keep_entry_concise: true
-```
+### Error Handling Strategies
 
-### Error Pattern Recognition
+When encountering errors in the Brush codebase:
 
-```yaml
-# AI AGENT INSTRUCTION: ERROR PATTERN RECOGNITION
-trigger_condition: "encountering compiler or runtime errors"
-priority: high
-action_type: analysis
-steps:
-  - categorize_error_type:
-      - ownership_borrowing
-      - type_mismatch
-      - lifetime_issues
-      - platform_specific
-      - dependency_related
-  - check_against_known_patterns_in_lessons_learned
-  - suggest_solution_based_on_pattern_matching
-  - explain_underlying_concept_to_user
-```
+1. **Categorize the Error**: Determine if it's related to:
+   - Rust ownership/borrowing
+   - Type mismatches
+   - Platform-specific issues
+   - Dependency conflicts
+
+2. **Check Known Patterns**: Review the `ai_agent_lessons_learned.md` file for similar issues and solutions.
+
+3. **Explain Concepts**: When suggesting fixes, explain the underlying concepts to help the user learn.
 
 ## Technical Focus Areas
 

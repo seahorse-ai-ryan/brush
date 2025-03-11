@@ -42,6 +42,7 @@ humantime.workspace = true
 web-time.workspace = true
 dirs = "5.0"
 zip.workspace = true
+chrono = "0.4"
 
 log.workspace = true
 thiserror = "1.0"

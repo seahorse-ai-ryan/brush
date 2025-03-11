@@ -1,9 +1,10 @@
 use std::time::Duration;
 
 use brush_process::process_loop::{ProcessMessage, RunningProcess};
+use brush_train::train::TrainBack;
 use indicatif::{ProgressBar, ProgressStyle};
 
-pub async fn process_ui(process: RunningProcess) {
+pub async fn process_ui(process: RunningProcess<TrainBack>) {
     let mut process = process;
 
     let main_spinner = ProgressBar::new_spinner().with_style(

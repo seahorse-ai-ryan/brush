@@ -6,7 +6,7 @@ Brush is a 3D reconstruction engine using [Gaussian splatting](https://repo-sam.
 
 [**Try the (experimental) web demo** <img src="https://cdn-icons-png.flaticon.com/256/888/888846.png" alt="chrome logo" width="24"/>
 ](https://arthurbrussee.github.io/brush-demo)
-_NOTE: Only works on Chrome 131+ as of Jan 2025. Firefox and Safari are hopefully supported [soon](https://caniuse.com/webgpu)_
+_NOTE: Only works on Chrome with WebGPU support enabled. Check [caniuse.com/webgpu](https://caniuse.com/webgpu) for current browser compatibility._
 
 [![](https://dcbadge.limes.pink/api/server/https://discord.gg/TbxJST2BbC)](https://discord.gg/TbxJST2BbC)
 
@@ -21,6 +21,17 @@ Training on a pixel 7
 # Why
 
 Machine learning for real time rendering has tons of potential, but most ML tools don't align well with it: Rendering requires realtime interactivity, usually involves dynamic shapes, and it's cumbersome to ship apps with large PyTorch/Jax/CUDA deps. The usual fix is to write a separate training and inference application. Brush on the other hand, written in `rust` using `wgpu` and `burn`, can produce simple dependency free binaries, run on nearly all devices, and doesn't require any cumbersome setup.
+
+# Documentation
+
+For detailed documentation about Brush's architecture, components, and development, please refer to the [documentation index](docs/documentation_index.md) in the `/docs/` folder. The documentation includes:
+
+- [Dataset Handling](docs/dataset_handling.md): How datasets are managed, loaded, and processed
+- [Reconstruction Process](docs/reconstruction_process.md): The end-to-end 3D reconstruction pipeline
+- [Scene Rendering Pipeline](docs/scene_rendering_pipeline.md): How 3D Gaussian Splats are rendered
+- [Export Service](docs/export_service.md): The centralized export functionality
+- [Development Environment](docs/development_environment.md): Setting up and working with the codebase
+- [Vibe Coding Guide](docs/vibe_coding_guide.md): Coding standards and best practices
 
 # Features
 
@@ -61,7 +72,7 @@ Simply `cargo run` or `cargo run --release` from the workspace root. Brush can a
 ### Web
 This project uses [`trunk`](https://github.com/trunk-rs/trunk) to build for the web. Install trunk, and then run `trunk serve` or `trunk serve --release` to run a development server.
 
-WebGPU is still a new standard, and as such, only the latest versions of Chrome work currently. The public web demo is registered for the [subgroups origin trial](https://chromestatus.com/feature/5126409856221184). To run it yourself, please enable the "Unsafe WebGPU support" flag in Chrome.
+WebGPU is still a new standard, and as such, only browsers with WebGPU support will work. Check [caniuse.com/webgpu](https://caniuse.com/webgpu) for current browser compatibility.
 
 ### Android
 See the more detailed README instructions at crates/brush-android.
@@ -69,7 +80,7 @@ See the more detailed README instructions at crates/brush-android.
 ## Results
 
 | Metric | bicycle | garden | stump | room | counter | kitchen | bonsai | Average |
-|--------|---------|---------|--------|-------|----------|----------|---------|----------|
+|--------|---------|--------|--------|-------|----------|----------|---------|----------|
 | **PSNR ↑** |
 | inria 30K | 25.25 | 27.41 | 26.55 | 30.63 | 28.70 | 30.32 | 31.98 | 28.69 |
 | gsplat 30K | 25.22 | 27.32 | 26.53 | 31.36 | 29.02 | **31.16**⭐ | **32.06**⭐ | 28.95 |

@@ -9,6 +9,7 @@ license.workspace = true
 indicatif.workspace = true
 clap.workspace = true
 brush-process.path = "../brush-process"
+brush-train.path = "../brush-train"
 
 [lints]
 workspace = true

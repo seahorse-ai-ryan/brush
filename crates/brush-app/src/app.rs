@@ -12,7 +12,10 @@ use brush_process::process_loop::{
     ControlMessage, ProcessArgs, ProcessMessage, RunningProcess, start_process,
 };
 use brush_render::camera::Camera;
+use brush_render::gaussian_splats::Splats;
 use brush_train::scene::SceneView;
+use brush_train::train::TrainBack;
+use burn::tensor::backend::AutodiffBackend;
 use burn_wgpu::WgpuDevice;
 use eframe::egui;
 use egui_tiles::SimplificationOptions;
@@ -128,9 +131,11 @@ pub struct AppContext {
 
     loading: bool,
     training: bool,
+    // Track the current dataset name for export filenames
+    current_dataset_name: Option<String>,
 
     ctx: egui::Context,
-    running_process: Option<RunningProcess>,
+    running_process: Option<RunningProcess<TrainBack>>,
     cam_settings: CameraSettings,
     
     // Export service for handling splat exports
@@ -172,6 +177,7 @@ impl AppContext {
             device,
             loading: false,
             training: false,
+            current_dataset_name: None,
             ctx,
             running_process: None,
             cam_settings: cam_settings.clone(),
@@ -210,9 +216,15 @@ impl AppContext {
         }
     }
 
-    pub fn connect_to(&mut self, process: RunningProcess) {
+    pub fn connect_to(&mut self, process: RunningProcess<TrainBack>) {
+        // Save the current dataset name before resetting
+        let current_dataset_name = self.current_dataset_name.clone();
+        
         // reset context & view.
         *self = Self::new(self.device.clone(), self.ctx.clone(), &self.cam_settings);
+        
+        // Restore the current dataset name
+        self.current_dataset_name = current_dataset_name;
 
         // Convert the receiver to a "reactive" receiver that wakes up the UI.
         self.running_process = Some(RunningProcess {
@@ -235,79 +247,35 @@ impl AppContext {
         self.loading
     }
 
-    /// Export the current splats to a PLY file
-    pub fn export_splats(&self) {
-        // Get the current splats from the context
+    /// Get the current splats for export
+    pub fn get_current_splats(&self) -> Option<Splats<<TrainBack as AutodiffBackend>::InnerBackend>> {
+        // First try to get splats from the Scene panel if it exists
         if let Some(scene_panel) = self.get_scene_panel() {
             if let Some(splats) = scene_panel.get_current_splats() {
-                let splats = splats.clone();
-                
-                // Use tokio to handle the file save dialog and export
-                let fut = async move {
-                    #[cfg(not(target_family = "wasm"))]
-                    let file = rfd::AsyncFileDialog::new()
-                        .add_filter("PLY", &["ply"])
-                        .set_file_name("export.ply")
-                        .save_file()
-                        .await;
-                    
-                    #[cfg(target_family = "wasm")]
-                    let file = rrfd::save_file("export.ply").await;
-                    
-                    // Handle errors
-                    match file {
-                        None => {
-                            log::error!("No file selected for export");
-                        }
-                        Some(file) => {
-                            let data = splat_export::splat_to_ply(splats).await;
-                            
-                            let data = match data {
-                                Ok(data) => data,
-                                Err(e) => {
-                                    log::error!("Failed to serialize file: {e}");
-                                    return;
-                                }
-                            };
-                            
-                            #[cfg(not(target_family = "wasm"))]
-                            if let Err(e) = std::fs::write(file.path(), data) {
-                                log::error!("Failed to write file: {e}");
-                            }
-                            
-                            #[cfg(target_family = "wasm")]
-                            if let Err(e) = file.write(&data).await {
-                                log::error!("Failed to write file: {e}");
-                            }
-                        }
-                    }
-                };
-                
-                #[cfg(not(target_family = "wasm"))]
-                tokio::spawn(fut);
-                
-                #[cfg(target_family = "wasm")]
-                tokio_wasm::spawn_local(fut);
-            } else {
-                log::error!("No splats available for export");
+                return Some(splats.clone());
             }
-        } else {
-            log::error!("Scene panel not found");
         }
+        
+        // If no Scene panel or no splats in Scene panel, try to get splats from the dataset
+        // This allows export to work even without a Scene panel
+        if let Some(splats) = self.dataset.get_current_splats() {
+            return Some(splats);
+        }
+        
+        // If we have a running process, try to get the latest splats from it
+        if let Some(process) = &self.running_process {
+            if let Some(splats) = process.get_latest_splats() {
+                return Some(splats);
+            }
+        }
+        
+        None
     }
-    
+
     /// Export the current splats to a PLY file using the Export Service
     pub fn export_splats_with_service(&mut self) {
-        // Get the current splats from the context
-        let splats_option = if let Some(scene_panel) = self.get_scene_panel() {
-            scene_panel.get_current_splats().cloned()
-        } else {
-            log::error!("Scene panel not found");
-            return;
-        };
-        
-        // Check if we have splats
-        let splats = match splats_option {
+        // Get the current splats using the new method
+        let splats = match self.get_current_splats() {
             Some(splats) => splats,
             None => {
                 log::error!("No splats available for export");
@@ -315,66 +283,153 @@ impl AppContext {
             }
         };
         
-        // Use tokio to handle the file save dialog and export
-        let fut = async move {
-            #[cfg(not(target_family = "wasm"))]
-            let file = rfd::AsyncFileDialog::new()
-                .add_filter("PLY", &["ply"])
-                .set_file_name("export.ply")
-                .save_file()
-                .await;
-            
-            #[cfg(target_family = "wasm")]
-            let file = rrfd::save_file("export.ply").await;
-            
-            file
-        };
+        // Generate a default filename with dataset name and timestamp
+        let default_filename = self.generate_export_filename();
         
+        // Clone necessary data for the async operation
+        let ctx_clone = self.ctx.clone();
+        let splats_clone = splats.clone();
+        let export_service = self.export_service.clone();
+        let default_filename_clone = default_filename.clone();
+        
+        // Use tokio to handle the file save dialog and export asynchronously
         #[cfg(not(target_family = "wasm"))]
-        let file_future = tokio::spawn(fut);
-        
-        #[cfg(target_family = "wasm")]
-        let file_future = tokio_wasm::spawn_local(fut);
-        
-        // Wait for the file dialog result
-        let file = match tokio::runtime::Handle::current().block_on(async {
-            #[cfg(not(target_family = "wasm"))]
-            let file = file_future.await.unwrap_or(None);
-            
-            #[cfg(target_family = "wasm")]
-            let file = file_future.await;
-            
-            file
-        }) {
-            Some(file) => file,
-            None => {
-                log::error!("No file selected for export");
-                return;
-            }
-        };
-        
-        // Set the export directory to the parent directory of the selected file
-        #[cfg(not(target_family = "wasm"))]
-        if let Some(parent) = file.path().parent() {
-            self.export_service.set_export_dir(parent.to_path_buf());
+        {
+            tokio::spawn(async move {
+                let file = rfd::AsyncFileDialog::new()
+                    .add_filter("PLY", &["ply"])
+                    .set_file_name(&default_filename_clone)
+                    .save_file()
+                    .await;
+                    
+                if let Some(file) = file {
+                    // Set the export directory to the parent directory of the selected file
+                    if let Some(parent) = file.path().parent() {
+                        let mut export_service = export_service;
+                        export_service.set_export_dir(parent.to_path_buf());
+                        
+                        // Get the filename
+                        let filename = file.file_name();
+                        
+                        // Export the splats
+                        match export_service.export_ply(&splats_clone, &filename) {
+                            Ok(path) => {
+                                log::info!("Successfully exported splats to {}", path.display());
+                            }
+                            Err(e) => {
+                                log::error!("Failed to export splats: {}", e);
+                            }
+                        }
+                    }
+                } else {
+                    log::error!("No file selected for export");
+                }
+                
+                // Request a UI update
+                ctx_clone.request_repaint();
+            });
         }
         
-        // Get the filename
-        #[cfg(not(target_family = "wasm"))]
-        let filename = file.file_name();
-        
         #[cfg(target_family = "wasm")]
-        let filename = "export.ply";
-        
-        // Export the splats
-        match self.export_service.export_ply(&splats, &filename) {
-            Ok(path) => {
-                log::info!("Successfully exported splats to {}", path.display());
-            }
-            Err(e) => {
-                log::error!("Failed to export splats: {}", e);
-            }
+        {
+            tokio_wasm::task::spawn(async move {
+                let file = rrfd::save_file(&default_filename_clone).await;
+                
+                if let Some(_) = file {
+                    // Export the splats with a fixed filename for WASM
+                    let filename = default_filename_clone;
+                    
+                    // Export the splats
+                    match export_service.export_ply(&splats_clone, &filename) {
+                        Ok(path) => {
+                            log::info!("Successfully exported splats to {}", path.display());
+                        }
+                        Err(e) => {
+                            log::error!("Failed to export splats: {}", e);
+                        }
+                    }
+                } else {
+                    log::error!("No file selected for export");
+                }
+                
+                // Request a UI update
+                ctx_clone.request_repaint();
+            });
         }
+    }
+    
+    /// Generate a filename for export based on dataset name and current timestamp
+    fn generate_export_filename(&self) -> String {
+        // Use the current dataset name if available
+        let dataset_name = if let Some(name) = self.current_dataset_name() {
+            name.clone()
+        } else {
+            // Fall back to extracting from path if no current dataset name is set
+            if !self.dataset.train.views.is_empty() {
+                // Extract the dataset name from the path of the first view
+                let path_str = &self.dataset.train.views[0].path;
+                
+                // Convert to PathBuf to use path manipulation methods
+                let path = std::path::Path::new(path_str);
+                
+                // Try to extract the dataset name by going up the directory tree
+                // First, get the parent directory (which might be "images")
+                if let Some(parent) = path.parent() {
+                    // Then get the parent of that directory (which should be the dataset name)
+                    if let Some(dataset_dir) = parent.parent() {
+                        if let Some(name) = dataset_dir.file_name() {
+                            if let Some(name_str) = name.to_str() {
+                                name_str.to_string()
+                            } else {
+                                "dataset".to_string()
+                            }
+                        } else {
+                            // If we can't get the dataset directory name, use the parent directory name
+                            if let Some(name) = parent.file_name() {
+                                if let Some(name_str) = name.to_str() {
+                                    name_str.to_string()
+                                } else {
+                                    "dataset".to_string()
+                                }
+                            } else {
+                                "dataset".to_string()
+                            }
+                        }
+                    } else {
+                        // If we can't get the dataset directory, use the parent directory name
+                        if let Some(name) = parent.file_name() {
+                            if let Some(name_str) = name.to_str() {
+                                name_str.to_string()
+                            } else {
+                                "dataset".to_string()
+                            }
+                        } else {
+                            "dataset".to_string()
+                        }
+                    }
+                } else {
+                    // If we can't get the parent, try to extract something meaningful from the path
+                    if let Some(file_stem) = path.file_stem() {
+                        if let Some(name_str) = file_stem.to_str() {
+                            name_str.to_string()
+                        } else {
+                            "dataset".to_string()
+                        }
+                    } else {
+                        "dataset".to_string()
+                    }
+                }
+            } else {
+                "dataset".to_string()
+            }
+        };
+        
+        // Get current timestamp
+        let now = chrono::Local::now();
+        let timestamp = now.format("%Y%m%d_%H%M%S");
+        
+        // Combine dataset name and timestamp
+        format!("{}_{}.ply", dataset_name, timestamp)
     }
     
     /// Get a reference to the export service
@@ -389,15 +444,8 @@ impl AppContext {
     
     /// Check for auto-save during training
     pub fn on_training_step(&mut self, step: u32) {
-        // Get the current splats
-        let splats_option = if let Some(scene_panel) = self.get_scene_panel() {
-            scene_panel.get_current_splats().cloned()
-        } else {
-            return;
-        };
-        
-        // Check if we have splats
-        let splats = match splats_option {
+        // Get the current splats using the new method
+        let splats = match self.get_current_splats() {
             Some(splats) => splats,
             None => return,
         };
@@ -425,6 +473,16 @@ impl AppContext {
     fn get_scene_panel_mut(&mut self) -> Option<&mut ScenePanel> {
         // We need to use a different approach to get the ScenePanel
         None
+    }
+
+    /// Set the current dataset name
+    pub fn set_current_dataset_name(&mut self, name: String) {
+        self.current_dataset_name = Some(name);
+    }
+
+    /// Get the current dataset name
+    pub fn current_dataset_name(&self) -> Option<&String> {
+        self.current_dataset_name.as_ref()
     }
 }
 
@@ -628,7 +686,10 @@ impl App {
         }
 
         for message in messages {
-            match message {
+            // Forward message to the Controls overlay
+            self.controls_detail_overlay.on_message(&message);
+            
+            match &message {
                 ProcessMessage::NewSource => {
                     // Reset the Controls overlay state when a new dataset is loaded
                     self.controls_detail_overlay.reset_state();
@@ -653,21 +714,56 @@ impl App {
                             lin.add_child(pane_id);
                         }
                     }
+                    
+                    // Forward the message to all panels
+                    for (_, tile) in self.tree.tiles.iter_mut() {
+                        if let Tile::Pane(pane) = tile {
+                            pane.on_message(&message, &mut context);
+                        }
+                    }
                 }
                 ProcessMessage::StartLoading { training } => {
-                    context.training = training;
+                    context.training = *training;
                     context.loading = true;
                     
-                    // Reset the Controls overlay state when a new dataset starts loading
-                    // This ensures the paused state is reset to false
-                    self.controls_detail_overlay.reset_state();
+                    // Forward the message to all panels
+                    for (_, tile) in self.tree.tiles.iter_mut() {
+                        if let Tile::Pane(pane) = tile {
+                            pane.on_message(&message, &mut context);
+                        }
+                    }
                 }
                 ProcessMessage::DoneLoading { training: _ } => {
                     context.loading = false;
+                    
+                    // Forward the message to all panels
+                    for (_, tile) in self.tree.tiles.iter_mut() {
+                        if let Tile::Pane(pane) = tile {
+                            pane.on_message(&message, &mut context);
+                        }
+                    }
                 }
-                ProcessMessage::TrainStep { splats: _, stats: _, iter, timestamp: _ } => {
+                ProcessMessage::TrainStep { splats, stats: _, iter, timestamp: _ } => {
+                    // Update the latest splats in the running process
+                    if let Some(process) = &mut context.running_process {
+                        process.update_latest_splats(*splats.clone());
+                    }
+                    
                     // Check for auto-save during training
-                    context.on_training_step(iter);
+                    context.on_training_step(*iter);
+                    
+                    // Forward the message to all panels
+                    for (_, tile) in self.tree.tiles.iter_mut() {
+                        if let Tile::Pane(pane) = tile {
+                            pane.on_message(&message, &mut context);
+                        }
+                    }
+                }
+                ProcessMessage::ViewSplats { splats, up_axis: _, frame: _, total_frames: _ } => {
+                    // Update the latest splats in the running process
+                    if let Some(process) = &mut context.running_process {
+                        process.update_latest_splats(*splats.clone());
+                    }
                     
                     // Forward the message to all panels
                     for (_, tile) in self.tree.tiles.iter_mut() {
@@ -940,7 +1036,9 @@ impl eframe::App for App {
             loop {
                 match process.messages.try_recv() {
                     Ok(message) => {
+                        // Forward message to both Stats and Controls overlays
                         self.stats_detail_overlay.on_message(&message);
+                        self.controls_detail_overlay.on_message(&message);
                         count += 1;
                         if count >= max_messages {
                             break;

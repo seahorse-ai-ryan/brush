@@ -427,31 +427,112 @@ files_affected: ["crates/brush-app/src/overlays/dataset_detail.rs"]
 4. Use `.set_min_size()` and `.set_min_height()` explicitly to claim available space
 5. For scroll areas, use `.auto_shrink([false; 2])` to prevent them from collapsing when empty
 
-<!-- TEMPLATE (copy and adapt for new entries)
 ---
-timestamp: "YYYY-MM-DD HH:MM:SS UTC"
-agent: "Agent Name and Version"
-issue_category: ["category1", "category2"]
-files_affected: ["path/to/file1.rs", "path/to/file2.rs"]
+timestamp: "2024-05-28 15:30:00 UTC"
+agent: "Claude 3.7 Sonnet"
+issue_category: ["UI", "state management", "message handling", "egui"]
+files_affected: [
+  "crates/brush-app/src/overlays/controls_detail.rs", 
+  "crates/brush-app/src/overlays/stats_detail.rs", 
+  "crates/brush-app/src/app.rs"
+]
 ---
 
-### Issue: Brief description of the problem
+### Issue: UI overlays losing state and not properly reflecting application state
 
-**Context**: What the developer was trying to accomplish
+**Context**: The application had multiple overlay windows (Stats, Controls) that were losing their state when new datasets were loaded or training started. The Stats window would disappear, and the Controls panel would incorrectly show "No active training session" even when training was in progress.
 
 **Error Symptoms**: 
-- Error messages or unexpected behaviors observed
-- Include relevant error codes or patterns
+- Stats window would disappear when a new dataset started processing
+- Controls panel would show "No active training session" despite active training
+- Export button and other training controls were not available when they should be
+- Window state (open/closed) was not preserved across state transitions
 
-**Root Cause**: The underlying cause of the issue
+**Root Cause**: 
+1. When handling messages like `NewSource` and `StartLoading`, the overlays were being reset without preserving their open/closed state
+2. The message forwarding system was inconsistent - some messages were sent to panels but not to overlays
+3. The Controls panel was relying on its internal state rather than checking the AppContext's training state directly
+4. Message handling was happening at different points in the update cycle, causing state inconsistencies
 
 **Solution**: 
-- How the issue was resolved
-- Include code snippets if helpful
+1. Modified the `on_message` methods to preserve window state when resetting:
+```rust
+pub(crate) fn on_message(&mut self, message: &ProcessMessage) {
+    match message {
+        ProcessMessage::NewSource => {
+            // Save the current open state
+            let was_open = self.open;
+            let position = self.position;
+            
+            // Reset the overlay but preserve open state
+            *self = Self::new(self.device.clone(), self.adapter_info.clone());
+            
+            // Restore the open state and position
+            self.open = was_open;
+            self.position = position;
+        }
+        // ...
+    }
+}
+```
 
-**Better Approach**: What would have been a better way to implement the change from the beginning
+2. Updated the App to forward messages to all overlays consistently:
+```rust
+for message in messages {
+    // Forward message to the Controls overlay
+    self.controls_detail_overlay.on_message(&message);
+    
+    match &message {
+        // ...
+    }
+}
+```
 
-**Generalizable Lesson**: The broader principle that can be applied to similar situations
--->
+3. Modified the Controls panel UI to check the AppContext's state directly:
+```rust
+// Check the AppContext's training state directly
+if context.training() {
+    // Show training controls
+} else {
+    // Show non-training message
+}
+```
+
+4. Added explicit handling for training-related messages in the Controls overlay:
+```rust
+ProcessMessage::TrainStep { .. } => {
+    // Make sure the panel is open when training steps are received
+    self.open = true;
+},
+```
+
+**Better Approach**: A more robust approach would be to:
+1. Implement a centralized state management system that all UI components observe
+2. Use a proper observer pattern where UI components register for state changes
+3. Separate UI state (window positions, sizes) from application state (training status)
+4. Use a more declarative UI approach where components render based on application state
+
+**Generalizable Lesson**: 
+1. When implementing UI overlays and panels that respond to application state:
+   - Always check the source of truth (AppContext) directly in the render method
+   - Don't rely solely on internal state that might become stale
+   - Preserve UI state (open/closed, position) when resetting content state
+
+2. For message handling:
+   - Forward messages consistently to all components that need them
+   - Handle messages at a consistent point in the update cycle
+   - Be explicit about which state is reset and which is preserved
+
+3. For debugging UI state issues:
+   - Add logging for state transitions
+   - Check both the UI component's internal state and the application state
+   - Test all possible state transitions (loading → training → paused → resumed)
+
+4. For export functionality:
+   - Generate meaningful default filenames that include context (dataset name, timestamp)
+   - Navigate directory structures intelligently to extract meaningful names
+   - Provide fallbacks when expected structure isn't found
+
+<!-- TEMPLATE (copy and adapt for new entries) -->
 
 <!-- ENTRIES END --> 

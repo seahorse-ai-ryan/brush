@@ -18,11 +18,10 @@ type MainResult = Result<(), ()>;
 fn main() -> MainResult {
     let wgpu_options = brush_ui::create_egui_options();
 
-    #[allow(unused)]
-    let (send, rec) = tokio::sync::oneshot::channel();
-
     #[cfg(not(target_family = "wasm"))]
     {
+        let (send, rec) = tokio::sync::oneshot::channel::<AppCreateCb>();
+
         use brush_cli::Cli;
         use clap::Parser;
 
@@ -53,15 +52,18 @@ fn main() -> MainResult {
                 };
 
                 if let Some(source) = args.source {
-                    tokio::spawn(async move {
-                        let context: Result<AppCreateCb, RecvError> = rec.await;
-                        if let Ok(context) = context {
-                            let mut context = context.context.write().expect("Lock poisoned");
-                            let process =
-                                start_process(source, args.process, context.device.clone());
-                            context.connect_to(process);
-                        }
-                    });
+                    if let Ok(context_cb) = rec.blocking_recv() {
+                        let process_args = args.process.clone();
+                        let device = {
+                            let context = context_cb.context.read().expect("Lock poisoned");
+                            context.device.clone()
+                        };
+                        
+                        let process = start_process(source, process_args, device);
+                        
+                        let mut context = context_cb.context.write().expect("Lock poisoned");
+                        context.connect_to(process);
+                    }
                 }
 
                 let title = if cfg!(debug_assertions) {
@@ -170,21 +172,18 @@ mod embedded {
             let start_uri = start_uri.to_owned();
 
             // On wasm, run as a local task.
-            tokio_wasm::spawn(async {
+            tokio_wasm::task::spawn(async {
                 eframe::WebRunner::new()
                     .start(
                         canvas,
-                        eframe::WebOptions {
-                            wgpu_options,
-                            ..Default::default()
-                        },
-                        Box::new(|cc| Ok(Box::new(App::new(cc, send, Some(start_uri), false)))),
+                        eframe::WebOptions::default(),
+                        Box::new(|cc| Box::new(App::new(cc, send, Some(start_uri.to_string()), false))),
                     )
                     .await
-                    .expect("failed to start eframe");
+                    .expect("Failed to start eframe");
             });
 
-            tokio_wasm::spawn(async move {
+            tokio_wasm::task::spawn(async move {
                 let context = rec
                     .into_future()
                     .await

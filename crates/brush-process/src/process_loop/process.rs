@@ -474,13 +474,14 @@ async fn train_process_loop(
     Ok(())
 }
 
-pub struct RunningProcess {
+pub struct RunningProcess<TrainBack: AutodiffBackend> {
     pub start_args: ProcessArgs,
     pub messages: Receiver<ProcessMessage>,
     pub control: UnboundedSender<ControlMessage>,
+    pub latest_splats: Option<Splats<<TrainBack as AutodiffBackend>::InnerBackend>>,
 }
 
-pub fn start_process(source: DataSource, args: ProcessArgs, device: WgpuDevice) -> RunningProcess {
+pub fn start_process(source: DataSource, args: ProcessArgs, device: WgpuDevice) -> RunningProcess<TrainBack> {
     log::info!("Starting process with source {:?}", source);
 
     // Create a small channel. We don't want 10 updated splats to be stuck in the queue eating up memory!
@@ -498,5 +499,18 @@ pub fn start_process(source: DataSource, args: ProcessArgs, device: WgpuDevice) 
         start_args: args,
         messages: receiver,
         control: train_sender,
+        latest_splats: None,
+    }
+}
+
+impl<TrainBack: AutodiffBackend> RunningProcess<TrainBack> {
+    /// Get the latest splats from the process, if available
+    pub fn get_latest_splats(&self) -> Option<Splats<<TrainBack as AutodiffBackend>::InnerBackend>> {
+        self.latest_splats.clone()
+    }
+    
+    /// Update the latest splats
+    pub fn update_latest_splats(&mut self, splats: Splats<<TrainBack as AutodiffBackend>::InnerBackend>) {
+        self.latest_splats = Some(splats);
     }
 }

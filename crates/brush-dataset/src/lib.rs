@@ -216,6 +216,17 @@ impl Dataset {
 
         Vec3::new(-transform.col(0).z, -transform.col(1).z, transform.col(2).z)
     }
+
+    /// Get the current splats from the dataset, if available
+    /// 
+    /// Note: This is a placeholder implementation since we don't have direct access to splats in the Dataset.
+    /// In a real implementation, we would need to add a field to store the current splats.
+    pub fn get_current_splats(&self) -> Option<brush_render::gaussian_splats::Splats<<brush_train::train::TrainBack as burn::tensor::backend::AutodiffBackend>::InnerBackend>> {
+        // In the current implementation, Dataset doesn't store splats directly.
+        // This is a placeholder that always returns None.
+        // In a real implementation, we would need to add a field to store the current splats.
+        None
+    }
 }
 
 pub(crate) fn stream_fut_parallel<T: Send + 'static>(
