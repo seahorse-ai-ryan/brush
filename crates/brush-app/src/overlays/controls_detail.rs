@@ -248,8 +248,8 @@ impl ControlsDetailOverlay {
                 }
             },
             brush_process::process_loop::ProcessMessage::TrainStep { .. } => {
-                // Make sure the panel is open when training steps are received
-                self.open = true;
+                // No longer force the panel to open on every train step
+                // This allows users to close the panel if they wish
             },
             _ => {}
         }
