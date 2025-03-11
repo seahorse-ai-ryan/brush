@@ -18,6 +18,7 @@ use brush_train::train::TrainBack;
 use burn::tensor::backend::AutodiffBackend;
 use burn_wgpu::WgpuDevice;
 use eframe::egui;
+use egui::ThemePreference;
 use egui_tiles::SimplificationOptions;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3};
@@ -498,6 +499,11 @@ impl App {
         _start_uri_override: Option<String>,
         reset_windows: bool,
     ) -> Self {
+        // Brush is always in dark mode for now, as it looks better and I don't care much to
+        // put in the work to support both light and dark mode!
+        cc.egui_ctx
+            .options_mut(|opt| opt.theme_preference = ThemePreference::Dark);
+
         // For now just assume we're running on the default
         let state = cc
             .wgpu_render_state
