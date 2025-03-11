@@ -6,11 +6,17 @@ use brush_process::{
 };
 use brush_train::train::TrainConfig;
 use egui::Slider;
+use crate::export_service::{AutoSaveConfig, ExportFormat};
 
 pub(crate) struct SettingsDetailOverlay {
     // Settings fields
     args: ProcessArgs,
     url: String,
+    
+    // Auto-save settings
+    auto_save_enabled: bool,
+    auto_save_interval: u32,
+    auto_save_max_saves: u32,
     
     // UI state
     open: bool,
@@ -31,6 +37,11 @@ impl SettingsDetailOverlay {
             ),
             url: "splat.com/example.ply".to_owned(),
             
+            // Auto-save settings
+            auto_save_enabled: false,
+            auto_save_interval: 1000,
+            auto_save_max_saves: 5,
+            
             // UI state
             open: false, // Start with window closed
             position: pos2(200.0, 200.0),
@@ -50,7 +61,7 @@ impl SettingsDetailOverlay {
         self.position = position;
     }
     
-    pub(crate) fn show(&mut self, ctx: &Context, _context: &mut AppContext) {
+    pub(crate) fn show(&mut self, ctx: &Context, context: &mut AppContext) {
         if !self.open {
             return;
         }
@@ -220,6 +231,47 @@ impl SettingsDetailOverlay {
                             }
                         }
                     }
+
+                    ui.add_space(10.0);
+                    
+                    // Auto-save settings section
+                    ui.collapsing("Auto-Save Settings", |ui| {
+                        ui.checkbox(&mut self.auto_save_enabled, "Enable auto-save");
+                        
+                        if self.auto_save_enabled {
+                            ui.add_space(5.0);
+                            
+                            ui.add(Slider::new(&mut self.auto_save_interval, 100..=10000)
+                                .text("Save interval (steps)")
+                                .logarithmic(true));
+                            
+                            ui.add(Slider::new(&mut self.auto_save_max_saves, 1..=20)
+                                .text("Maximum saves"));
+                            
+                            ui.add_space(5.0);
+                            
+                            // Apply auto-save settings to the export service
+                            if ui.button("Apply Auto-Save Settings").clicked() {
+                                let config = AutoSaveConfig {
+                                    enabled: self.auto_save_enabled,
+                                    interval_steps: self.auto_save_interval,
+                                    max_saves: Some(self.auto_save_max_saves),
+                                    format: ExportFormat::PLY,
+                                    prefix: "autosave_".to_string(),
+                                };
+                                
+                                // Update the export service configuration
+                                context.export_service_mut().configure_auto_save(config);
+                                
+                                ui.ctx().request_repaint(); // Ensure UI updates
+                            }
+                        }
+                    });
+                    
+                    ui.add_space(10.0);
+                    
+                    // Other settings sections
+                    // ...
                 });
         });
         

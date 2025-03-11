@@ -118,8 +118,8 @@ impl ControlsDetailOverlay {
                         ui.horizontal(|ui| {
                             let export_button = ui.button("⬆ Export");
                             if export_button.clicked() {
-                                // Call the export_splats method on the AppContext
-                                context.export_splats();
+                                // Use the export_splats_with_service method on the AppContext
+                                context.export_splats_with_service();
                             }
                             
                             if export_button.hovered() {

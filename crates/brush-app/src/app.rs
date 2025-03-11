@@ -24,6 +24,7 @@ use std::time::Duration;
 use egui::{Align2, RichText};
 use brush_dataset::splat_export;
 use tokio_with_wasm::alias as tokio_wasm;
+use crate::export_service::{ExportService, ExportError, ExportFormat};
 
 #[cfg(not(target_family = "wasm"))]
 use rfd;
@@ -117,7 +118,6 @@ pub struct App {
     select_dataset_folder_requested: bool,
 }
 
-// TODO: Bit too much random shared state here.
 pub struct AppContext {
     pub dataset: Dataset,
     pub camera: Camera,
@@ -132,6 +132,9 @@ pub struct AppContext {
     ctx: egui::Context,
     running_process: Option<RunningProcess>,
     cam_settings: CameraSettings,
+    
+    // Export service for handling splat exports
+    export_service: ExportService,
 }
 
 #[derive(Clone)]
@@ -152,9 +155,8 @@ impl AppContext {
             cam_settings.speed_scale,
         );
 
-        // Camera position will be controlled by the orbit controls.
         let camera = Camera::new(
-            Vec3::ZERO,
+            model_transform.translation.into(),
             Quat::IDENTITY,
             cam_settings.focal,
             cam_settings.focal,
@@ -162,17 +164,18 @@ impl AppContext {
         );
 
         Self {
+            dataset: Dataset::empty(),
             camera,
+            view_aspect: None,
             controls,
             model_local_to_world: model_transform,
             device,
-            ctx,
-            view_aspect: None,
             loading: false,
             training: false,
-            dataset: Dataset::empty(),
+            ctx,
             running_process: None,
             cam_settings: cam_settings.clone(),
+            export_service: ExportService::new(None),
         }
     }
 
@@ -280,7 +283,134 @@ impl AppContext {
                     }
                 };
                 
-                tokio_wasm::task::spawn(fut);
+                #[cfg(not(target_family = "wasm"))]
+                tokio::spawn(fut);
+                
+                #[cfg(target_family = "wasm")]
+                tokio_wasm::spawn_local(fut);
+            } else {
+                log::error!("No splats available for export");
+            }
+        } else {
+            log::error!("Scene panel not found");
+        }
+    }
+    
+    /// Export the current splats to a PLY file using the Export Service
+    pub fn export_splats_with_service(&mut self) {
+        // Get the current splats from the context
+        let splats_option = if let Some(scene_panel) = self.get_scene_panel() {
+            scene_panel.get_current_splats().cloned()
+        } else {
+            log::error!("Scene panel not found");
+            return;
+        };
+        
+        // Check if we have splats
+        let splats = match splats_option {
+            Some(splats) => splats,
+            None => {
+                log::error!("No splats available for export");
+                return;
+            }
+        };
+        
+        // Use tokio to handle the file save dialog and export
+        let fut = async move {
+            #[cfg(not(target_family = "wasm"))]
+            let file = rfd::AsyncFileDialog::new()
+                .add_filter("PLY", &["ply"])
+                .set_file_name("export.ply")
+                .save_file()
+                .await;
+            
+            #[cfg(target_family = "wasm")]
+            let file = rrfd::save_file("export.ply").await;
+            
+            file
+        };
+        
+        #[cfg(not(target_family = "wasm"))]
+        let file_future = tokio::spawn(fut);
+        
+        #[cfg(target_family = "wasm")]
+        let file_future = tokio_wasm::spawn_local(fut);
+        
+        // Wait for the file dialog result
+        let file = match tokio::runtime::Handle::current().block_on(async {
+            #[cfg(not(target_family = "wasm"))]
+            let file = file_future.await.unwrap_or(None);
+            
+            #[cfg(target_family = "wasm")]
+            let file = file_future.await;
+            
+            file
+        }) {
+            Some(file) => file,
+            None => {
+                log::error!("No file selected for export");
+                return;
+            }
+        };
+        
+        // Set the export directory to the parent directory of the selected file
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(parent) = file.path().parent() {
+            self.export_service.set_export_dir(parent.to_path_buf());
+        }
+        
+        // Get the filename
+        #[cfg(not(target_family = "wasm"))]
+        let filename = file.file_name();
+        
+        #[cfg(target_family = "wasm")]
+        let filename = "export.ply";
+        
+        // Export the splats
+        match self.export_service.export_ply(&splats, &filename) {
+            Ok(path) => {
+                log::info!("Successfully exported splats to {}", path.display());
+            }
+            Err(e) => {
+                log::error!("Failed to export splats: {}", e);
+            }
+        }
+    }
+    
+    /// Get a reference to the export service
+    pub fn export_service(&self) -> &ExportService {
+        &self.export_service
+    }
+    
+    /// Get a mutable reference to the export service
+    pub fn export_service_mut(&mut self) -> &mut ExportService {
+        &mut self.export_service
+    }
+    
+    /// Check for auto-save during training
+    pub fn on_training_step(&mut self, step: u32) {
+        // Get the current splats
+        let splats_option = if let Some(scene_panel) = self.get_scene_panel() {
+            scene_panel.get_current_splats().cloned()
+        } else {
+            return;
+        };
+        
+        // Check if we have splats
+        let splats = match splats_option {
+            Some(splats) => splats,
+            None => return,
+        };
+        
+        // Check for auto-save
+        if let Some(result) = self.export_service.check_auto_save(&splats, step) {
+            match result {
+                Ok(path) => {
+                    log::info!("Auto-saved splats to {}", path.display());
+                }
+                Err(e) => {
+                    log::error!("Failed to auto-save splats: {}", e);
+                }
             }
         }
     }
@@ -535,16 +665,25 @@ impl App {
                 ProcessMessage::DoneLoading { training: _ } => {
                     context.loading = false;
                 }
-                _ => (),
-            }
-
-            for (_, pane) in self.tree.tiles.iter_mut() {
-                match pane {
-                    Tile::Pane(pane) => {
-                        pane.on_message(&message, &mut context);
+                ProcessMessage::TrainStep { splats: _, stats: _, iter, timestamp: _ } => {
+                    // Check for auto-save during training
+                    context.on_training_step(iter);
+                    
+                    // Forward the message to all panels
+                    for (_, tile) in self.tree.tiles.iter_mut() {
+                        if let Tile::Pane(pane) = tile {
+                            pane.on_message(&message, &mut context);
+                        }
                     }
-                    Tile::Container(_) => {}
                 }
+                _ => {
+                    // Forward the message to all panels
+                    for (_, tile) in self.tree.tiles.iter_mut() {
+                        if let Tile::Pane(pane) = tile {
+                            pane.on_message(&message, &mut context);
+                        }
+                    }
+                },
             }
         }
     }

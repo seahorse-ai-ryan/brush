@@ -44,6 +44,8 @@ dirs = "5.0"
 zip.workspace = true
 
 log.workspace = true
+thiserror = "1.0"
+notify = "8.0.0"
 
 # Default to wayland on linux. Change this to x11 if needed.
 # this perhaps could use a feature on our side as well,
@@ -53,7 +55,6 @@ tokio_with_wasm = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, optional = true }
 
-notify = "8.0.0"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 brush-cli.path = "../brush-cli"

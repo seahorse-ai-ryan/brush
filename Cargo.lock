@@ -872,6 +872,7 @@ dependencies = [
  "rfd 0.12.1",
  "rrfd",
  "sync-span",
+ "thiserror 1.0.69",
  "tokio",
  "tokio_with_wasm",
  "tracing",
