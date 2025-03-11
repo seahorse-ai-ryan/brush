@@ -117,9 +117,7 @@ pub struct App {
     settings_detail_overlay: SettingsDetailOverlay,
     stats_detail_overlay: StatsDetailOverlay,
     controls_detail_overlay: ControlsDetailOverlay,
-    select_folder_requested: bool,
     select_file_requested: bool,
-    select_dataset_folder_requested: bool,
 }
 
 pub struct AppContext {
@@ -336,7 +334,7 @@ impl AppContext {
             tokio_wasm::task::spawn(async move {
                 let file = rrfd::save_file(&default_filename_clone).await;
                 
-                if let Some(_) = file {
+                if let Ok(file_handle) = file {
                     // Export the splats with a fixed filename for WASM
                     let filename = default_filename_clone;
                     
@@ -344,6 +342,18 @@ impl AppContext {
                     match export_service.export_ply(&splats_clone, &filename) {
                         Ok(path) => {
                             log::info!("Successfully exported splats to {}", path.display());
+                            
+                            // For WASM, we need to write the PLY data to the file handle
+                            match brush_dataset::splat_export::splat_to_ply_sync(splats_clone) {
+                                Ok(ply_data) => {
+                                    if let Err(e) = file_handle.write(&ply_data).await {
+                                        log::error!("Failed to write PLY data to file: {}", e);
+                                    }
+                                },
+                                Err(e) => {
+                                    log::error!("Failed to convert splats to PLY: {}", e);
+                                }
+                            }
                         }
                         Err(e) => {
                             log::error!("Failed to export splats: {}", e);
@@ -496,7 +506,7 @@ impl App {
     pub fn new(
         cc: &eframe::CreationContext,
         create_callback: tokio::sync::oneshot::Sender<AppCreateCb>,
-        _start_uri_override: Option<String>,
+        start_uri_override: Option<String>,
         reset_windows: bool,
     ) -> Self {
         // Brush is always in dark mode for now, as it looks better and I don't care much to
@@ -517,7 +527,7 @@ impl App {
 
         // Parse URL parameters.
         let mut zen = false;
-        let search_params: HashMap<String, String> = HashMap::new();
+        let mut search_params: HashMap<String, String> = HashMap::new();
 
         #[cfg(target_family = "wasm")]
         {
@@ -538,6 +548,11 @@ impl App {
                     }
                 }
             }
+        }
+
+        // If we have a start_uri_override, use it instead of the URL parameter
+        if let Some(uri) = start_uri_override.clone() {
+            search_params.insert("url".to_string(), uri);
         }
 
         if let Some(z) = search_params.get("zen") {
@@ -584,13 +599,13 @@ impl App {
             {
                 // If tracing is enabled, add the tracing panel
                 let tracing_pane = tiles.insert_pane(Box::new(TracingPanel::default()));
-                
-                let mut lin = egui_tiles::Linear::new(
-                    egui_tiles::LinearDir::Horizontal,
+
+            let mut lin = egui_tiles::Linear::new(
+                egui_tiles::LinearDir::Horizontal,
                     vec![tracing_pane, scene_pane_id],
-                );
+            );
                 lin.shares.set_share(tracing_pane, 0.2);
-                tiles.insert_container(lin)
+            tiles.insert_container(lin)
             }
             
             #[cfg(not(feature = "tracing"))]
@@ -670,9 +685,7 @@ impl App {
             settings_detail_overlay,
             stats_detail_overlay,
             controls_detail_overlay,
-            select_folder_requested: false,
             select_file_requested: false,
-            select_dataset_folder_requested: false,
         }
     }
 }
@@ -774,7 +787,7 @@ impl App {
                     // Forward the message to all panels
                     for (_, tile) in self.tree.tiles.iter_mut() {
                         if let Tile::Pane(pane) = tile {
-                            pane.on_message(&message, &mut context);
+                        pane.on_message(&message, &mut context);
                         }
                     }
                 }
@@ -794,6 +807,62 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.receive_messages();
+
+        // Handle WASM file selection events
+        #[cfg(target_family = "wasm")]
+        {
+            use web_sys::window;
+            if let Some(window) = window() {
+                // Check if files were selected
+                if let Ok(event_occurred) = js_sys::Reflect::get(&window, &"filesSelectedEventOccurred".into()) {
+                    if event_occurred.as_bool().unwrap_or(false) {
+                        // Reset the flag
+                        let _ = js_sys::Reflect::set(&window, &"filesSelectedEventOccurred".into(), &false.into());
+                        
+                        // Get the selected file paths
+                        if let Ok(paths_json) = js_sys::Reflect::get(&window, &"selectedFilePaths".into()) {
+                            if let Some(paths_str) = paths_json.as_string() {
+                                if let Ok(paths) = serde_json::from_str::<Vec<PathBuf>>(&paths_str) {
+                                    if !paths.is_empty() {
+                                        self.dataset_detail_overlay.set_selected_files(paths);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Check if file selection was canceled
+                if let Ok(event_occurred) = js_sys::Reflect::get(&window, &"fileSelectionCanceledEventOccurred".into()) {
+                    if event_occurred.as_bool().unwrap_or(false) {
+                        // Reset the flag
+                        let _ = js_sys::Reflect::set(&window, &"fileSelectionCanceledEventOccurred".into(), &false.into());
+                        
+                        // Cancel the file selection
+                        self.dataset_detail_overlay.cancel_file_selection();
+                    }
+                }
+                
+                // Check if URL was downloaded
+                if let Ok(event_occurred) = js_sys::Reflect::get(&window, &"urlDownloadedEventOccurred".into()) {
+                    if event_occurred.as_bool().unwrap_or(false) {
+                        // Reset the flag
+                        let _ = js_sys::Reflect::set(&window, &"urlDownloadedEventOccurred".into(), &false.into());
+                        
+                        // Get the downloaded file path
+                        if let Ok(path_js) = js_sys::Reflect::get(&window, &"downloadedFilePath".into()) {
+                            if let Some(path_str) = path_js.as_string() {
+                                let path = PathBuf::from(path_str);
+                                
+                                // Process the file
+                                let paths = vec![path];
+                                self.dataset_detail_overlay.set_selected_files(paths);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Left sidebar with icons
         egui::SidePanel::left("left_panel")
@@ -910,7 +979,7 @@ impl eframe::App for App {
         egui::CentralPanel::default()
             .frame(main_panel_frame)
             .show(ctx, |ui| {
-            self.tree.ui(&mut self.tree_ctx, ui);
+                self.tree.ui(&mut self.tree_ctx, ui);
             
             // Add a resize indicator in the bottom-right corner of the main window
             // Only show on desktop platforms, not on mobile or web
@@ -932,35 +1001,6 @@ impl eframe::App for App {
             }
         });
         
-        // Handle folder selection
-        if self.dataset_detail_overlay.wants_to_select_folder() {
-            self.dataset_detail_overlay.folder_selection_started();
-            self.select_folder_requested = true;
-        }
-        
-        if self.select_folder_requested {
-            self.select_folder_requested = false;
-            
-            // Use native dialog
-            #[cfg(not(target_family = "wasm"))]
-            {
-                // For native, use rfd directly (synchronous version)
-                if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                    self.dataset_detail_overlay.set_selected_folder(path);
-                    self.dataset_detail_overlay.refresh_datasets();
-                } else {
-                    self.dataset_detail_overlay.cancel_folder_selection();
-                }
-            }
-            
-            #[cfg(target_family = "wasm")]
-            {
-                // For WASM, we would need a different approach
-                // This is just a placeholder
-                self.dataset_detail_overlay.cancel_folder_selection();
-            }
-        }
-        
         // Handle file selection for adding datasets
         if self.dataset_detail_overlay.wants_to_select_file() {
             self.dataset_detail_overlay.file_selection_started();
@@ -973,11 +1013,21 @@ impl eframe::App for App {
             // Use native dialog
             #[cfg(not(target_family = "wasm"))]
             {
-                // For native, use rfd directly (synchronous version)
-                if let Some(path) = rfd::FileDialog::new()
-                    .add_filter("Dataset", &["zip"])
-                    .pick_file() {
-                    self.dataset_detail_overlay.set_selected_file(path);
+                // For native, use multiple file selection
+                if let Some(paths) = rfd::FileDialog::new()
+                    .add_filter("Dataset Files", &["zip", "ply"])
+                    .pick_files() {
+                    
+                    // Convert to PathBufs
+                    let paths: Vec<PathBuf> = paths.into_iter()
+                        .map(|path| path)
+                        .collect();
+                    
+                    if !paths.is_empty() {
+                        self.dataset_detail_overlay.set_selected_files(paths);
+                    } else {
+                        self.dataset_detail_overlay.cancel_file_selection();
+                    }
                 } else {
                     self.dataset_detail_overlay.cancel_file_selection();
                 }
@@ -985,37 +1035,81 @@ impl eframe::App for App {
             
             #[cfg(target_family = "wasm")]
             {
-                // For WASM, we would need a different approach
-                // This is just a placeholder
-                self.dataset_detail_overlay.cancel_file_selection();
-            }
-        }
-        
-        // Handle dataset folder selection
-        if self.dataset_detail_overlay.wants_to_select_dataset_folder() {
-            self.dataset_detail_overlay.dataset_folder_selection_started();
-            self.select_dataset_folder_requested = true;
-        }
-        
-        if self.select_dataset_folder_requested {
-            self.select_dataset_folder_requested = false;
-            
-            // Use native dialog
-            #[cfg(not(target_family = "wasm"))]
-            {
-                // For native, use rfd directly (synchronous version)
-                if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                    self.dataset_detail_overlay.set_selected_dataset_folder(path);
-                } else {
-                    self.dataset_detail_overlay.cancel_dataset_folder_selection();
-                }
-            }
-            
-            #[cfg(target_family = "wasm")]
-            {
-                // For WASM, we would need a different approach
-                // This is just a placeholder
-                self.dataset_detail_overlay.cancel_dataset_folder_selection();
+                // For WASM, use the rrfd async file dialog which works in browsers
+                use tokio_with_wasm::alias as tokio_wasm;
+                
+                // Clone what we need for the async task
+                let dataset_detail_overlay = self.dataset_detail_overlay.clone();
+                let ctx_clone = ctx.clone();
+                
+                tokio_wasm::task::spawn(async move {
+                    match rrfd::pick_files().await {
+                        Ok(file_handles) if !file_handles.is_empty() => {
+                            // Process each file handle
+                            let mut paths = Vec::new();
+                            
+                            for file_handle in file_handles {
+                                // Get the file name first before consuming the file_handle
+                                let file_name = file_handle.name().unwrap_or("uploaded_file.zip".to_string());
+                                
+                                // Read the file data (this consumes file_handle)
+                                let data = file_handle.read().await;
+                                
+                                // Create a temporary file in memory
+                                let temp_dir = std::env::temp_dir();
+                                let temp_path = temp_dir.join(&file_name);
+                                
+                                // Write the data to the temporary file
+                                if let Err(e) = std::fs::write(&temp_path, &data) {
+                                    log::error!("Failed to write temporary file: {}", e);
+                                    continue;
+                                }
+                                
+                                paths.push(temp_path);
+                            }
+                            
+                            if !paths.is_empty() {
+                                // Now we need to communicate back to the main thread
+                                // In WASM, we can use the browser's storage or a custom event
+                                let js_window = web_sys::window().unwrap();
+                                
+                                // Store the paths in localStorage as JSON (simplified approach)
+                                let paths_json = serde_json::to_string(&paths).unwrap_or_default();
+                                let _ = js_sys::eval(&format!(
+                                    "window.selectedFilePaths = '{}'; window.filesSelectedEventOccurred = true;",
+                                    paths_json
+                                ));
+                                
+                                // Request a UI update
+                                ctx_clone.request_repaint();
+                            } else {
+                                // No valid files were processed
+                                let _ = js_sys::eval(
+                                    "window.fileSelectionCanceledEventOccurred = true;"
+                                );
+                                
+                                // Request a UI update
+                                ctx_clone.request_repaint();
+                            }
+                        },
+                        _ => {
+                            // User canceled or error occurred
+                            let _ = js_sys::eval(
+                                "window.fileSelectionCanceledEventOccurred = true;"
+                            );
+                            
+                            // Request a UI update
+                            ctx_clone.request_repaint();
+                        }
+                    }
+                });
+                
+                // Note: We don't immediately cancel the file selection here
+                // Instead, we'll show a loading indicator until the async task completes
+                self.dataset_detail_overlay.file_selection_started();
+                
+                // In a real implementation, we would check for the custom event in the update method
+                // and handle the selected files when the event is received
             }
         }
         

@@ -5,6 +5,8 @@ pub mod android;
 use anyhow::Context;
 use anyhow::Result;
 use std::path::PathBuf;
+use std::io::Error;
+use std::io::ErrorKind;
 
 pub enum FileHandle {
     #[cfg(not(target_os = "android"))]
@@ -38,6 +40,18 @@ impl FileHandle {
                 file.read_to_end(&mut buf).await.unwrap();
                 buf
             }
+        }
+    }
+    
+    /// Get the file name if available
+    pub fn name(&self) -> Option<String> {
+        match self {
+            #[cfg(not(target_os = "android"))]
+            Self::Rfd(file_handle) => {
+                Some(file_handle.file_name())
+            },
+            #[cfg(target_os = "android")]
+            Self::Android(_) => None,
         }
     }
 }
@@ -94,5 +108,58 @@ pub async fn save_file(default_name: &str) -> Result<FileHandle> {
     {
         let _ = default_name;
         panic!("No saving on Android yet.")
+    }
+}
+
+/// Pick multiple files and return the handles
+pub async fn pick_files() -> Result<Vec<FileHandle>> {
+    #[cfg(target_os = "android")]
+    {
+        anyhow::bail!("Multiple file picking is not supported on Android")
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let file_handles = rfd::AsyncFileDialog::new()
+            .add_filter("Dataset Files", &["zip", "ply"])
+            .pick_files()
+            .await;
+
+        match file_handles {
+            Some(handles) => {
+                let handles = handles
+                    .into_iter()
+                    .map(|handle| FileHandle::Rfd(handle))
+                    .collect();
+                Ok(handles)
+            }
+            None => anyhow::bail!("User canceled file picking"),
+        }
+    }
+}
+
+/// Pick multiple directories and return their paths
+pub async fn pick_directories() -> Result<Vec<PathBuf>> {
+    #[cfg(any(target_os = "android", target_family = "wasm"))]
+    {
+        anyhow::bail!("Multiple folder picking is not supported on this platform")
+    }
+
+    #[cfg(not(any(target_os = "android", target_family = "wasm")))]
+    {
+        let folders = rfd::AsyncFileDialog::new()
+            .pick_folders()
+            .await;
+
+        match folders {
+            Some(folders) => {
+                // Convert FileHandle to PathBuf
+                let paths = folders.into_iter()
+                    .map(|folder| folder.path().to_path_buf())
+                    .collect();
+                Ok(paths)
+            },
+            None => anyhow::bail!("User canceled folder picking"),
+        }
     }
 }

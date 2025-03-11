@@ -12,6 +12,7 @@ use zip::ZipArchive;
 use notify::{Watcher, RecursiveMode, Result as NotifyResult, Event, recommended_watcher};
 use std::sync::mpsc::{channel, Receiver};
 
+#[derive(Clone)]
 struct SelectedView {
     index: usize,
     view_type: ViewType,
@@ -55,6 +56,7 @@ pub(crate) struct DatasetDetailOverlay {
     copy_datasets_to_local: bool,  // New field for dataset copy preference
     show_dataset_folder_dialog: bool, // New field for dataset folder selection
     dataset_folder_selection_in_progress: bool, // New field for dataset folder selection
+    url_input: String,             // Field for URL input
     
     // Detail view fields
     view_type: ViewType,
@@ -100,6 +102,7 @@ impl DatasetDetailOverlay {
             copy_datasets_to_local: true,
             show_dataset_folder_dialog: false,
             dataset_folder_selection_in_progress: false,
+            url_input: String::new(),
             
             // Detail view fields
             view_type: ViewType::Train,
@@ -458,18 +461,18 @@ impl DatasetDetailOverlay {
                     }
                     Err(err) => {
                         // Fall back to copying the zip file as-is
-                        self.copy_zip_file_as_is(&file_path, &dataset_folder);
+                        self.copy_file_as_is(&file_path, &dataset_folder);
                     }
                 }
             }
         } else {
             // For non-zip files, just copy them as before
-            self.copy_zip_file_as_is(&file_path, &dataset_folder);
+            self.copy_file_as_is(&file_path, &dataset_folder);
         }
     }
     
-    // Helper method to copy a zip file as-is (fallback method)
-    fn copy_zip_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
+    // Helper method to copy a file as-is (fallback method)
+    fn copy_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
         // Get the filename
         let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
         
@@ -1442,6 +1445,106 @@ impl DatasetDetailOverlay {
         if hyperlink.hovered() {
             hyperlink.on_hover_text(url);
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+    }
+
+    /// Get whether to copy datasets to local folder
+    pub(crate) fn copy_datasets_to_local(&self) -> bool {
+        self.copy_datasets_to_local
+    }
+    
+    /// Get the datasets folder
+    pub(crate) fn get_datasets_folder(&self) -> Option<PathBuf> {
+        self.datasets_folder.clone()
+    }
+    
+    /// Handle multiple selected files
+    pub(crate) fn set_selected_files(&mut self, file_paths: Vec<PathBuf>) {
+        // Reset all file selection flags
+        self.show_file_dialog = false;
+        self.file_selection_in_progress = false;
+        
+        if file_paths.is_empty() {
+            return;
+        }
+        
+        // Store the last file path for processing and immediate display
+        if let Some(last_file) = file_paths.last() {
+            self.pending_file_import = Some(last_file.clone());
+        }
+        
+        // Process all files except the last one
+        if let Some(datasets_folder) = self.datasets_folder.clone() {
+            let files_to_process: Vec<_> = file_paths.iter()
+                .take(file_paths.len().saturating_sub(1))
+                .map(|p| (p.clone(), datasets_folder.clone()))
+                .collect();
+                
+            for (file_path, folder) in files_to_process {
+                self.process_selected_file(file_path, folder);
+            }
+        }
+    }
+    
+    /// Handle multiple selected folders
+    pub(crate) fn set_selected_folders(&mut self, folder_paths: Vec<PathBuf>) {
+        // Reset all folder selection flags
+        self.show_folder_dialog = false;
+        self.folder_selection_in_progress = false;
+        
+        if folder_paths.is_empty() {
+            return;
+        }
+        
+        // Handle the last folder as the current selection
+        if let Some(last_folder) = folder_paths.last() {
+            self.set_selected_folder(last_folder.clone());
+        }
+        
+        // Process all folders except the last one
+        if let Some(datasets_folder) = self.datasets_folder.clone() {
+            let folders_to_process: Vec<_> = folder_paths.iter()
+                .take(folder_paths.len().saturating_sub(1))
+                .filter(|p| self.is_valid_dataset_folder(p))
+                .map(|p| (p.clone(), datasets_folder.clone()))
+                .collect();
+                
+            for (folder_path, dest_folder) in folders_to_process {
+                self.process_selected_dataset_folder(folder_path, dest_folder);
+            }
+        }
+    }
+}
+
+// Manual implementation of Clone for DatasetDetailOverlay to handle non-cloneable fields
+impl Clone for DatasetDetailOverlay {
+    fn clone(&self) -> Self {
+        Self {
+            datasets_folder: self.datasets_folder.clone(),
+            datasets: self.datasets.clone(),
+            show_folder_dialog: self.show_folder_dialog,
+            folder_selection_in_progress: self.folder_selection_in_progress,
+            show_file_dialog: self.show_file_dialog,
+            file_selection_in_progress: self.file_selection_in_progress,
+            copy_datasets_to_local: self.copy_datasets_to_local,
+            show_dataset_folder_dialog: self.show_dataset_folder_dialog,
+            dataset_folder_selection_in_progress: self.dataset_folder_selection_in_progress,
+            url_input: self.url_input.clone(),
+            view_type: self.view_type.clone(),
+            selected_view: self.selected_view.clone(),
+            selected_dataset: self.selected_dataset.clone(),
+            open: self.open,
+            position: self.position,
+            size: self.size,
+            last_table_height: self.last_table_height,
+            auto_open_done: self.auto_open_done,
+            height_changed: self.height_changed,
+            last_dataset_count: self.last_dataset_count,
+            prev_size: self.prev_size,
+            pending_file_import: self.pending_file_import.clone(),
+            // Create new instances for non-cloneable fields
+            file_watcher: None,
+            file_watcher_receiver: None,
         }
     }
 } 
