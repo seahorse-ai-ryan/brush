@@ -7,7 +7,7 @@
   "purpose": "Document non-obvious bugs and solutions to help AI agents learn from past mistakes",
   "usage": "Insert new entries at the top of the file, below this header section",
   "entry_format": "structured markdown with metadata and content sections",
-  "last_updated": "2024-03-07"
+  "last_updated": "2024-03-11"
 }
 ```
 
@@ -501,8 +501,8 @@ if context.training() {
 4. Added explicit handling for training-related messages in the Controls overlay:
 ```rust
 ProcessMessage::TrainStep { .. } => {
-    // Make sure the panel is open when training steps are received
-    self.open = true;
+    // No longer force the panel to open on every train step
+    // This allows users to close the panel if they wish
 },
 ```
 
@@ -533,6 +533,48 @@ ProcessMessage::TrainStep { .. } => {
    - Navigate directory structures intelligently to extract meaningful names
    - Provide fallbacks when expected structure isn't found
 
-<!-- TEMPLATE (copy and adapt for new entries) -->
+---
+timestamp: "2024-03-11 06:55:00 UTC"
+agent: "Claude 3.7 Sonnet"
+issue_category: ["ui", "event-handling"]
+---
+
+# UI Element Reopening After User Closure
+
+## Problem Description
+The Controls window in the application couldn't be permanently closed by the user. When clicking the X button to close the window, it would briefly disappear but then immediately reappear.
+
+## Root Cause
+The issue was in the `on_message` method of the `ControlsDetailOverlay` class. The method contained logic that forced the window to reopen (`self.open = true`) whenever a `TrainStep` message was received:
+
+```rust
+brush_process::process_loop::ProcessMessage::TrainStep { .. } => {
+    // Make sure the panel is open when training steps are received
+    self.open = true;
+},
+```
+
+Since training steps are received continuously during an active training session, this meant that even if a user closed the window, it would immediately reopen on the next training step message, which could happen multiple times per second.
+
+## Solution
+The solution was to modify the `on_message` method to respect the user's choice to close the window by removing the line that forces the window to open on every `TrainStep` message:
+
+```rust
+brush_process::process_loop::ProcessMessage::TrainStep { .. } => {
+    // No longer force the panel to open on every train step
+    // This allows users to close the panel if they wish
+},
+```
+
+The Controls window will still open automatically when training starts (via the `StartLoading` and `DoneLoading` messages), but once training is in progress, the user can close it if they wish, and it will stay closed.
+
+## Lessons Learned
+1. **Respect User Interactions**: UI elements should generally respect user interactions like closing a window, unless there's a critical reason to override them.
+
+2. **Be Cautious with Frequent Events**: When handling frequent events (like training steps that occur many times per second), be careful not to override user preferences in each event handler.
+
+3. **UI State Management**: When designing UI components that respond to system events, clearly separate the initialization logic (when the component should first appear) from the update logic (how it responds to ongoing events).
+
+4. **Message Handling Hierarchy**: Consider implementing a hierarchy of message importance. Some messages (like starting training) might justify opening a closed panel, while others (like routine updates) should respect the current visibility state.
 
 <!-- ENTRIES END --> 
