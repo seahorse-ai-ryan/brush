@@ -188,15 +188,15 @@ fn main(
                 }
             }
 
+            let v_xy_sum = subgroupAdd(v_xy);
+            let v_conic_sum = subgroupAdd(v_conic);
+            let v_colors_sum = subgroupAdd(v_colors);
+            let v_refine_sum = subgroupAdd(v_refine);
+
             // Queue a new gradient if this subgroup has any.
             // The gradient is sum of all gradients in the subgroup.
             if subgroupAny(splat_active) {
                 let compact_gid = local_id[t];
-
-                let v_xy_sum = subgroupAdd(v_xy);
-                let v_conic_sum = subgroupAdd(v_conic);
-                let v_colors_sum = subgroupAdd(v_colors);
-                let v_refine_sum = subgroupAdd(v_refine);
 
                 switch subgroup_invocation_id {
                     case 0u:  { write_grads_atomic(compact_gid * 9 + 0, v_xy_sum.x); }
