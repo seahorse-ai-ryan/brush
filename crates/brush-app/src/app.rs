@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
+use crate::camera_controls::CameraController;
 use crate::channel::reactive_receiver;
-use crate::orbit_controls::CameraController;
 use crate::panels::SettingsPanel;
 use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
 use brush_dataset::Dataset;
@@ -95,6 +95,18 @@ fn parse_search(search: &str) -> HashMap<String, String> {
     params
 }
 
+#[derive(Clone)]
+pub struct CameraSettings {
+    pub focal: f64,
+    pub start_distance: f32,
+    pub focus_distance: f32,
+    pub speed_scale: f32,
+    pub min_focus_distance: Option<f32>,
+    pub max_focus_distance: Option<f32>,
+    pub min_pitch: Option<f32>,
+    pub max_pitch: Option<f32>,
+}
+
 pub struct App {
     tree: egui_tiles::Tree<PaneType>,
     datasets: Option<TileId>,
@@ -113,27 +125,23 @@ pub struct AppContext {
     loading: bool,
     training: bool,
 
+    cam_settings: CameraSettings,
+
     ctx: egui::Context,
     running_process: Option<RunningProcess>,
-    cam_settings: CameraSettings,
-}
-
-#[derive(Clone)]
-struct CameraSettings {
-    focal: f64,
-    radius: f32,
-    focus_distance: f32,
-    speed_scale: f32,
 }
 
 impl AppContext {
-    fn new(device: WgpuDevice, ctx: egui::Context, cam_settings: &CameraSettings) -> Self {
+    fn new(device: WgpuDevice, ctx: egui::Context, cam_settings: CameraSettings) -> Self {
         let model_transform = Affine3A::IDENTITY;
-
         let controls = CameraController::new(
-            cam_settings.radius,
+            cam_settings.start_distance,
             cam_settings.focus_distance,
             cam_settings.speed_scale,
+            cam_settings.min_focus_distance,
+            cam_settings.max_focus_distance,
+            cam_settings.min_pitch,
+            cam_settings.max_pitch,
         );
 
         // Camera position will be controlled by the orbit controls.
@@ -156,7 +164,7 @@ impl AppContext {
             training: false,
             dataset: Dataset::empty(),
             running_process: None,
-            cam_settings: cam_settings.clone(),
+            cam_settings,
         }
     }
 
@@ -166,6 +174,21 @@ impl AppContext {
         let transform = self.model_local_to_world.inverse() * cam.local_to_world();
         self.controls.position = transform.translation.into();
         self.controls.rotation = Quat::from_mat3a(&transform.matrix3);
+    }
+
+    pub fn set_cam_settings(&mut self, settings: CameraSettings) {
+        self.controls = CameraController::new(
+            settings.start_distance,
+            settings.focus_distance,
+            settings.speed_scale,
+            settings.min_focus_distance,
+            settings.max_focus_distance,
+            settings.min_pitch,
+            settings.max_pitch,
+        );
+        self.cam_settings = settings;
+        let cam = self.camera.clone();
+        self.match_controls_to(&cam);
     }
 
     pub fn set_model_up(&mut self, up_axis: Vec3) {
@@ -193,7 +216,11 @@ impl AppContext {
 
     pub fn connect_to(&mut self, process: RunningProcess) {
         // reset context & view.
-        *self = Self::new(self.device.clone(), self.ctx.clone(), &self.cam_settings);
+        *self = Self::new(
+            self.device.clone(),
+            self.ctx.clone(),
+            self.cam_settings.clone(),
+        );
 
         // Convert the receiver to a "reactive" receiver that wakes up the UI.
         self.running_process = Some(RunningProcess {
@@ -286,30 +313,33 @@ impl App {
             zen = z.parse::<bool>().unwrap_or(false);
         }
 
-        let focal = search_params
-            .get("focal")
-            .and_then(|f| f.parse().ok())
-            .unwrap_or(0.8);
         let radius = search_params
-            .get("radius")
+            .get("start_distance")
             .and_then(|f| f.parse().ok())
             .unwrap_or(4.0);
         let focus_distance = search_params
             .get("focus_distance")
             .and_then(|f| f.parse().ok())
             .unwrap_or(4.0);
-        let speed_scale = search_params
-            .get("speed_scale")
+        let focal = search_params
+            .get("focal")
             .and_then(|f| f.parse().ok())
-            .unwrap_or(1.0);
+            .unwrap_or(0.8);
 
         let settings = CameraSettings {
             focal,
-            radius,
+            start_distance: radius,
             focus_distance,
-            speed_scale,
+            speed_scale: 1.0,
+
+            // TODO: Set these from URI? Unify URI params & embedded app controls?
+            min_pitch: None,
+            max_pitch: None,
+            min_focus_distance: None,
+            max_focus_distance: None,
         };
-        let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), &settings);
+
+        let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), settings);
 
         let mut tiles: Tiles<PaneType> = Tiles::default();
         let scene_pane = ScenePanel::new(

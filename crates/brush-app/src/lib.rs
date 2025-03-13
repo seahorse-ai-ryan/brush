@@ -1,6 +1,6 @@
 #![recursion_limit = "256"]
 
-mod orbit_controls;
+mod camera_controls;
 mod panels;
 
 mod app;
