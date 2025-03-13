@@ -260,6 +260,8 @@ impl SplatTrainer {
 
         let camera = &batch.gt_view.camera;
 
+        let current_opacity = splats.opacities();
+
         let (
             pred_image,
             visible,
@@ -275,7 +277,7 @@ impl SplatTrainer {
                 splats.log_scales.val().into_primitive().tensor(),
                 splats.rotation.val().into_primitive().tensor(),
                 splats.sh_coeffs.val().into_primitive().tensor(),
-                splats.opacities().into_primitive().tensor(),
+                current_opacity.clone().into_primitive().tensor(),
             );
             let img = Tensor::from_primitive(TensorPrimitive::Float(diff_out.img));
             (
@@ -331,7 +333,7 @@ impl SplatTrainer {
             // Invisible splats still have a tiny bit of loss. Otherwise,
             // they would never die off.
             let visible = visible.clone() + 1e-3;
-            loss + (splats.opacities() * visible).sum() * (opac_loss_weight * (1.0 - train_t))
+            loss + (current_opacity * visible).sum() * (opac_loss_weight * (1.0 - train_t))
         } else {
             loss
         };

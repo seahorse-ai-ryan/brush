@@ -44,8 +44,7 @@ pub fn eval_stats<B: Backend + SplatForward<B>>(
         let gt_tensor = view_to_sample::<B>(&view, &device);
         let gt_rgb = gt_tensor.slice([0..res.y as usize, 0..res.x as usize, 0..3]);
 
-        let (rendered, aux) = splats.render(&view.camera, res, false);
-
+        let (rendered, aux) = splats.render(&view.camera, res, true);
         let render_rgb = rendered.slice([0..res.y as usize, 0..res.x as usize, 0..3]);
 
         // Simulate 8-bit roundtrip for fair comparison.

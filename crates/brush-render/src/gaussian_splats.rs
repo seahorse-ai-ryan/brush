@@ -247,7 +247,7 @@ impl<B: Backend + SplatForward<B>> Splats<B> {
         &self,
         camera: &Camera,
         img_size: glam::UVec2,
-        render_u32_buffer: bool,
+        float_buffer: bool,
     ) -> (Tensor<B, 3>, RenderAux<B>) {
         let (img, aux) = B::render_splats(
             camera,
@@ -257,7 +257,7 @@ impl<B: Backend + SplatForward<B>> Splats<B> {
             self.rotation.val().into_primitive().tensor(),
             self.sh_coeffs.val().into_primitive().tensor(),
             self.opacities().into_primitive().tensor(),
-            render_u32_buffer,
+            float_buffer,
         );
         let img = Tensor::from_primitive(TensorPrimitive::Float(img));
         if cfg!(feature = "debug_validation") {

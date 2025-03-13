@@ -206,7 +206,7 @@ impl<B: Backend + SplatBackwardOps<B> + SplatForward<B>, C: CheckpointStrategy>
             quats.clone().into_primitive(),
             sh_coeffs.clone().into_primitive(),
             raw_opacity.clone().into_primitive(),
-            false,
+            true,
         );
 
         let wrapped_aux = RenderAux::<Self> {

@@ -171,7 +171,7 @@ impl eframe::App for App {
             let (img, _) = msg.splats.render(
                 &self.view.camera,
                 glam::uvec2(image.width(), image.height()),
-                true,
+                false,
             );
 
             let size = egui::vec2(image.width() as f32, image.height() as f32);

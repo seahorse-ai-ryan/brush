@@ -53,7 +53,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
     quats: CubeTensor<WgpuRuntime>,
     sh_coeffs: CubeTensor<WgpuRuntime>,
     opacities: CubeTensor<WgpuRuntime>,
-    raster_u32: bool,
+    bwd_info: bool,
 ) -> (CubeTensor<WgpuRuntime>, RenderAux<BBase<BT>>) {
     assert!(
         img_size[0] > 0 && img_size[1] > 0,
@@ -262,46 +262,55 @@ pub(crate) fn render_forward<BT: BoolElement>(
 
     let _span = tracing::trace_span!("Rasterize", sync_burn = true).entered();
 
-    let out_dim = if raster_u32 {
+    let out_dim = if bwd_info {
+        4
+    } else {
         // Channels are packed into 4 bytes, aka one float.
         1
-    } else {
-        4
     };
 
     let out_img = create_tensor(
         [img_size.y as usize, img_size.x as usize, out_dim],
         device,
         client,
-        if raster_u32 { DType::U32 } else { DType::F32 },
+        if bwd_info { DType::F32 } else { DType::U32 },
     );
-
-    // Buffer containing the final visible splat per tile.
-    let final_index = create_tensor::<2, _>(
-        [img_size.y as usize, img_size.x as usize],
-        device,
-        client,
-        DType::I32,
-    );
-
-    let visible = BBase::<BT>::float_zeros([total_splats].into(), device);
 
     let mut bindings = vec![
         uniforms_buffer.clone().handle.binding(),
         compact_gid_from_isect.handle.clone().binding(),
         tile_offsets.handle.clone().binding(),
         projected_splats.handle.clone().binding(),
-        global_from_compact_gid.handle.clone().binding(),
         out_img.handle.clone().binding(),
     ];
 
-    if !raster_u32 {
+    let (visible, final_index) = if bwd_info {
+        let visible = BBase::<BT>::float_zeros([total_splats].into(), device);
+
+        // Buffer containing the final visible splat per tile.
+        let final_index = create_tensor::<2, _>(
+            [img_size.y as usize, img_size.x as usize],
+            device,
+            client,
+            DType::I32,
+        );
+
+        bindings.push(global_from_compact_gid.handle.clone().binding());
         bindings.push(final_index.handle.clone().binding());
         bindings.push(visible.handle.clone().binding());
-    }
-    // Compile the kernel for rasterizing a float or u32 buffer,
-    // see the RASTER_U32 define in the rasterize shader.
-    let raster_task = Rasterize::task(raster_u32);
+
+        (visible, final_index)
+    } else {
+        let visible = create_tensor::<1, _>([1], device, client, DType::F32);
+
+        // Buffer containing the final visible splat per tile.
+        let final_index = create_tensor::<2, _>([1, 1], device, client, DType::I32);
+        (visible, final_index)
+    };
+
+    // Compile the kernel, including/excluding info for backwards pass.
+    // see the BWD_INFO define in the rasterize shader.
+    let raster_task = Rasterize::task(bwd_info);
 
     // SAFETY: Kernel has to contain no OOB indexing.
     unsafe {
@@ -320,10 +329,10 @@ pub(crate) fn render_forward<BT: BoolElement>(
             num_intersections,
             tile_offsets,
             projected_splats,
-            final_index,
             compact_gid_from_isect,
             global_from_compact_gid,
             visible,
+            final_index,
         },
     )
 }

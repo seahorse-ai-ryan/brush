@@ -5,19 +5,21 @@
 @group(0) @binding(2) var<storage, read> tile_offsets: array<i32>;
 @group(0) @binding(3) var<storage, read> projected_splats: array<helpers::ProjectedSplat>;
 
-@group(0) @binding(4) var<storage, read> global_from_compact_gid: array<i32>;
+#ifdef BWD_INFO
+    @group(0) @binding(4) var<storage, read_write> out_img: array<vec4f>;
 
-#ifdef RASTER_U32
-    @group(0) @binding(5) var<storage, read_write> out_img: array<u32>;
-#else
-    @group(0) @binding(5) var<storage, read_write> out_img: array<vec4f>;
-
+    @group(0) @binding(5) var<storage, read> global_from_compact_gid: array<i32>;
     @group(0) @binding(6) var<storage, read_write> final_index: array<i32>;
     @group(0) @binding(7) var<storage, read_write> visible: array<f32>;
+#else
+    @group(0) @binding(4) var<storage, read_write> out_img: array<u32>;
 #endif
 
 var<workgroup> local_batch: array<helpers::ProjectedSplat, helpers::TILE_SIZE>;
-var<workgroup> load_gid: array<u32, helpers::TILE_SIZE>;
+
+#ifdef BWD_INFO
+    var<workgroup> load_gid: array<u32, helpers::TILE_SIZE>;
+#endif
 
 var<workgroup> done_count: atomic<u32>;
 
@@ -78,8 +80,12 @@ fn main(
         if local_idx < remaining {
             let load_isect_id = batch_start + local_idx;
             let compact_gid = compact_gid_from_isect[load_isect_id];
-            load_gid[local_idx] = u32(global_from_compact_gid[compact_gid]);
             local_batch[local_idx] = projected_splats[compact_gid];
+
+            // Visibility is written to global ID's.
+            #ifdef BWD_INFO
+                load_gid[local_idx] = u32(global_from_compact_gid[compact_gid]);
+            #endif
         }
         // Wait for all writes to complete.
         workgroupBarrier();
@@ -107,7 +113,7 @@ fn main(
                 break;
             }
 
-            #ifndef RASTER_U32
+            #ifdef BWD_INFO
                 let gid = load_gid[t];
                 visible[gid] = 1.0;
             #endif
@@ -125,13 +131,14 @@ fn main(
     if inside {
         let img_alpha = (1.0 - T);
         let final_color = vec4f(pix_out, img_alpha);
-        #ifdef RASTER_U32
+
+        #ifdef BWD_INFO
+            out_img[pix_id] = final_color;
+            final_index[pix_id] = i32(final_idx);
+        #else
             let colors_u = vec4u(clamp(final_color * 255.0, vec4f(0.0), vec4f(255.0)));
             let packed: u32 = colors_u.x | (colors_u.y << 8u) | (colors_u.z << 16u) | (colors_u.w << 24u);
             out_img[pix_id] = packed;
-        #else
-            out_img[pix_id] = final_color;
-            final_index[pix_id] = i32(final_idx);
         #endif
     }
 }

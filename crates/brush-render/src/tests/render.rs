@@ -36,7 +36,7 @@ fn renders_at_all() {
         quats.into_primitive().tensor(),
         sh_coeffs.into_primitive().tensor(),
         raw_opacity.into_primitive().tensor(),
-        false,
+        true,
     );
     aux.debug_assert_valid();
 

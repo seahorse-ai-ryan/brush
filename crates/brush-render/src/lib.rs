@@ -2,7 +2,7 @@
 
 use burn::prelude::{Backend, Tensor};
 use burn::tensor::ops::{FloatTensor, IntTensor};
-use burn::tensor::{ElementConversion, Int};
+use burn::tensor::{ElementConversion, Int, TensorMetadata};
 use burn_cubecl::CubeBackend;
 use burn_fusion::Fusion;
 use burn_wgpu::graphics::AutoGraphicsApi;
@@ -33,11 +33,12 @@ pub struct RenderAux<B: Backend> {
     pub uniforms_buffer: IntTensor<B>,
     pub num_intersections: IntTensor<B>,
     pub num_visible: IntTensor<B>,
-    pub final_index: IntTensor<B>,
     pub tile_offsets: IntTensor<B>,
     pub compact_gid_from_isect: IntTensor<B>,
     pub global_from_compact_gid: IntTensor<B>,
+
     pub visible: FloatTensor<B>,
+    pub final_index: IntTensor<B>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,17 +104,18 @@ impl<B: Backend> RenderAux<B> {
             "Brush doesn't support this many gaussians currently. {num_visible} > {GAUSSIANS_UPPER_BOUND}"
         );
 
-        let final_index: Tensor<B, 2, Int> = Tensor::from_primitive(self.final_index.clone());
-
-        let final_index = final_index
-            .into_data()
-            .to_vec::<i32>()
-            .expect("Failed to fetch final index");
-        for &final_index in &final_index {
-            assert!(
-                final_index >= 0 && final_index <= num_intersections,
-                "Final index exceeds bounds. Final index {final_index}, num_intersections: {num_intersections}"
-            );
+        if self.final_index.shape().dims() != [1, 1] {
+            let final_index: Tensor<B, 2, Int> = Tensor::from_primitive(self.final_index.clone());
+            let final_index = final_index
+                .into_data()
+                .to_vec::<i32>()
+                .expect("Failed to fetch final index");
+            for &final_index in &final_index {
+                assert!(
+                    final_index >= 0 && final_index <= num_intersections,
+                    "Final index exceeds bounds. Final index {final_index}, num_intersections: {num_intersections}"
+                );
+            }
         }
 
         let tile_offsets: Tensor<B, 1, Int> = Tensor::from_primitive(self.tile_offsets.clone());
@@ -197,7 +199,7 @@ pub trait SplatForward<B: Backend> {
         quats: FloatTensor<B>,
         sh_coeffs: FloatTensor<B>,
         opacities: FloatTensor<B>,
-        render_u32_buffer: bool,
+        bwd_info: bool,
     ) -> (FloatTensor<B>, RenderAux<B>);
 }
 
