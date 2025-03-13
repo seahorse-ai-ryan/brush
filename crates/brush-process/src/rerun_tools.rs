@@ -67,7 +67,7 @@ impl VisualizeTools {
                         * SH_C0
                         + 0.5;
 
-                let transparency = sigmoid(splats.raw_opacity.val());
+                let transparency = splats.opacities();
 
                 let colors = base_rgb
                     .into_data_async()
@@ -121,8 +121,11 @@ impl VisualizeTools {
         if let Some(rec) = self.rec.as_ref() {
             if rec.is_enabled() {
                 rec.log_static("world", &rerun::ViewCoordinates::RIGHT_HAND_Y_DOWN())?;
+                // Only log 200 views at most, to not take down rerun for super large datasets. Bit sad that
+                // it can't handle more!
+                let view_step = (scene.views.len() / 200).max(1);
 
-                for (i, view) in scene.views.iter().enumerate() {
+                for (i, view) in scene.views.iter().step_by(view_step).enumerate() {
                     let path = format!("world/dataset/camera/{i}");
                     let log_img = clamp_img_to_max_size(view.image.clone(), max_img_size);
 
@@ -191,6 +194,18 @@ impl VisualizeTools {
                 rec.log(
                     format!("world/eval/view_{}/render", view.index),
                     &rerun::Image::from_rgb24(rendered.to_vec(), [w, h]),
+                )?;
+                rec.log(
+                    format!("psnr/eval_{}", view.index),
+                    &rerun::Scalar::new(
+                        view.psnr.clone().into_scalar_async().await.elem::<f32>() as f64
+                    ),
+                )?;
+                rec.log(
+                    format!("ssim/eval_{}", view.index),
+                    &rerun::Scalar::new(
+                        view.ssim.clone().into_scalar_async().await.elem::<f32>() as f64
+                    ),
                 )?;
             }
         }
@@ -269,6 +284,10 @@ impl VisualizeTools {
                 let _ = rec.log(
                     "refine/num_pruned",
                     &rerun::Scalar::new(refine.num_pruned as f64),
+                );
+                let _ = rec.log(
+                    "refine/effective_growth",
+                    &rerun::Scalar::new(refine.num_added as f64 - refine.num_pruned as f64),
                 );
             }
         }

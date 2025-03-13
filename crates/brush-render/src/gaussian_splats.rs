@@ -208,7 +208,7 @@ impl<B: Backend> Splats<B> {
         }
     }
 
-    pub fn opacity(&self) -> Tensor<B, 1> {
+    pub fn opacities(&self) -> Tensor<B, 1> {
         sigmoid(self.raw_opacity.val())
     }
 
@@ -256,16 +256,13 @@ impl<B: Backend + SplatForward<B>> Splats<B> {
             self.log_scales.val().into_primitive().tensor(),
             self.rotation.val().into_primitive().tensor(),
             self.sh_coeffs.val().into_primitive().tensor(),
-            self.raw_opacity.val().into_primitive().tensor(),
+            self.opacities().into_primitive().tensor(),
             render_u32_buffer,
         );
-
         let img = Tensor::from_primitive(TensorPrimitive::Float(img));
-
-        let wrapped_aux = aux.into_wrapped();
         if cfg!(feature = "debug_validation") {
-            wrapped_aux.clone().debug_assert_valid();
+            aux.debug_assert_valid();
         }
-        (img, wrapped_aux)
+        (img, aux)
     }
 }

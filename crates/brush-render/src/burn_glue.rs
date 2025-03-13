@@ -7,7 +7,7 @@ use burn_ir::{CustomOpIr, HandleContainer, OperationIr};
 use burn_wgpu::WgpuRuntime;
 
 use crate::{
-    BBase, RenderAuxPrimitive, SplatForward,
+    BBase, RenderAux, SplatForward,
     camera::Camera,
     render::{calc_tile_bounds, max_intersections, render_forward},
     shaders,
@@ -22,9 +22,9 @@ impl<BT: BoolElement> SplatForward<Self> for BBase<BT> {
         log_scales: FloatTensor<Self>,
         quats: FloatTensor<Self>,
         sh_coeffs: FloatTensor<Self>,
-        raw_opacity: FloatTensor<Self>,
+        opacity: FloatTensor<Self>,
         render_u32_buffer: bool,
-    ) -> (FloatTensor<Self>, RenderAuxPrimitive<Self>) {
+    ) -> (FloatTensor<Self>, RenderAux<Self>) {
         render_forward(
             camera,
             img_size,
@@ -32,7 +32,7 @@ impl<BT: BoolElement> SplatForward<Self> for BBase<BT> {
             log_scales,
             quats,
             sh_coeffs,
-            raw_opacity,
+            opacity,
             render_u32_buffer,
         )
     }
@@ -46,9 +46,9 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
         log_scales: FloatTensor<Self>,
         quats: FloatTensor<Self>,
         sh_coeffs: FloatTensor<Self>,
-        raw_opacity: FloatTensor<Self>,
+        opacity: FloatTensor<Self>,
         render_u32_buffer: bool,
-    ) -> (FloatTensor<Self>, RenderAuxPrimitive<Self>) {
+    ) -> (FloatTensor<Self>, RenderAux<Self>) {
         struct CustomOp<BT: BoolElement> {
             cam: Camera,
             img_size: glam::UVec2,
@@ -63,7 +63,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
                 h: &mut HandleContainer<FusionHandle<FusionCubeRuntime<WgpuRuntime, BT>>>,
             ) {
                 let (
-                    [means, log_scales, quats, sh_coeffs, raw_opacity],
+                    [means, log_scales, quats, sh_coeffs, opacity],
                     [
                         projected_splats,
                         uniforms_buffer,
@@ -73,7 +73,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
                         tile_offsets,
                         compact_gid_from_isect,
                         global_from_compact_gid,
-                        radii,
+                        visible,
                         out_img,
                     ],
                 ) = self.desc.consume();
@@ -85,7 +85,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
                     h.get_float_tensor::<BBase<BT>>(&log_scales),
                     h.get_float_tensor::<BBase<BT>>(&quats),
                     h.get_float_tensor::<BBase<BT>>(&sh_coeffs),
-                    h.get_float_tensor::<BBase<BT>>(&raw_opacity),
+                    h.get_float_tensor::<BBase<BT>>(&opacity),
                     self.render_u32_buffer,
                 );
 
@@ -105,7 +105,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
                     &global_from_compact_gid.id,
                     aux.global_from_compact_gid,
                 );
-                h.register_float_tensor::<BBase<BT>>(&radii.id, aux.radii);
+                h.register_float_tensor::<BBase<BT>>(&visible.id, aux.visible);
             }
         }
 
@@ -128,7 +128,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
             DType::F32,
         );
 
-        let aux = RenderAuxPrimitive::<Self> {
+        let aux = RenderAux::<Self> {
             projected_splats: client.tensor_uninitialized(vec![num_points, proj_size], DType::F32),
             uniforms_buffer: client.tensor_uninitialized(vec![uniforms_size], DType::I32),
             num_intersections: client.tensor_uninitialized(vec![1], DType::I32),
@@ -142,7 +142,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
             compact_gid_from_isect: client
                 .tensor_uninitialized(vec![max_intersects as usize], DType::I32),
             global_from_compact_gid: client.tensor_uninitialized(vec![num_points], DType::I32),
-            radii: client.tensor_uninitialized(vec![num_points], DType::F32),
+            visible: client.tensor_uninitialized(vec![num_points], DType::F32),
         };
 
         let desc = CustomOpIr::new(
@@ -152,7 +152,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
                 log_scales.into_ir(),
                 quats.into_ir(),
                 sh_coeffs.into_ir(),
-                raw_opacity.into_ir(),
+                opacity.into_ir(),
             ],
             &[
                 aux.projected_splats.to_ir_out(),
@@ -163,7 +163,7 @@ impl<BT: BoolElement> SplatForward<Self> for Fusion<BBase<BT>> {
                 aux.tile_offsets.to_ir_out(),
                 aux.compact_gid_from_isect.to_ir_out(),
                 aux.global_from_compact_gid.to_ir_out(),
-                aux.radii.to_ir_out(),
+                aux.visible.to_ir_out(),
                 out_img.to_ir_out(),
             ],
         );

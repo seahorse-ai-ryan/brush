@@ -1,5 +1,5 @@
 use crate::{
-    BBase, INTERSECTS_UPPER_BOUND, RenderAuxPrimitive,
+    BBase, INTERSECTS_UPPER_BOUND, RenderAux,
     camera::Camera,
     dim_check::DimCheck,
     kernels::{MapGaussiansToIntersect, ProjectSplats, ProjectVisible, Rasterize},
@@ -52,9 +52,9 @@ pub(crate) fn render_forward<BT: BoolElement>(
     log_scales: CubeTensor<WgpuRuntime>,
     quats: CubeTensor<WgpuRuntime>,
     sh_coeffs: CubeTensor<WgpuRuntime>,
-    raw_opacities: CubeTensor<WgpuRuntime>,
+    opacities: CubeTensor<WgpuRuntime>,
     raster_u32: bool,
-) -> (CubeTensor<WgpuRuntime>, RenderAuxPrimitive<BBase<BT>>) {
+) -> (CubeTensor<WgpuRuntime>, RenderAux<BBase<BT>>) {
     assert!(
         img_size[0] > 0 && img_size[1] > 0,
         "Can't render images with 0 size."
@@ -74,7 +74,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
         .check_dims(&log_scales, &["D".into(), 3.into()])
         .check_dims(&quats, &["D".into(), 4.into()])
         .check_dims(&sh_coeffs, &["D".into(), "C".into(), 3.into()])
-        .check_dims(&raw_opacities, &["D".into()]);
+        .check_dims(&opacities, &["D".into()]);
 
     // Divide screen into tiles.
     let tile_bounds = calc_tile_bounds(img_size);
@@ -114,8 +114,6 @@ pub(crate) fn render_forward<BT: BoolElement>(
 
     let client = &means.client.clone();
 
-    let radii = BBase::<BT>::float_zeros([total_splats].into(), device);
-
     let (global_from_compact_gid, num_visible) = {
         let global_from_presort_gid = BBase::<BT>::int_zeros([total_splats].into(), device);
         let depths = create_tensor([total_splats], device, client, DType::F32);
@@ -131,10 +129,9 @@ pub(crate) fn render_forward<BT: BoolElement>(
                     means.clone().handle.binding(),
                     quats.clone().handle.binding(),
                     log_scales.clone().handle.binding(),
-                    raw_opacities.clone().handle.binding(),
+                    opacities.clone().handle.binding(),
                     global_from_presort_gid.clone().handle.binding(),
                     depths.clone().handle.binding(),
-                    radii.clone().handle.binding(),
                 ],
             );
         });
@@ -183,7 +180,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
                 log_scales.handle.binding(),
                 quats.handle.binding(),
                 sh_coeffs.handle.binding(),
-                raw_opacities.handle.binding(),
+                opacities.handle.binding(),
                 global_from_compact_gid.handle.clone().binding(),
                 projected_splats.handle.clone().binding(),
                 tiles_hit_per_splat.handle.clone().binding(),
@@ -287,6 +284,21 @@ pub(crate) fn render_forward<BT: BoolElement>(
         DType::I32,
     );
 
+    let visible = BBase::<BT>::float_zeros([total_splats].into(), device);
+
+    let mut bindings = vec![
+        uniforms_buffer.clone().handle.binding(),
+        compact_gid_from_isect.handle.clone().binding(),
+        tile_offsets.handle.clone().binding(),
+        projected_splats.handle.clone().binding(),
+        global_from_compact_gid.handle.clone().binding(),
+        out_img.handle.clone().binding(),
+    ];
+
+    if !raster_u32 {
+        bindings.push(final_index.handle.clone().binding());
+        bindings.push(visible.handle.clone().binding());
+    }
     // Compile the kernel for rasterizing a float or u32 buffer,
     // see the RASTER_U32 define in the rasterize shader.
     let raster_task = Rasterize::task(raster_u32);
@@ -296,20 +308,13 @@ pub(crate) fn render_forward<BT: BoolElement>(
         client.execute_unchecked(
             raster_task,
             calc_cube_count([img_size.x, img_size.y], Rasterize::WORKGROUP_SIZE),
-            vec![
-                uniforms_buffer.clone().handle.binding(),
-                compact_gid_from_isect.handle.clone().binding(),
-                tile_offsets.handle.clone().binding(),
-                projected_splats.handle.clone().binding(),
-                out_img.handle.clone().binding(),
-                final_index.handle.clone().binding(),
-            ],
+            bindings,
         );
     }
 
     (
         out_img,
-        RenderAuxPrimitive {
+        RenderAux {
             uniforms_buffer,
             num_visible,
             num_intersections,
@@ -318,7 +323,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
             final_index,
             compact_gid_from_isect,
             global_from_compact_gid,
-            radii,
+            visible,
         },
     )
 }
