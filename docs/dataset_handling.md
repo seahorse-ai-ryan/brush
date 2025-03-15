@@ -34,6 +34,112 @@ The datasets window consists of several key components:
      - Dataset Details: Size and last modified date
      - "Process" Button: Initiates processing for the selected dataset
 
+## Cross-Platform File Handling
+
+### Architecture Overview
+
+Brush implements a platform-agnostic file handling system with two distinct layers:
+
+1. **UI Layer**: Platform-specific file dialogs and user interaction
+   - Native OS dialogs on desktop platforms
+   - Web-based file pickers in browser environment
+   - Consistent UI feedback across platforms
+
+2. **Export Service Layer**: Background processing and file operations
+   - Separated from UI to prevent blocking
+   - Handles large file operations asynchronously
+   - Platform-independent core logic
+
+### Platform-Specific Implementations
+
+1. **Desktop Application**
+   ```rust
+   #[cfg(not(target_arch = "wasm32"))]
+   fn handle_file_selection() {
+       // Uses native file dialog via rfd
+       // Provides full filesystem access
+       // Supports folder selection
+   }
+   ```
+
+2. **Web Application**
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   fn handle_file_selection() {
+       // Uses browser's file picker API
+       // Limited to user-selected files only
+       // No direct folder access
+   }
+   ```
+
+### Key Design Decisions
+
+1. **File Handle Management**
+   - File handles are consumed upon read
+   - Important metadata extracted before consumption
+   - Prevents common ownership issues in async code
+
+2. **Export Service Separation**
+   - UI remains responsive during file operations
+   - Progress reporting via message passing
+   - Cancellable operations where possible
+
+3. **Platform Adaptations**
+   - Graceful degradation for web limitations
+   - Consistent user experience across platforms
+   - Clear feedback for platform-specific features
+
+## Dataset Processing Flow
+
+1. **File Selection**
+   - User selects file(s) via platform-appropriate dialog
+   - Files are validated for supported formats
+   - Metadata is extracted and displayed
+
+2. **Processing**
+   - Dataset is queued for processing
+   - Progress is reported through UI
+   - Background processing prevents UI blocking
+
+3. **Export**
+   - Processed results can be exported
+   - Export format selection via UI
+   - Background processing with progress indication
+
+## Implementation Notes
+
+1. **Browser Limitations**
+   - No direct folder access
+   - File system API restrictions
+   - Memory constraints for large files
+
+2. **Desktop Capabilities**
+   - Full filesystem access
+   - Native performance
+   - System-native file dialogs
+
+3. **Error Handling**
+   - Clear user feedback
+   - Graceful fallbacks
+   - Platform-specific error messages
+
+## Best Practices
+
+1. **File Operations**
+   - Extract metadata before consuming handles
+   - Use async operations for large files
+   - Implement proper cleanup
+
+2. **UI Feedback**
+   - Show operation progress
+   - Provide clear error messages
+   - Indicate platform limitations
+
+3. **Cross-Platform Development**
+   - Test on all target platforms
+   - Handle platform differences early
+   - Document platform-specific behaviors
+
 ## File System Interaction
 
 ### Local File System Access

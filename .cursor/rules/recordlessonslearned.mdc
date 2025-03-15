@@ -15,13 +15,13 @@ When solving complex technical issues:
    - A reusable pattern is created to work around framework limitations
    - Significant debugging techniques are applied to solve an issue
 
-2. WITHOUT WAITING FOR PROMPTING, suggest updating the "docs/ai_agent_lessons_learned.md" file with:
+2. WITHOUT WAITING FOR PROMPTING, suggest updating the "brush_lessons.mdc" rule with:
    - The root cause analysis
    - The solution implemented
    - Generalizable lessons for future developers/agents
    
 3. Format suggestions:
-   - Follow the format specified in the lessons learned document
+   - Follow the format specified in the lessons learned rule
    - Be specific about error messages, file locations, and code patterns
    - Highlight "better approaches" that could have prevented the issue
 

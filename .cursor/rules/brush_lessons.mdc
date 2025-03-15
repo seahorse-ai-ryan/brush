@@ -1,0 +1,54 @@
+---
+description: Brush project lessons learned and best practices
+globs: ["crates/brush-app/**/*.rs", "crates/brush-process/**/*.rs"]
+alwaysApply: true
+---
+<brush_lessons>
+1. Cross-Platform Development:
+   - Use clear conditional compilation blocks (#[cfg(...)]) for platform-specific code
+   - Keep platform-specific logic isolated in separate modules
+   - Implement graceful degradation for platform limitations (e.g., WASM)
+   - Test features on both desktop and web targets early
+
+2. UI and State Management:
+   - Use egui's specialized layout components (SidePanel, CentralPanel) over manual layouts
+   - Preserve UI state (window positions, sizes) when resetting content state
+   - Check AppContext directly for source of truth rather than relying on internal state
+   - Add debug logging for layout dimensions when diagnosing UI issues
+
+3. Async and WASM:
+   - Ensure data structures are properly cloned/moved into async closures
+   - Convert borrowed string slices (&str) to owned strings (String) for async boundaries
+   - Use custom events for WASM-browser communication
+   - Handle file operations differently between native and web platforms
+
+4. Borrow Checker and Ownership:
+   - Use local variables to avoid double borrows in UI closures
+   - Track UI actions with flags when direct method calls would cause borrow issues
+   - Get all needed information from an object before calling methods that consume it
+   - Consider restructuring code to avoid nested borrows
+
+5. Error Handling:
+   - Use consistent error types across the codebase
+   - Add descriptive logging for debugging
+   - Implement proper error handling for both native and web platforms
+   - Provide clear user feedback for platform-specific limitations
+
+6. File Operations:
+   - Design file handling code to be generic and extensible
+   - Handle both ZIP and PLY files consistently
+   - Implement proper error handling for file operations
+   - Consider platform limitations when implementing file dialogs
+
+7. Message Passing:
+   - Forward messages consistently to all components that need them
+   - Handle messages at a consistent point in the update cycle
+   - Be explicit about which state is reset and which is preserved
+   - Use proper typing for message channels
+
+8. Testing:
+   - Test features on both desktop and web targets
+   - Add comprehensive debug logging
+   - Test all possible state transitions
+   - Verify behavior across different platforms
+</brush_lessons> 
