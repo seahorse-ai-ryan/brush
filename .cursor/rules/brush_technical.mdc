@@ -1,6 +1,228 @@
 ---
-description: 
-globs: 
-alwaysApply: false
+description: Technical implementation standards and guidelines for Brush
+globs: ["**/*.rs", "**/*.toml", "build.sh", "*.sh"]
+alwaysApply: true
 ---
- 
+<technical_standards>
+# Development Environment
+1. Core Requirements:
+   ```bash
+   # Install Rust and Cargo
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   rustup update stable
+   
+   # Add WebAssembly target
+   rustup target add wasm32-unknown-unknown
+   
+   # Install build tools
+   cargo install trunk
+   cargo install wasm-bindgen-cli
+   ```
+
+2. Platform-Specific Setup:
+   ```bash
+   # macOS
+   xcode-select --install
+   brew install git
+   
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install build-essential pkg-config libssl-dev
+   
+   # Windows
+   # Install Visual Studio Build Tools with C++ components
+   ```
+
+3. IDE Configuration:
+   - Use Cursor for AI assistance
+   - Configure Rust-analyzer
+   - Set up debugging tools
+
+# Cross-Platform Development
+1. Code Organization:
+   - Use clear conditional compilation blocks (#[cfg(...)])
+   - Keep platform-specific code in separate modules
+   - Implement graceful degradation for limitations
+   - Test on all target platforms early
+
+2. Platform Considerations:
+   - Desktop: Full feature set, native performance
+   - Web/WASM: Browser limitations, memory management
+   - Mobile: Resource constraints, touch input
+
+3. Best Practices:
+   ```rust
+   // Good: Platform-specific module
+   #[cfg(target_arch = "wasm32")]
+   mod web_specific {
+       // Web-only implementations
+   }
+
+   // Good: Graceful degradation
+   #[cfg(not(target_arch = "wasm32"))]
+   fn process_large_dataset() {
+       // Full processing
+   }
+   #[cfg(target_arch = "wasm32")]
+   fn process_large_dataset() {
+       // Chunked processing for memory constraints
+   }
+   ```
+
+# Performance Requirements
+1. Memory Management:
+   - Clean up WebGL contexts in WASM
+   - Use appropriate ownership patterns for GPU resources
+   - Implement proper resource cleanup
+   ```rust
+   // Good: Proper GPU resource management
+   struct GpuResource {
+       buffer: Arc<Buffer>,
+       // Other fields...
+   }
+
+   impl Drop for GpuResource {
+       fn drop(&mut self) {
+           // Cleanup code
+       }
+   }
+   ```
+
+2. Async Operations:
+   - Use async/await for I/O operations
+   - Implement proper cancellation
+   - Handle errors gracefully
+   ```rust
+   // Good: Async with proper error handling
+   async fn process_data() -> Result<(), Error> {
+       let data = load_data().await?;
+       process_chunks(data).await?;
+       Ok(())
+   }
+   ```
+
+# Build Configuration
+1. Cargo.toml Setup:
+   ```toml
+   [package]
+   name = "brush-app"
+   version = "0.1.0"
+   edition = "2021"
+
+   [dependencies]
+   wgpu = "0.18"
+   egui = "0.24"
+   burn = "0.10"
+   tokio = { version = "1.0", features = ["full"] }
+   
+   [target.'cfg(target_arch = "wasm32")'.dependencies]
+   wasm-bindgen = "0.2"
+   web-sys = { version = "0.3", features = ["WebGl2RenderingContext"] }
+   ```
+
+2. Build Scripts:
+   ```bash
+   # Desktop build
+   cargo build --release
+   
+   # Web build
+   trunk build --release
+   ```
+
+# Security Standards
+1. Input Validation:
+   - Validate all user inputs
+   - Sanitize file paths
+   - Check buffer boundaries
+
+2. Error Handling:
+   - Never expose internal errors to users
+   - Log security-relevant events
+   - Implement proper error types
+
+3. Best Practices:
+   ```rust
+   // Good: Custom error types
+   #[derive(Debug, thiserror::Error)]
+   pub enum AppError {
+       #[error("Invalid input: {0}")]
+       InvalidInput(String),
+       #[error("Processing failed: {0}")]
+       ProcessingError(String),
+   }
+   ```
+
+# Testing Requirements
+1. Unit Tests:
+   - Test core functionality
+   - Cover error cases
+   - Mock platform-specific features
+
+2. Integration Tests:
+   - Test cross-component interaction
+   - Verify platform compatibility
+   - Check resource cleanup
+
+3. Example:
+   ```rust
+   #[cfg(test)]
+   mod tests {
+       #[test]
+       fn test_dataset_processing() {
+           // Setup
+           let data = setup_test_data();
+           
+           // Test processing
+           let result = process_dataset(data);
+           
+           // Verify
+           assert!(result.is_ok());
+           assert_eq!(result.unwrap().points.len(), expected_len);
+       }
+   }
+   ```
+
+# Borrow Checker Patterns
+1. Common Solutions:
+   - Use Arc/Rc for shared ownership
+   - Implement Clone where appropriate
+   - Use local variables to avoid double borrows
+
+2. UI Patterns:
+   ```rust
+   // Good: Avoiding borrow checker issues in UI
+   let mut local_state = self.state.clone();
+   if ui.button("Process").clicked() {
+       local_state.process();
+       self.state = local_state;
+   }
+   ```
+
+3. Error Prevention:
+   - Get all needed data before mutable borrows
+   - Use appropriate lifetime parameters
+   - Consider restructuring to avoid nested borrows
+
+# Error Handling Patterns
+1. Error Types:
+   - Use thiserror for custom errors
+   - Implement proper error conversion
+   - Provide helpful error messages
+
+2. Error Handling:
+   ```rust
+   // Good: Proper error handling
+   pub fn process_file(path: &Path) -> Result<(), AppError> {
+       let file = File::open(path)
+           .map_err(|e| AppError::IoError(format!("Failed to open file: {}", e)))?;
+       
+       // Processing...
+       Ok(())
+   }
+   ```
+
+3. Error Reporting:
+   - Log errors with context
+   - Provide user-friendly messages
+   - Include debugging information when appropriate
+</technical_standards> 

@@ -1,6 +1,227 @@
 ---
-description: 
-globs: 
-alwaysApply: false
+description: UI/UX guidelines and standards for Brush
+globs: ["**/app/**/*.rs", "**/ui/**/*.rs", "**/components/**/*.rs"]
+alwaysApply: true
 ---
- 
+<ui_guidelines>
+# UI Design Principles
+1. User Experience Focus:
+   - Simplified workflow for casual users
+   - Clear visual hierarchy
+   - Consistent navigation patterns
+   - Progressive disclosure of complexity
+
+2. Visual Design:
+   - Clean, modern interface
+   - Clear contrast and readability
+   - Consistent spacing and alignment
+   - Responsive layout adaptation
+
+3. Interaction Design:
+   - Immediate feedback
+   - Clear affordances
+   - Error prevention
+   - Undo/redo support
+
+# Layout Principles
+1. Window Management:
+   ```rust
+   // Good: Proper window setup with resizing
+   let window = egui::Window::new("Window Title")
+       .resizable(true)
+       .min_width(280.0)
+       .default_width(300.0)
+       .show(ctx, |ui| {
+           // Force UI to take all available space
+           ui.set_min_size(egui::vec2(ui.available_width(), ui.available_height()));
+           
+           // Content here...
+       });
+   ```
+
+2. Layout Components:
+   - Use `SidePanel` for side content
+   - Use `CentralPanel` for main content
+   - Use `ScrollArea` for scrollable content
+   ```rust
+   // Good: Using specialized layout components
+   egui::SidePanel::left("side_panel")
+       .resizable(true)
+       .min_width(200.0)
+       .show(ctx, |ui| {
+           // Panel content...
+       });
+   ```
+
+3. Space Management:
+   - Set explicit minimum sizes
+   - Use available space efficiently
+   - Handle window resizing properly
+
+# Component Guidelines
+1. State Management:
+   ```rust
+   // Good: Clean state handling
+   struct MyComponent {
+       open: bool,
+       size: Vec2,
+       state: ComponentState,
+   }
+
+   impl MyComponent {
+       fn show(&mut self, ctx: &Context) {
+           let mut local_open = self.open;
+           let window = Window::new("Title")
+               .open(&mut local_open)
+               .show(ctx, |ui| {
+                   // UI code...
+               });
+           self.open = local_open;
+       }
+   }
+   ```
+
+2. Event Handling:
+   - Use flags for UI actions
+   - Handle clicks and interactions cleanly
+   - Provide clear feedback
+
+3. Data Display:
+   - Use appropriate widgets
+   - Format data consistently
+   - Handle loading states
+
+# Accessibility Requirements
+1. Visual Design:
+   - Clear contrast
+   - Readable text sizes
+   - Consistent spacing
+
+2. Interaction:
+   - Keyboard navigation
+   - Clear focus indicators
+   - Error messages
+
+3. Responsiveness:
+   - Quick feedback
+   - Loading indicators
+   - Progress reporting
+
+# Platform-Specific Considerations
+1. Desktop:
+   - Mouse and keyboard input
+   - Window management
+   - Native look and feel
+
+2. Web:
+   ```rust
+   // Good: Web-specific adaptations
+   #[cfg(target_arch = "wasm32")]
+   fn handle_file_upload(ui: &mut Ui) {
+       // Web file upload logic
+   }
+   #[cfg(not(target_arch = "wasm32"))]
+   fn handle_file_upload(ui: &mut Ui) {
+       // Native file dialog logic
+   }
+   ```
+
+3. Mobile (In Progress):
+   - Touch input
+   - Screen size adaptation
+   - Resource efficiency
+
+# Common UI Patterns
+1. Window Setup:
+   ```rust
+   // Good: Complete window setup
+   Window::new("Title")
+       .resizable(true)
+       .min_width(280.0)
+       .default_width(300.0)
+       .default_pos([100.0, 100.0])
+       .show(ctx, |ui| {
+           ui.set_min_size(vec2(ui.available_width(), ui.available_height()));
+           ScrollArea::vertical()
+               .auto_shrink([false, false])
+               .show(ui, |ui| {
+                   // Content...
+               });
+       });
+   ```
+
+2. State Synchronization:
+   ```rust
+   // Good: State sync pattern
+   let mut local_state = self.state.clone();
+   if ui.button("Action").clicked() {
+       local_state.update();
+       self.state = local_state;
+   }
+   ```
+
+3. Layout Structure:
+   ```rust
+   // Good: Nested layout pattern
+   ui.vertical(|ui| {
+       ui.horizontal(|ui| {
+           // Top toolbar
+       });
+       
+       ui.separator();
+       
+       ScrollArea::vertical()
+           .auto_shrink([false, false])
+           .show(ui, |ui| {
+               // Main content
+           });
+   });
+   ```
+
+# Debug Helpers
+1. Layout Debugging:
+   ```rust
+   // Good: Debug visualization
+   ui.ctx().debug_painter()
+       .rect_stroke(
+           response.rect,
+           0.0,
+           (1.0, Color32::RED)
+       );
+   ```
+
+2. State Logging:
+   ```rust
+   // Good: State debug logging
+   println!("WINDOW DEBUG: State change {} -> {}", old_state, new_state);
+   println!("WINDOW DEBUG: Available size: {:?}", size);
+   println!("WINDOW DEBUG: Response: {:?}", response);
+   ```
+
+3. Performance Monitoring:
+   ```rust
+   // Good: Performance tracking
+   let start = std::time::Instant::now();
+   // ... UI code ...
+   println!("UI UPDATE: {:?}", start.elapsed());
+   ```
+
+# Help & Documentation
+1. In-App Help:
+   - Centralized help menu
+   - Context-sensitive tooltips
+   - Quick start guides
+   - Keyboard shortcuts
+
+2. Error Messages:
+   - Clear error descriptions
+   - Suggested solutions
+   - Technical details (optional)
+   - Error reporting
+
+3. Documentation:
+   - User guides
+   - API documentation
+   - Example workflows
+   - Troubleshooting guides
+</ui_guidelines> 
