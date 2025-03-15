@@ -1,6 +1,279 @@
 ---
-description: 
-globs: 
-alwaysApply: false
+description: Documentation standards and guidelines for Brush
+globs: ["**/*.md", "**/*.rs"]
+alwaysApply: true
 ---
- 
+<documentation_standards>
+# Code Documentation
+1. File Headers:
+   ```rust
+   //! Module for handling dataset processing and management.
+   //! 
+   //! This module provides functionality for:
+   //! - Loading datasets from various formats
+   //! - Processing and validating dataset contents
+   //! - Managing dataset state and metadata
+   //! 
+   //! # Examples
+   //! ```
+   //! use brush_dataset::Dataset;
+   //! 
+   //! let dataset = Dataset::load("path/to/data")?;
+   //! dataset.process()?;
+   //! ```
+
+   use std::path::Path;
+   use anyhow::Result;
+   ```
+
+2. Public Item Documentation:
+   ```rust
+   /// Processes a dataset with the given configuration.
+   /// 
+   /// # Arguments
+   /// * `config` - Processing configuration parameters
+   /// 
+   /// # Returns
+   /// * `Ok(())` if processing succeeds
+   /// * `Err(ProcessError)` if processing fails
+   /// 
+   /// # Examples
+   /// ```
+   /// let config = ProcessConfig::default();
+   /// dataset.process(&config)?;
+   /// ```
+   pub fn process(&mut self, config: &ProcessConfig) -> Result<(), ProcessError> {
+       // Implementation...
+   }
+   ```
+
+3. Error Documentation:
+   ```rust
+   /// Error types for dataset processing.
+   #[derive(Debug, thiserror::Error)]
+   pub enum ProcessError {
+       /// Input file could not be read
+       #[error("Failed to read input file: {0}")]
+       IoError(#[from] std::io::Error),
+       
+       /// Dataset validation failed
+       #[error("Invalid dataset: {0}")]
+       ValidationError(String),
+   }
+   ```
+
+4. Cross-References:
+   ```rust
+   /// See [`Dataset::process`] for processing options.
+   /// 
+   /// Related:
+   /// - [`ProcessConfig`] for configuration options
+   /// - [`ProcessError`] for possible error cases
+   pub struct Dataset {
+       // Fields...
+   }
+   ```
+
+# User Documentation
+1. README Structure:
+   ```markdown
+   # Project Name
+   
+   Brief description (1-2 sentences)
+   
+   ## Features
+   - Key feature 1
+   - Key feature 2
+   
+   ## Installation
+   ```bash
+   # Installation steps
+   ```
+   
+   ## Quick Start
+   ```rust
+   // Minimal example
+   ```
+   
+   ## Documentation
+   - [User Guide](docs/user-guide.md)
+   - [API Reference](docs/api.md)
+   
+   ## Contributing
+   See [CONTRIBUTING.md](CONTRIBUTING.md)
+   ```
+
+2. Error Messages:
+   ```rust
+   // Good: Clear error message
+   format!("Failed to load dataset '{}': {}", name, error)
+   
+   // Good: Error with cause and solution
+   format!(
+       "Dataset validation failed: {}. \
+        Please ensure all required fields are present.",
+       error
+   )
+   ```
+
+# Example Creation
+1. Code Examples:
+   ```rust
+   /// # Examples
+   /// ```
+   /// use brush_app::{Dataset, ProcessConfig};
+   /// 
+   /// // Load dataset
+   /// let mut dataset = Dataset::load("data.ply")?;
+   /// 
+   /// // Configure processing
+   /// let config = ProcessConfig::default()
+   ///     .with_points(1000)
+   ///     .with_quality(0.9);
+   /// 
+   /// // Process dataset
+   /// dataset.process(&config)?;
+   /// ```
+   ```
+
+2. Integration Examples:
+   ```rust
+   // examples/basic_processing.rs
+   use brush_app::{App, Dataset};
+   
+   fn main() -> Result<(), Box<dyn std::error::Error>> {
+       // Initialize app
+       let mut app = App::new()?;
+       
+       // Load and process dataset
+       let dataset = Dataset::load("sample.ply")?;
+       app.add_dataset(dataset)?;
+       
+       // Run app
+       app.run()
+   }
+   ```
+
+# Troubleshooting Guides
+1. Problem Description:
+   ```markdown
+   ## Common Issues
+   
+   ### Dataset Loading Fails
+   
+   **Problem**: Dataset fails to load with "Invalid format" error
+   
+   **Possible Causes**:
+   - Unsupported file format
+   - Corrupted file
+   - Missing required fields
+   
+   **Solution**:
+   1. Verify file extension is .ply
+   2. Check file integrity
+   3. Validate file structure
+   ```
+
+2. Error Categories:
+   ```markdown
+   ## Error Reference
+   
+   ### IO Errors
+   - File not found
+   - Permission denied
+   - Network timeout
+   
+   ### Processing Errors
+   - Invalid format
+   - Missing data
+   - Resource exhausted
+   ```
+
+# Documentation Updates
+1. Version Changes:
+   ```markdown
+   ## Changelog
+   
+   ### v1.0.0
+   - Initial release
+   - Basic dataset processing
+   - File format support: .ply
+   
+   ### v1.1.0
+   - Added support for .xyz files
+   - Improved error messages
+   - Performance optimizations
+   ```
+
+2. API Changes:
+   ```markdown
+   ## API Changes
+   
+   ### Breaking Changes
+   - `process()` now returns Result
+   - Renamed `Config` to `ProcessConfig`
+   
+   ### Deprecations
+   - `old_method()` - Use `new_method()` instead
+   ```
+
+# Documentation Testing
+1. Example Testing:
+   ```rust
+   #[cfg(doctest)]
+   mod test {
+       /// ```
+       /// # use brush_app::Dataset;
+       /// let dataset = Dataset::new();
+       /// assert!(dataset.is_empty());
+       /// ```
+       pub struct Dataset;
+   }
+   ```
+
+2. Link Validation:
+   ```markdown
+   <!-- Good: Relative links -->
+   [User Guide](../docs/user-guide.md)
+   [API Reference](../docs/api.md)
+   
+   <!-- Good: Anchored links -->
+   [Installation](#installation)
+   [Usage](#usage)
+   ```
+
+# Help & Support
+1. Issue Templates:
+   ```markdown
+   ---
+   name: Bug Report
+   about: Report a bug in Brush
+   ---
+   
+   ## Description
+   
+   ## Steps to Reproduce
+   1.
+   2.
+   3.
+   
+   ## Expected Behavior
+   
+   ## Actual Behavior
+   
+   ## Environment
+   - OS:
+   - Brush version:
+   - Rust version:
+   ```
+
+2. Support Channels:
+   ```markdown
+   ## Getting Help
+   
+   - [Documentation](docs/)
+   - [Issue Tracker](issues/)
+   - [Discord Community](discord/)
+   - [Stack Overflow](stackoverflow/)
+   ```
+</documentation_standards> 
