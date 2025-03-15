@@ -1,6 +1,73 @@
 ---
-description: 
-globs: 
-alwaysApply: false
+description: Brush project coding guidelines and best practices
+globs: ["crates/brush-app/**/*", "crates/brush-process/**/*"]
+alwaysApply: true
 ---
- 
+<coding_standards>
+# Coding Standards
+1. Code Organization:
+   - Clear module structure
+   - Logical file organization
+   - Consistent naming conventions
+   - Proper error handling
+
+2. Project Context:
+   - Small team, high-impact changes
+   - Focus on accessibility and user experience
+   - Cross-platform compatibility (Desktop, Web, Mobile)
+   - Cutting-edge technology stack (Rust, WGPU, egui, Burn, WASM)
+
+3. Core Development Principles:
+   - Prioritize user experience and accessibility
+   - Maintain cross-platform compatibility
+   - Follow modular architecture patterns
+   - Document complex logic and solutions
+
+4. Technology Stack Guidelines:
+   - Rust: Leverage type system and ownership for safety
+   - WGPU: Use platform-agnostic graphics features
+   - egui: Implement consistent UI patterns
+   - Burn: Optimize ML operations for different hardware
+   - WASM: Consider web platform limitations
+   - Trunk: Follow proper build configuration
+   - tokio: Use async patterns appropriately
+
+5. Focus Areas:
+   a. Machine Learning & 3D Reconstruction:
+      - Efficient data loading and preprocessing
+      - Gaussian Splat training optimization
+      - Hardware-agnostic ML implementation
+      
+   b. 3D Gaussian Splat Rendering:
+      - Performance-optimized rendering pipelines
+      - Cross-platform graphics compatibility
+      - Efficient .ply file handling
+
+6. Development Best Practices:
+   - Break changes into small, testable chunks
+   - Test on multiple platforms (Desktop, Web)
+   - Profile performance-critical code
+   - Clean up resources properly (especially in WASM)
+   - Use appropriate ownership patterns for GPU resources
+   - Implement proper error handling and user feedback
+
+7. UI/UX Guidelines:
+   - Focus on intuitive interfaces
+   - Maintain consistent behavior across platforms
+   - Use platform-agnostic egui features
+   - Provide clear user feedback
+   - Consider resource constraints on different platforms
+
+8. Pipeline Architecture:
+   - Maintain modular design
+   - Support standard input formats
+   - Ensure .ply output compatibility
+   - Allow component swapping without breakage
+
+9. Common Solutions:
+   - Use Arc/Rc for shared GPU resource ownership
+   - Profile and optimize performance hotspots
+   - Clean up WebGL contexts in WASM
+   - Check dependency compatibility with cargo-tree
+   - Document solutions in brush_lessons.mdc
+</coding_standards> 

@@ -1,54 +1,260 @@
 ---
-description: Brush project lessons learned and best practices
-globs: ["crates/brush-app/**/*.rs", "crates/brush-process/**/*.rs"]
+description: Practical solutions, patterns, and lessons learned from Brush development
+globs: ["**/*.rs"]
 alwaysApply: true
 ---
-<brush_lessons>
-1. Cross-Platform Development:
-   - Use clear conditional compilation blocks (#[cfg(...)]) for platform-specific code
-   - Keep platform-specific logic isolated in separate modules
-   - Implement graceful degradation for platform limitations (e.g., WASM)
-   - Test features on both desktop and web targets early
+<lessons_learned>
+# UI Development
+## Window Management
+1. Problem: Window resizability issues
+   - Symptoms: Windows only partially resizable, content not adapting
+   - Solution: Use proper egui window configuration and layout
+   ```rust
+   // Good: Proper window setup
+   Window::new("Title")
+       .resizable(true)
+       .min_width(280.0)
+       .show(ctx, |ui| {
+           ui.set_width(ui.available_width());
+           ui.set_height(ui.available_height());
+           
+           ScrollArea::vertical()
+               .auto_shrink([false, false])
+               .show_viewport(ui, |ui, _viewport| {
+                   // Content here
+               });
+       });
+   ```
 
-2. UI and State Management:
-   - Use egui's specialized layout components (SidePanel, CentralPanel) over manual layouts
-   - Preserve UI state (window positions, sizes) when resetting content state
-   - Check AppContext directly for source of truth rather than relying on internal state
-   - Add debug logging for layout dimensions when diagnosing UI issues
+2. Problem: Window state persistence
+   - Symptoms: Window sizes/positions not properly saved
+   - Solution: Use egui's built-in memory system
+   ```rust
+   // Reset window states
+   ctx.memory_mut(|mem| {
+       mem.data.clear();
+   });
+   ```
 
-3. Async and WASM:
-   - Ensure data structures are properly cloned/moved into async closures
-   - Convert borrowed string slices (&str) to owned strings (String) for async boundaries
-   - Use custom events for WASM-browser communication
-   - Handle file operations differently between native and web platforms
+## State Management
+1. Problem: Borrow checker conflicts in UI
+   - Symptoms: Multiple mutable borrows in closures
+   - Solution: Use local variables and flags
+   ```rust
+   // Good: Local state pattern
+   let mut local_state = self.state.clone();
+   let mut should_process = false;
+   
+   if ui.button("Process").clicked() {
+       should_process = true;
+   }
+   
+   if should_process {
+       self.process_data();
+   }
+   ```
 
-4. Borrow Checker and Ownership:
-   - Use local variables to avoid double borrows in UI closures
-   - Track UI actions with flags when direct method calls would cause borrow issues
-   - Get all needed information from an object before calling methods that consume it
-   - Consider restructuring code to avoid nested borrows
+2. Problem: Type mismatches with window responses
+   - Symptoms: Expected bool, found Option<bool>
+   - Solution: Proper pattern matching
+   ```rust
+   if let Some(inner_response) = &response {
+       if let Some(close_clicked) = inner_response.inner {
+           if close_clicked {
+               self.open = false;
+           }
+       }
+   }
+   ```
 
-5. Error Handling:
-   - Use consistent error types across the codebase
-   - Add descriptive logging for debugging
-   - Implement proper error handling for both native and web platforms
-   - Provide clear user feedback for platform-specific limitations
+# File Handling
+1. Problem: File handle consumption
+   - Symptoms: FileHandle becomes unusable after read
+   - Solution: Extract needed information before reading
+   ```rust
+   // Good: Get info before consuming handle
+   let file_name = file_handle.name().to_string();
+   let file_size = file_handle.size();
+   let contents = file_handle.read()?; // Handle consumed here
+   ```
 
-6. File Operations:
-   - Design file handling code to be generic and extensible
-   - Handle both ZIP and PLY files consistently
-   - Implement proper error handling for file operations
-   - Consider platform limitations when implementing file dialogs
+2. Problem: Cross-platform file dialogs
+   - Symptoms: Different behavior on web vs desktop
+   - Solution: Platform-specific implementations
+   ```rust
+   // Good: Platform-specific file handling
+   #[cfg(target_arch = "wasm32")]
+   fn show_file_dialog() -> Option<FileHandle> {
+       // Web file picker implementation
+   }
 
-7. Message Passing:
-   - Forward messages consistently to all components that need them
-   - Handle messages at a consistent point in the update cycle
-   - Be explicit about which state is reset and which is preserved
-   - Use proper typing for message channels
+   #[cfg(not(target_arch = "wasm32"))]
+   fn show_file_dialog() -> Option<FileHandle> {
+       // Native file dialog implementation
+   }
+   ```
 
-8. Testing:
-   - Test features on both desktop and web targets
-   - Add comprehensive debug logging
-   - Test all possible state transitions
-   - Verify behavior across different platforms
-</brush_lessons> 
+3. Problem: File type handling
+   - Symptoms: Inconsistent processing of different file types
+   - Solution: Type-based processing flow
+   ```rust
+   // Good: Type-specific processing
+   fn process_file(path: &Path) -> Result<(), Error> {
+       match path.extension().and_then(|s| s.to_str()) {
+           Some("zip") => process_zip_file(path),
+           Some("ply") => process_ply_file(path),
+           Some(ext) => Err(Error::UnsupportedFormat(ext.to_string())),
+           None => Err(Error::NoExtension),
+       }
+   }
+   ```
+
+# Performance Optimization
+## Memory Management
+1. Problem: WASM memory leaks
+   - Symptoms: Growing memory usage in browser
+   - Solution: Proper cleanup of WebGL contexts
+   ```rust
+   impl Drop for WebGLResource {
+       fn drop(&mut self) {
+           #[cfg(target_arch = "wasm32")]
+           self.cleanup_webgl_context();
+       }
+   }
+   ```
+
+2. Problem: GPU resource management
+   - Symptoms: Resource leaks, performance degradation
+   - Solution: Use appropriate ownership patterns
+   ```rust
+   // Good: Shared ownership with cleanup
+   struct GpuResource {
+       buffer: Arc<Buffer>,
+       texture: Arc<Texture>,
+   }
+   ```
+
+# Cross-Platform Development
+## Web Platform
+1. Problem: File handling differences
+   - Symptoms: File operations failing in web
+   - Solution: Platform-specific implementations
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   fn handle_file() {
+       // Web-specific file handling
+   }
+   
+   #[cfg(not(target_arch = "wasm32"))]
+   fn handle_file() {
+       // Native file handling
+   }
+   ```
+
+2. Problem: Memory constraints
+   - Symptoms: Out of memory in large operations
+   - Solution: Chunked processing
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   fn process_large_data(data: &[u8]) {
+       for chunk in data.chunks(MAX_CHUNK_SIZE) {
+           // Process chunk
+       }
+   }
+   ```
+
+# Graphics & Rendering
+## Layout Issues
+1. Problem: Incorrect space allocation
+   - Symptoms: Components not filling space
+   - Solution: Proper layout constraints
+   ```rust
+   ui.vertical(|ui| {
+       ui.set_min_size(egui::vec2(ui.available_width(), ui.available_height()));
+       // Content
+   });
+   ```
+
+2. Problem: Scroll area behavior
+   - Symptoms: Content collapsing
+   - Solution: Configure auto-shrink
+   ```rust
+   ScrollArea::vertical()
+       .auto_shrink([false, false])
+       .show(ui, |ui| {
+           // Content
+       });
+   ```
+
+# JavaScript Integration
+1. Problem: Event flag handling
+   - Symptoms: Events not properly tracked
+   - Solution: Clear flag management
+   ```rust
+   // Good: Event flag management
+   let mut event_processed = false;
+   if ui.button("Process").clicked() {
+       event_processed = true;
+   }
+   if event_processed {
+       self.handle_event();
+   }
+   ```
+
+2. Problem: JSON formatting
+   - Symptoms: Invalid JSON in web communication
+   - Solution: Proper serialization
+   ```rust
+   // Good: JSON handling
+   #[derive(Serialize, Deserialize)]
+   struct WebMessage {
+       event_type: String,
+       data: Value,
+   }
+
+   fn send_to_js(msg: &WebMessage) {
+       #[cfg(target_arch = "wasm32")]
+       web_sys::window()
+           .unwrap()
+           .dispatch_event(&msg.into_event())
+           .unwrap();
+   }
+   ```
+
+# Best Practices
+1. Debug Logging:
+   ```rust
+   // Good: Comprehensive debug logging
+   println!("WINDOW DEBUG: State change {} -> {}", old_state, new_state);
+   println!("WINDOW DEBUG: Available size: {:?}", size);
+   println!("WINDOW DEBUG: Response: {:?}", response);
+   ```
+
+2. Error Handling:
+   ```rust
+   // Good: Error handling pattern
+   fn process() -> Result<(), AppError> {
+       let data = load_data().context("Failed to load data")?;
+       process_data(&data).context("Failed to process data")?;
+       Ok(())
+   }
+   ```
+
+3. Testing:
+   ```rust
+   #[cfg(test)]
+   mod tests {
+       #[test]
+       fn test_component() {
+           // Setup
+           let mut component = Component::new();
+           
+           // Test
+           component.update();
+           
+           // Verify
+           assert_eq!(component.state, expected_state);
+       }
+   }
+   ```
+</lessons_learned> 

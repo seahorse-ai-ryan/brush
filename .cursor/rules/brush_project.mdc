@@ -1,1 +1,143 @@
- 
+---
+description: Brush project overview, context, and high-level architecture
+globs: ["**/*"]
+alwaysApply: true
+---
+<project_overview>
+# Project Overview
+Brush is an open-source project focused on making 3D neural reconstruction accessible to everyone. Key aspects:
+
+- Small, focused team with high-impact changes
+- Emphasis on user experience and accessibility
+- Active development towards Brush 1.0
+- Cross-platform support (Desktop, Web, Mobile)
+
+# Technology Stack
+- **Rust**: Core language for performance and safety
+  - Used for: Core application logic, UI, graphics
+  - Key features: Memory safety, zero-cost abstractions
+  - Critical for: Cross-platform compilation
+
+- **WGPU**: Hardware-accelerated graphics
+  - Used for: 3D rendering, GPU computation
+  - Key features: Cross-platform graphics API abstraction
+  - Critical for: Efficient Gaussian Splat rendering
+
+- **egui**: Immediate mode GUI
+  - Used for: User interface components
+  - Key features: Rust-native, performant, cross-platform
+  - Critical for: Consistent UI across platforms
+
+- **Burn**: Machine learning framework
+  - Used for: Neural network training, inference
+  - Key features: Hardware-agnostic ML operations
+  - Critical for: 3D reconstruction pipeline
+
+- **WASM/Trunk**: Web platform support
+  - Used for: Browser-based deployment
+  - Key features: Native performance in browser
+  - Critical for: Web accessibility
+
+- **tokio**: Async runtime
+  - Used for: Asynchronous operations
+  - Key features: Efficient I/O, task scheduling
+  - Critical for: Responsive UI during processing
+
+# Code Structure
+The application is organized as a Rust workspace with multiple crates:
+
+- **brush-app**: Main application with UI panels and application logic
+  - `app.rs`: Core application structure and initialization
+  - `panels/`: UI components (settings, scene, datasets)
+  - `overlays/`: UI overlays (dataset details, controls, stats)
+  - `export_service.rs`: Centralized export functionality
+  - `orbit_controls.rs`: Camera control implementation
+  
+- **brush-ui**: UI utilities and components
+- **brush-render**: Rendering pipeline for Gaussian Splats
+- **brush-train**: Training implementation for Gaussian Splat models
+- **brush-dataset**: Dataset loading and management
+- **brush-process**: Process management for training and rendering
+- **brush-kernel**: Core algorithms and data structures
+
+# Architecture Overview
+1. Core Components:
+   - UI Layer (egui-based interface)
+   - Processing Pipeline (3D reconstruction)
+   - Rendering Engine (WGPU-based)
+   - Data Management (dataset handling)
+
+2. Key Design Principles:
+   - Modular architecture
+   - Platform-agnostic core
+   - Clear separation of concerns
+   - Extensible pipeline design
+
+3. Cross-Platform Architecture:
+   - Shared core logic across platforms
+   - Platform-specific adapters where needed
+   - WASM-compatible design patterns
+   - Consistent feature support
+
+# Data Flow
+1. Dataset Loading:
+   - User loads dataset (images, point clouds)
+   - Data is processed and prepared
+   - Dataset is added to management system
+
+2. Processing Pipeline:
+   - Data preprocessing and validation
+   - Training process initialization
+   - Optimization of Gaussian Splat parameters
+   - Real-time visualization updates
+
+3. Rendering Pipeline:
+   - GPU-accelerated visualization
+   - Camera controls and interaction
+   - Real-time parameter adjustments
+   - Export functionality
+
+# Key Goals & Priorities
+1. Brush 1.0 Focus:
+   - Improved user experience
+   - Simplified workflow for casual users
+   - Stable cross-platform support
+   - Optimized performance
+
+2. Technical Priorities:
+   - Robust error handling
+   - Comprehensive testing
+   - Performance optimization
+   - Memory efficiency
+
+3. User-Focused Goals:
+   - Intuitive interface
+   - Clear feedback
+   - Reliable operation
+   - Accessible documentation
+
+4. Development Priorities:
+   - Code maintainability
+   - Documentation quality
+   - Test coverage
+   - Performance monitoring
+
+# Getting Started
+1. Development Setup:
+   - Install Rust and cargo
+   - Add WebAssembly target
+   - Install build tools (Trunk, wasm-bindgen)
+   - Configure platform-specific requirements
+
+2. Building the Project:
+   - Clone the repository
+   - Install dependencies
+   - Build with cargo
+   - Run the application
+
+3. Contributing:
+   - Follow coding standards
+   - Review documentation
+   - Test on all platforms
+   - Submit pull requests
+</project_overview> 
