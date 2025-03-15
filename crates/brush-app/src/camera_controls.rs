@@ -7,10 +7,16 @@ pub struct CameraController {
     pub position: Vec3,
     pub rotation: Quat,
     pub focus_distance: f32,
+
+    min_focus_distance: Option<f32>,
+    max_focus_distance: Option<f32>,
+
+    min_pitch: Option<f32>,
+    max_pitch: Option<f32>,
+
     roll: Quat,
     fly_velocity: Vec3,
     orbit_velocity: Vec2,
-
     speed_scale: f32,
 }
 
@@ -20,43 +26,101 @@ pub fn smooth_orbit(
     base_roll: Quat,
     delta_yaw: f32,
     delta_pitch: f32,
+
+    min_pitch: Option<f32>,
+    max_pitch: Option<f32>,
+    dt: f32,
+
     distance: f32,
 ) -> (Vec3, Quat) {
     // Calculate focal point (where we're looking at)
     let focal_point = position + rotation * Vec3::Z * distance;
 
+    // Extract current pitch angle from rotation
+    // We need to determine the current pitch relative to the base orientation
+    let forward = rotation * Vec3::Z;
+    let current_pitch = -forward.y.asin();
+
+    // Clamp the new pitch angle
+    let new_pitch = smooth_clamp(
+        current_pitch - delta_pitch,
+        min_pitch.map(|x| x.to_radians()),
+        max_pitch.map(|x| x.to_radians()),
+        dt,
+        50.0,
+    );
+
+    // New delta clamped to not go over min/max pitch.
+    let delta_pitch = current_pitch - new_pitch;
+
     // Create rotation quaternions in camera's local space
-    let pitch = Quat::from_axis_angle(rotation * Vec3::X, -delta_pitch);
-    let yaw = Quat::from_axis_angle(base_roll * Vec3::NEG_Y, -delta_yaw);
+    let pitch_axis = rotation * Vec3::X;
+    let pitch = Quat::from_axis_angle(pitch_axis, -delta_pitch);
 
-    // Apply yaw in world space, pitch in local space
+    let yaw_axis = base_roll * Vec3::NEG_Y;
+    let yaw = Quat::from_axis_angle(yaw_axis, -delta_yaw);
+
     let new_rotation = (yaw * pitch * rotation).normalize();
-
-    // Calculate new position by backing up from focal point
     let new_position = focal_point - new_rotation * Vec3::Z * distance;
-
     (new_position, new_rotation)
 }
 
-fn exp_lerp2(a: Vec2, b: Vec2, dt: f32, lambda: f32) -> Vec2 {
+fn exp_lerp(a: f32, b: f32, dt: f32, lambda: f32) -> f32 {
     let lerp_exp = (-lambda * dt).exp();
     a * lerp_exp + b * (1.0 - lerp_exp)
+}
+
+fn exp_lerp2(a: Vec2, b: Vec2, dt: f32, lambda: f32) -> Vec2 {
+    glam::vec2(
+        exp_lerp(a.x, b.x, dt, lambda),
+        exp_lerp(a.y, b.y, dt, lambda),
+    )
 }
 
 fn exp_lerp3(a: Vec3, b: Vec3, dt: f32, lambda: f32) -> Vec3 {
-    let lerp_exp = (-lambda * dt).exp();
-    a * lerp_exp + b * (1.0 - lerp_exp)
+    glam::vec3(
+        exp_lerp(a.x, b.x, dt, lambda),
+        exp_lerp(a.y, b.y, dt, lambda),
+        exp_lerp(a.z, b.z, dt, lambda),
+    )
+}
+
+fn smooth_clamp(val: f32, min: Option<f32>, max: Option<f32>, dt: f32, lambda: f32) -> f32 {
+    let mut target = val;
+    if let Some(min) = min {
+        target = target.max(min);
+    }
+    if let Some(max) = max {
+        target = target.min(max);
+    }
+    exp_lerp(val, target, dt, lambda)
 }
 
 impl CameraController {
-    pub fn new(start_radius: f32, start_focus_distance: f32, speed_scale: f32) -> Self {
+    pub fn new(
+        radius: f32,
+        focus_distance: f32,
+        speed_scale: f32,
+        min_focus_distance: Option<f32>,
+        max_focus_distance: Option<f32>,
+        min_pitch: Option<f32>,
+        max_pitch: Option<f32>,
+    ) -> Self {
         Self {
-            position: -Vec3::Z * start_radius,
+            position: -Vec3::Z * radius,
             rotation: Quat::IDENTITY,
             roll: Quat::IDENTITY,
-            focus_distance: start_focus_distance,
             fly_velocity: Vec3::ZERO,
             orbit_velocity: Vec2::ZERO,
+
+            focus_distance,
+
+            min_focus_distance,
+            max_focus_distance,
+
+            min_pitch,
+            max_pitch,
+
             speed_scale,
         }
     }
@@ -92,7 +156,6 @@ impl CameraController {
             let drag_mult = self.focus_distance / response.rect.width().max(response.rect.height());
             self.position -= right * response.drag_delta().x * drag_mult;
             self.position += up * response.drag_delta().y * drag_mult;
-
             ui.ctx().set_cursor_icon(egui::CursorIcon::Move);
         } else if look_fps {
             let axis = response.drag_delta();
@@ -103,7 +166,6 @@ impl CameraController {
         } else if look_orbit {
             let delta_yaw = response.drag_delta().x * mouselook_speed;
             let delta_pitch = response.drag_delta().y * mouselook_speed;
-
             self.orbit_velocity = glam::vec2(delta_yaw, delta_pitch);
             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
@@ -114,6 +176,9 @@ impl CameraController {
             self.roll,
             self.orbit_velocity.x,
             self.orbit_velocity.y,
+            self.min_pitch,
+            self.max_pitch,
+            delta_time,
             self.focus_distance,
         );
 
@@ -214,6 +279,14 @@ impl CameraController {
         // Scroll speed depends on how far zoomed out we are.
         self.focus_distance -= scrolled * scroll_speed * self.focus_distance;
         self.focus_distance = self.focus_distance.max(0.01);
+
+        self.focus_distance = smooth_clamp(
+            self.focus_distance,
+            self.min_focus_distance,
+            self.max_focus_distance,
+            delta_time,
+            50.5,
+        );
 
         self.position = old_pivot - (self.rotation * Vec3::Z * self.focus_distance);
     }

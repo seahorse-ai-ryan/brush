@@ -2,7 +2,7 @@
 
 use burn::prelude::{Backend, Tensor};
 use burn::tensor::ops::{FloatTensor, IntTensor};
-use burn::tensor::{ElementConversion, Int, TensorPrimitive};
+use burn::tensor::{ElementConversion, Int, TensorMetadata};
 use burn_cubecl::CubeBackend;
 use burn_fusion::Fusion;
 use burn_wgpu::graphics::AutoGraphicsApi;
@@ -27,43 +27,18 @@ pub mod gaussian_splats;
 pub mod render;
 
 #[derive(Debug, Clone)]
-pub struct RenderAuxPrimitive<B: Backend> {
+pub struct RenderAux<B: Backend> {
     /// The packed projected splat information, see `ProjectedSplat` in helpers.wgsl
     pub projected_splats: FloatTensor<B>,
     pub uniforms_buffer: IntTensor<B>,
     pub num_intersections: IntTensor<B>,
     pub num_visible: IntTensor<B>,
-    pub final_index: IntTensor<B>,
     pub tile_offsets: IntTensor<B>,
     pub compact_gid_from_isect: IntTensor<B>,
     pub global_from_compact_gid: IntTensor<B>,
-    pub radii: FloatTensor<B>,
-}
 
-impl<B: Backend> RenderAuxPrimitive<B> {
-    pub fn into_wrapped(self) -> RenderAux<B> {
-        RenderAux {
-            num_intersections: Tensor::from_primitive(self.num_intersections),
-            num_visible: Tensor::from_primitive(self.num_visible),
-            final_index: Tensor::from_primitive(self.final_index),
-            tile_offsets: Tensor::from_primitive(self.tile_offsets),
-            compact_gid_from_isect: Tensor::from_primitive(self.compact_gid_from_isect),
-            global_from_compact_gid: Tensor::from_primitive(self.global_from_compact_gid),
-            radii: Tensor::from_primitive(TensorPrimitive::Float(self.radii)),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RenderAux<B: Backend> {
-    /// The packed projected splat information, see `ProjectedSplat` in helpers.wgsl
-    pub num_intersections: Tensor<B, 1, Int>,
-    pub num_visible: Tensor<B, 1, Int>,
-    pub final_index: Tensor<B, 2, Int>,
-    pub tile_offsets: Tensor<B, 1, Int>,
-    pub compact_gid_from_isect: Tensor<B, 1, Int>,
-    pub global_from_compact_gid: Tensor<B, 1, Int>,
-    pub radii: Tensor<B, 1>,
+    pub visible: FloatTensor<B>,
+    pub final_index: IntTensor<B>,
 }
 
 #[derive(Debug, Clone)]
@@ -78,11 +53,13 @@ const GAUSSIANS_UPPER_BOUND: u32 = 256 * 65535;
 impl<B: Backend> RenderAux<B> {
     #[allow(clippy::single_range_in_vec_init)]
     pub fn calc_tile_depth(&self) -> Tensor<B, 2, Int> {
-        let bins = self.tile_offsets.clone();
-        let n_bins = bins.dims()[0];
-        let max = bins.clone().slice([1..n_bins]);
-        let min = bins.slice([0..n_bins - 1]);
-        let [h, w] = self.final_index.shape().dims();
+        let tile_offsets: Tensor<B, 1, Int> = Tensor::from_primitive(self.tile_offsets.clone());
+        let final_index: Tensor<B, 2, Int> = Tensor::from_primitive(self.final_index.clone());
+
+        let n_bins = tile_offsets.dims()[0];
+        let max = tile_offsets.clone().slice([1..n_bins]);
+        let min = tile_offsets.slice([0..n_bins - 1]);
+        let [h, w] = final_index.shape().dims();
         let [ty, tx] = [
             h.div_ceil(TILE_WIDTH as usize),
             w.div_ceil(TILE_WIDTH as usize),
@@ -90,10 +67,16 @@ impl<B: Backend> RenderAux<B> {
         (max - min).reshape([ty, tx])
     }
 
-    pub fn debug_assert_valid(self) {
-        let num_intersections = self.num_intersections.into_scalar().elem::<i32>();
-        let num_points = self.radii.dims()[0] as u32;
-        let num_visible = self.num_visible.into_scalar().elem::<i32>();
+    pub fn debug_assert_valid(&self) {
+        let num_intersects: Tensor<B, 1, Int> =
+            Tensor::from_primitive(self.num_intersections.clone());
+        let compact_gid_from_isect: Tensor<B, 1, Int> =
+            Tensor::from_primitive(self.compact_gid_from_isect.clone());
+        let num_visible: Tensor<B, 1, Int> = Tensor::from_primitive(self.num_visible.clone());
+
+        let num_intersections = num_intersects.into_scalar().elem::<i32>();
+        let num_points = compact_gid_from_isect.dims()[0] as u32;
+        let num_visible = num_visible.into_scalar().elem::<i32>();
 
         // let [h, w] = self.final_index.dims();
         // let [ty, tx] = [
@@ -121,20 +104,23 @@ impl<B: Backend> RenderAux<B> {
             "Brush doesn't support this many gaussians currently. {num_visible} > {GAUSSIANS_UPPER_BOUND}"
         );
 
-        let final_index = self
-            .final_index
-            .into_data()
-            .to_vec::<i32>()
-            .expect("Failed to fetch final index");
-        for &final_index in &final_index {
-            assert!(
-                final_index >= 0 && final_index <= num_intersections,
-                "Final index exceeds bounds. Final index {final_index}, num_intersections: {num_intersections}"
-            );
+        if self.final_index.shape().dims() != [1, 1] {
+            let final_index: Tensor<B, 2, Int> = Tensor::from_primitive(self.final_index.clone());
+            let final_index = final_index
+                .into_data()
+                .to_vec::<i32>()
+                .expect("Failed to fetch final index");
+            for &final_index in &final_index {
+                assert!(
+                    final_index >= 0 && final_index <= num_intersections,
+                    "Final index exceeds bounds. Final index {final_index}, num_intersections: {num_intersections}"
+                );
+            }
         }
 
-        let tile_offsets = self
-            .tile_offsets
+        let tile_offsets: Tensor<B, 1, Int> = Tensor::from_primitive(self.tile_offsets.clone());
+
+        let tile_offsets = tile_offsets
             .into_data()
             .to_vec::<i32>()
             .expect("Failed to fetch tile offsets");
@@ -162,8 +148,7 @@ impl<B: Backend> RenderAux<B> {
             );
         }
 
-        let compact_gid_from_isect = &self
-            .compact_gid_from_isect
+        let compact_gid_from_isect = &compact_gid_from_isect
             .into_data()
             .to_vec::<i32>()
             .expect("Failed to fetch compact_gid_from_isect")[0..num_intersections as usize];
@@ -176,8 +161,9 @@ impl<B: Backend> RenderAux<B> {
         }
 
         // assert that every ID in global_from_compact_gid is valid.
-        let global_from_compact_gid = &self
-            .global_from_compact_gid
+        let global_from_compact_gid: Tensor<B, 1, Int> =
+            Tensor::from_primitive(self.global_from_compact_gid.clone());
+        let global_from_compact_gid = &global_from_compact_gid
             .into_data()
             .to_vec::<i32>()
             .expect("Failed to fetch global_from_compact_gid")[0..num_visible as usize];
@@ -212,9 +198,9 @@ pub trait SplatForward<B: Backend> {
         log_scales: FloatTensor<B>,
         quats: FloatTensor<B>,
         sh_coeffs: FloatTensor<B>,
-        raw_opacity: FloatTensor<B>,
-        render_u32_buffer: bool,
-    ) -> (FloatTensor<B>, RenderAuxPrimitive<B>);
+        opacities: FloatTensor<B>,
+        bwd_info: bool,
+    ) -> (FloatTensor<B>, RenderAux<B>);
 }
 
 fn burn_options() -> RuntimeOptions {

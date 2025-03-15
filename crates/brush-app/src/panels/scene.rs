@@ -156,7 +156,7 @@ impl ScenePanel {
         // If this viewport is re-rendering.
         if size.x > 0 && size.y > 0 && dirty {
             let _span = trace_span!("Render splats").entered();
-            let (img, _) = splats.render(&context.camera, size, true);
+            let (img, _) = splats.render(&context.camera, size, false);
             self.backbuffer.update_texture(img);
         }
 

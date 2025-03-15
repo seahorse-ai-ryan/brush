@@ -1,5 +1,5 @@
 use brush_render::{
-    BBase, RenderAuxPrimitive, SplatForward,
+    BBase, RenderAux, SplatForward,
     camera::Camera,
     sh::{sh_coeffs_for_degree, sh_degree_from_coeffs},
 };
@@ -67,7 +67,6 @@ impl<BT: BoolElement> SplatBackwardOps<Self> for BBase<BT> {
             state.means,
             state.quats,
             state.log_scales,
-            state.raw_opac,
             state.out_img,
             state.projected_splats,
             state.uniforms_buffer,
@@ -162,7 +161,7 @@ impl<B: Backend + SplatBackwardOps<B>> Backward<B, NUM_ARGS> for RenderBackwards
 
 pub struct SplatOutputDiff<B: Backend> {
     pub img: FloatTensor<B>,
-    pub aux: RenderAuxPrimitive<B>,
+    pub aux: RenderAux<B>,
     pub refine_weight_holder: Tensor<B, 1>,
 }
 
@@ -207,12 +206,11 @@ impl<B: Backend + SplatBackwardOps<B> + SplatForward<B>, C: CheckpointStrategy>
             quats.clone().into_primitive(),
             sh_coeffs.clone().into_primitive(),
             raw_opacity.clone().into_primitive(),
-            false,
+            true,
         );
 
-        let wrapped_aux = RenderAuxPrimitive::<Self> {
+        let wrapped_aux = RenderAux::<Self> {
             projected_splats: <Self as AutodiffBackend>::from_inner(aux.projected_splats.clone()),
-            radii: <Self as AutodiffBackend>::from_inner(aux.radii),
             num_intersections: aux.num_intersections.clone(),
             num_visible: aux.num_visible.clone(),
             final_index: aux.final_index.clone(),
@@ -220,6 +218,7 @@ impl<B: Backend + SplatBackwardOps<B> + SplatForward<B>, C: CheckpointStrategy>
             compact_gid_from_isect: aux.compact_gid_from_isect.clone(),
             global_from_compact_gid: aux.global_from_compact_gid.clone(),
             uniforms_buffer: aux.uniforms_buffer.clone(),
+            visible: <Self as AutodiffBackend>::from_inner(aux.visible),
         };
 
         match prep_nodes {

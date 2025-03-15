@@ -1,6 +1,7 @@
 #![recursion_limit = "256"]
 
 pub mod app;
+pub mod camera_controls;
 pub mod channel;
 pub mod export_service;
 pub mod orbit_controls;
