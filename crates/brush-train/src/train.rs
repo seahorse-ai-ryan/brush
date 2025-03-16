@@ -508,9 +508,6 @@ impl SplatTrainer {
         // Replace dead gaussians if we're still refining.
         if pruned_count > 0 {
             // Sample from random opacities.
-            //
-            // Sampling from _only visible_ splats here perhaps seems to improve things ever so slightly,
-            // as I'm guessing it's because that prevents selecting gaussians which are effectively dead already.
             let resampled_weights = splats.opacities().inner();
             let resampled_weights = resampled_weights
                 .into_data_async()
