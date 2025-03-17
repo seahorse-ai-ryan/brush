@@ -12,7 +12,6 @@ mod kernels;
 mod shaders;
 
 mod adam_scaled;
-mod multinomial;
 mod stats;
 mod stats_kernel;
 

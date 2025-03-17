@@ -23,15 +23,13 @@ const BATCH_SIZE = helpers::TILE_SIZE;
 
 // Gaussians gathered in batch.
 var<workgroup> local_batch: array<helpers::ProjectedSplat, BATCH_SIZE>;
-var<workgroup> local_id: array<u32, BATCH_SIZE>;
-
-var<workgroup> max_idx: atomic<u32>;
+var<workgroup> local_id: array<i32, BATCH_SIZE>;
 
 fn add_bitcast(cur: u32, add: f32) -> u32 {
     return bitcast<u32>(bitcast<f32>(cur) + add);
 }
 
-fn write_grads_atomic(id: u32, grads: f32) {
+fn write_grads_atomic(id: i32, grads: f32) {
     let p = &v_splats[id];
 #ifdef HARD_FLOAT
     atomicAdd(p, grads);
@@ -44,7 +42,7 @@ fn write_grads_atomic(id: u32, grads: f32) {
 #endif
 }
 
-fn write_refine_atomic(id: u32, grads: f32) {
+fn write_refine_atomic(id: i32, grads: f32) {
     let p = &v_refine_grad[id];
 #ifdef HARD_FLOAT
     atomicAdd(p, grads);
@@ -90,44 +88,28 @@ fn main(
     // this is the T AFTER the last gaussian in this pixel
     let T_final = 1.0 - output[pix_id].w;
 
-
-
-    var range = vec2u(u32(tile_offsets[tile_id]), u32(tile_offsets[tile_id + 1]));
-
-    var final_isect = range.x;
-    if inside {
-        final_isect = u32(final_index[pix_id]);
-    }
-
-    // Update the actual final end range as determined by final_index.
-    if local_idx == 0 {
-        // TODO: Zero'ing here isn't strictly needed if we're on actual WebGPU where workgroup variables are always zero'ed.
-        atomicStore(&max_idx, 0u);
-    }
-    workgroupBarrier();
-    let sg_max = subgroupMax(final_isect);
-    if subgroup_invocation_id == 0 {
-        atomicMax(&max_idx, sg_max);
-    }
-    workgroupBarrier();
-    range.y = atomicLoad(&max_idx);
-    range.x = min(range.x, range.y);
+    // Have all threads in tile process the same gaussians in batches
+    // first collect gaussians between bin_start and bin_final in batches
+    // which gaussians to look through in this tile
+    let range = vec2u(u32(tile_offsets[tile_id]), u32(tile_offsets[tile_id + 1]));
 
     let num_batches = helpers::ceil_div(range.y - range.x, BATCH_SIZE);
 
     // current visibility left to render
     var T = T_final;
+
+    var final_isect = 0;
     var buffer = vec3f(0.0);
+
+    if inside {
+        final_isect = final_index[pix_id];
+    }
 
     // df/d_out for this pixel
     var v_out = vec4f(0.0);
     if inside {
         v_out = v_output[pix_id];
     }
-
-    // Not common but when using masked out images, there can be quite large regions where
-    // the loss is 0. In that case, can skip gradients entirely as they all depend on v_out.
-    let pixel_active = length(v_out) > 0.0;
 
     for (var b = 0u; b < num_batches; b++) {
         // each thread fetch 1 gaussian from back to front
@@ -139,7 +121,7 @@ fn main(
         // Each thread first gathers one gaussian.
         if local_idx < remaining {
             let load_isect_id = batch_end - 1 - local_idx;
-            let load_compact_gid = u32(compact_gid_from_isect[load_isect_id]);
+            let load_compact_gid = compact_gid_from_isect[load_isect_id];
             local_id[local_idx] = load_compact_gid;
             local_batch[local_idx] = projected_splats[load_compact_gid];
         }
@@ -157,7 +139,7 @@ fn main(
 
             var splat_active = false;
 
-            if inside && isect_id < final_isect && pixel_active {
+            if inside && isect_id < u32(final_isect) {
                 let projected = local_batch[t];
 
                 let xy = vec2f(projected.xy_x, projected.xy_y);
@@ -206,15 +188,15 @@ fn main(
                 }
             }
 
-            let v_xy_sum = subgroupAdd(v_xy);
-            let v_conic_sum = subgroupAdd(v_conic);
-            let v_colors_sum = subgroupAdd(v_colors);
-            let v_refine_sum = subgroupAdd(v_refine);
-
             // Queue a new gradient if this subgroup has any.
             // The gradient is sum of all gradients in the subgroup.
             if subgroupAny(splat_active) {
                 let compact_gid = local_id[t];
+
+                let v_xy_sum = subgroupAdd(v_xy);
+                let v_conic_sum = subgroupAdd(v_conic);
+                let v_colors_sum = subgroupAdd(v_colors);
+                let v_refine_sum = subgroupAdd(v_refine);
 
                 switch subgroup_invocation_id {
                     case 0u:  { write_grads_atomic(compact_gid * 9 + 0, v_xy_sum.x); }

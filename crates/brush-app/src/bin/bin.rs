@@ -142,42 +142,12 @@ mod embedded {
 
     enum EmbeddedCommands {
         LoadDataSource(DataSource),
-        SetCamSettings(CameraSettings),
+        SetUpVector(glam::Vec3),
     }
 
     #[wasm_bindgen]
     pub struct EmbeddedApp {
         command_channel: UnboundedSender<EmbeddedCommands>,
-    }
-
-    //Wrapper for wasm world.
-    #[wasm_bindgen]
-    pub struct CameraSettings(brush_app::CameraSettings);
-
-    #[wasm_bindgen]
-    impl CameraSettings {
-        #[wasm_bindgen(constructor)]
-        pub fn new(
-            focal: f64,
-            start_distance: f32,
-            focus_distance: f32,
-            speed_scale: f32,
-            min_focus_distance: Option<f32>,
-            max_focus_distance: Option<f32>,
-            min_pitch: Option<f32>,
-            max_pitch: Option<f32>,
-        ) -> CameraSettings {
-            CameraSettings(brush_app::CameraSettings {
-                focal,
-                start_distance,
-                focus_distance,
-                min_focus_distance,
-                max_focus_distance,
-                min_pitch,
-                max_pitch,
-                speed_scale,
-            })
-        }
     }
 
     #[wasm_bindgen]
@@ -196,7 +166,9 @@ mod embedded {
                 .unwrap_or_else(|_| panic!("Found canvas {canvas_name} was in fact not a canvas"));
 
             let (send, rec) = tokio::sync::oneshot::channel();
+
             let (cmd_send, mut cmd_rec) = tokio::sync::mpsc::unbounded_channel();
+
             let start_uri = start_uri.to_owned();
 
             // On wasm, run as a local task.
@@ -230,8 +202,8 @@ mod embedded {
                             );
                             ctx.connect_to(process);
                         }
-                        EmbeddedCommands::SetCamSettings(settings) => {
-                            ctx.set_cam_settings(settings.0);
+                        EmbeddedCommands::SetUpVector(up_axis) => {
+                            ctx.set_model_up(up_axis);
                         }
                     }
                 }
@@ -251,9 +223,11 @@ mod embedded {
         }
 
         #[wasm_bindgen]
-        pub fn set_camera_settings(&self, settings: CameraSettings) {
+        pub fn set_up_vec(&self, x: f32, y: f32, z: f32) {
+            let vec = glam::vec3(x, y, z).normalize();
+
             self.command_channel
-                .send(EmbeddedCommands::SetCamSettings(settings))
+                .send(EmbeddedCommands::SetUpVector(vec))
                 .expect("Viewer was closed?");
         }
     }

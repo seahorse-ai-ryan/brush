@@ -8,10 +8,14 @@
 @group(0) @binding(1) var<storage, read> means: array<helpers::PackedVec3>;
 @group(0) @binding(2) var<storage, read> quats: array<vec4f>;
 @group(0) @binding(3) var<storage, read> log_scales: array<helpers::PackedVec3>;
-@group(0) @binding(4) var<storage, read> opacities: array<f32>;
+@group(0) @binding(4) var<storage, read> raw_opacities: array<f32>;
 
 @group(0) @binding(5) var<storage, read_write> global_from_compact_gid: array<u32>;
 @group(0) @binding(6) var<storage, read_write> depths: array<f32>;
+
+@group(0) @binding(7) var<storage, read_write> radii: array<f32>;
+
+const INV_SIGMOID_THRESH: f32 = -5.537334267018537;
 
 @compute
 @workgroup_size(helpers::MAIN_WG, 1, 1)
@@ -45,9 +49,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     }
     quat = normalize(quat);
 
-    let opac = opacities[global_gid];
+    let raw_opac = raw_opacities[global_gid];
 
-    if opac < 1.0 / 255.0 {
+    if raw_opac < INV_SIGMOID_THRESH {
         return;
     }
 
@@ -65,8 +69,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     // compute the projected mean
     let mean2d = uniforms.focal * mean_c.xy * (1.0 / mean_c.z) + uniforms.pixel_center;
 
-    // let opac = helpers::sigmoid(raw_opac);
-
+    let opac = helpers::sigmoid(raw_opac);
     let radius = helpers::radius_from_cov(cov2d, opac);
 
     if radius <= 0 {
@@ -83,4 +86,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     let write_id = atomicAdd(&uniforms.num_visible, 1);
     global_from_compact_gid[write_id] = global_gid;
     depths[write_id] = mean_c.z;
+
+    // Write metadata to global array.
+    radii[global_gid] = radius;
 }

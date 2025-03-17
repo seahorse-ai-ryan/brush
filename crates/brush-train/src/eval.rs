@@ -37,14 +37,14 @@ pub fn eval_stats<B: Backend + SplatForward<B>>(
 
     indices.into_iter().map(move |index| {
         let view = scene.views[index].clone();
-
         // Compare MSE in RGB only, not sure if this should include alpha.
         let res = glam::uvec2(view.image.width(), view.image.height());
 
         let gt_tensor = view_to_sample::<B>(&view, &device);
         let gt_rgb = gt_tensor.slice([0..res.y as usize, 0..res.x as usize, 0..3]);
 
-        let (rendered, aux) = splats.render(&view.camera, res, true);
+        let (rendered, aux) = splats.render(&view.camera, res, false);
+
         let render_rgb = rendered.slice([0..res.y as usize, 0..res.x as usize, 0..3]);
 
         // Simulate 8-bit roundtrip for fair comparison.
@@ -55,7 +55,6 @@ pub fn eval_stats<B: Backend + SplatForward<B>>(
             .mean();
 
         let psnr = mse.recip().log() * 10.0 / std::f32::consts::LN_10;
-
         let ssim_measure = Ssim::new(11, 3, &device);
         let ssim = ssim_measure.ssim(render_rgb.clone(), gt_rgb).mean();
 

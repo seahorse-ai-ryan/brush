@@ -180,7 +180,7 @@ fn bench_general(
                     splats.log_scales.val().into_primitive().tensor(),
                     splats.rotation.val().into_primitive().tensor(),
                     splats.sh_coeffs.val().into_primitive().tensor(),
-                    splats.opacities().into_primitive().tensor(),
+                    splats.raw_opacity.val().into_primitive().tensor(),
                 );
                 let img: Tensor<DiffBack, 3> =
                     Tensor::from_primitive(TensorPrimitive::Float(diff_out.img));
@@ -195,7 +195,7 @@ fn bench_general(
 
         bencher.bench_local(move || {
             for _ in 0..INTERNAL_ITERS {
-                let _ = splats.render(&camera, resolution, false);
+                let _ = splats.render(&camera, resolution, true);
             }
             // Wait for GPU work.
             <Wgpu as burn::prelude::Backend>::sync(&device);
