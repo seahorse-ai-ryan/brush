@@ -11,6 +11,7 @@ use std::io::{self};
 use zip::ZipArchive;
 use notify::{Watcher, RecursiveMode, Result as NotifyResult, Event, recommended_watcher};
 use std::sync::mpsc::{channel, Receiver};
+use crate::utils;
 
 #[derive(Clone)]
 struct SelectedView {
@@ -409,30 +410,51 @@ impl DatasetDetailOverlay {
     
     // Helper method to process a selected file
     fn process_selected_file(&mut self, file_path: PathBuf, dataset_folder: PathBuf) {
-        // Get the filename and stem (name without extension)
-        let _filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
-        let file_stem = file_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-        
-        // For zip files, we'll extract them to a folder
-        if file_path.extension().map_or(false, |ext| ext == "zip") {
-            // Create the destination folder path
-            let dest_folder = dataset_folder.join(&file_stem);
+        // Web environment requires special handling since filesystem operations aren't available
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Get the filename
+            let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
             
-            // Check if the folder already exists
-            if dest_folder.exists() {
-                // For now, just use the existing folder
-                // In the future, we'll handle naming conflicts here
+            // Log the file handling
+            utils::log_info(&format!("WASM: Processing file directly: {}", filename));
+            
+            // Add the file directly without copying
+            self.datasets.push(DatasetEntry {
+                name: filename,
+                path: file_path,
+                size: 0, // Can't get size in WASM
+                modified: SystemTime::now(),
+                processed: false,
+            });
+            
+            // Sort datasets by modified time (newest first)
+            self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
+            return;
+        }
+        
+        // Native platform code follows
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Check if the file exists
+            if !file_path.exists() {
+                return;
+            }
+            
+            // If we're not copying datasets to local, just use the original path
+            if !self.copy_datasets_to_local {
+                // Get filename
+                let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
                 
-                // Add the folder to the dataset list if it's not already there
-                let already_in_list = self.datasets.iter().any(|d| d.path == dest_folder);
+                // Check if it's already in our list
+                let already_in_list = self.datasets.iter().any(|d| d.path == file_path);
                 if !already_in_list {
-                    if let Ok(size) = self.get_folder_size(&dest_folder) {
-                        // Add the folder to the list
+                    if let Ok(metadata) = fs::metadata(&file_path) {
                         self.datasets.push(DatasetEntry {
-                            name: file_stem,
-                            path: dest_folder,
-                            size,
-                            modified: SystemTime::now(), // Use current time since we're adding it now
+                            name: filename,
+                            path: file_path,
+                            size: metadata.len(),
+                            modified: metadata.modified().unwrap_or(SystemTime::now()),
                             processed: false,
                         });
                         
@@ -440,18 +462,31 @@ impl DatasetDetailOverlay {
                         self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
                     }
                 }
-            } else {
-                // Extract the zip file to the destination folder
-                match self.extract_zip_file(&file_path, &dest_folder) {
-                    Ok(_) => {
-                        // Calculate the folder size
+                return;
+            }
+            
+            // Check if the file is a zip file
+            let file_extension = file_path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+            if file_extension == "zip" {
+                // Handle ZIP file...
+                let file_stem = file_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                let dest_folder = dataset_folder.join(&file_stem);
+                
+                // Check if the folder already exists
+                if dest_folder.exists() {
+                    // For now, just use the existing folder
+                    // In the future, we'll handle naming conflicts here
+                    
+                    // Add the folder to the dataset list if it's not already there
+                    let already_in_list = self.datasets.iter().any(|d| d.path == dest_folder);
+                    if !already_in_list {
                         if let Ok(size) = self.get_folder_size(&dest_folder) {
                             // Add the folder to the list
                             self.datasets.push(DatasetEntry {
                                 name: file_stem,
                                 path: dest_folder,
                                 size,
-                                modified: SystemTime::now(),
+                                modified: SystemTime::now(), // Use current time since we're adding it now
                                 processed: false,
                             });
                             
@@ -459,15 +494,35 @@ impl DatasetDetailOverlay {
                             self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
                         }
                     }
-                    Err(err) => {
-                        // Fall back to copying the zip file as-is
-                        self.copy_file_as_is(&file_path, &dataset_folder);
+                } else {
+                    // Extract the zip file to the destination folder
+                    match self.extract_zip_file(&file_path, &dest_folder) {
+                        Ok(_) => {
+                            // Calculate the folder size
+                            if let Ok(size) = self.get_folder_size(&dest_folder) {
+                                // Add the folder to the list
+                                self.datasets.push(DatasetEntry {
+                                    name: file_stem,
+                                    path: dest_folder,
+                                    size,
+                                    modified: SystemTime::now(),
+                                    processed: false,
+                                });
+                                
+                                // Sort datasets by modified time (newest first)
+                                self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
+                            }
+                        }
+                        Err(_) => {
+                            // Fall back to copying the zip file as-is
+                            self.copy_file_as_is(&file_path, &dataset_folder);
+                        }
                     }
                 }
+            } else {
+                // For non-zip files, just copy them as before
+                self.copy_file_as_is(&file_path, &dataset_folder);
             }
-        } else {
-            // For non-zip files, just copy them as before
-            self.copy_file_as_is(&file_path, &dataset_folder);
         }
     }
     
@@ -476,17 +531,64 @@ impl DatasetDetailOverlay {
         // Get the filename
         let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
         
-        // Create the destination path
-        let dest_path = dataset_folder.join(&filename);
+        // Web environment requires special handling
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Log the file handling
+            utils::log_info(&format!("WASM: Using file directly without copying: {}", filename));
+            
+            // Add the file directly without copying
+            self.datasets.push(DatasetEntry {
+                name: filename,
+                path: file_path.clone(),
+                size: 0, // Can't get size in WASM
+                modified: SystemTime::now(),
+                processed: false,
+            });
+            
+            // Sort datasets by modified time (newest first)
+            self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
+            return;
+        }
         
-        // Check if the file is already in the dataset folder
-        if file_path != &dest_path {
-            // Copy the file to the dataset folder
-            match fs::copy(file_path, &dest_path) {
-                Ok(_) => {
-                    // Get file metadata
+        // Native platform code follows
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Create the destination path
+            let dest_path = dataset_folder.join(&filename);
+            
+            // Check if the file is already in the dataset folder
+            if file_path != &dest_path {
+                // Copy the file to the dataset folder
+                match fs::copy(file_path, &dest_path) {
+                    Ok(_) => {
+                        // Get file metadata
+                        if let Ok(metadata) = fs::metadata(&dest_path) {
+                            // Add the new dataset to the list
+                            self.datasets.push(DatasetEntry {
+                                name: filename,
+                                path: dest_path,
+                                size: metadata.len(),
+                                modified: metadata.modified().unwrap_or(SystemTime::now()),
+                                processed: false,
+                            });
+                            
+                            // Sort datasets by modified time (newest first)
+                            self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
+                        }
+                    }
+                    Err(_) => {
+                        // Handle error silently
+                    }
+                }
+            } else {
+                // File is already in the dataset folder
+                
+                // Check if it's already in our list
+                let already_in_list = self.datasets.iter().any(|d| d.path == dest_path);
+                if !already_in_list {
+                    // Add it to our list
                     if let Ok(metadata) = fs::metadata(&dest_path) {
-                        // Add the new dataset to the list
                         self.datasets.push(DatasetEntry {
                             name: filename,
                             path: dest_path,
@@ -498,29 +600,6 @@ impl DatasetDetailOverlay {
                         // Sort datasets by modified time (newest first)
                         self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
                     }
-                }
-                Err(err) => {
-                    // Handle error silently
-                }
-            }
-        } else {
-            // File is already in the dataset folder
-            
-            // Check if it's already in our list
-            let already_in_list = self.datasets.iter().any(|d| d.path == dest_path);
-            if !already_in_list {
-                // Add it to our list
-                if let Ok(metadata) = fs::metadata(&dest_path) {
-                    self.datasets.push(DatasetEntry {
-                        name: filename,
-                        path: dest_path,
-                        size: metadata.len(),
-                        modified: metadata.modified().unwrap_or(SystemTime::now()),
-                        processed: false,
-                    });
-                    
-                    // Sort datasets by modified time (newest first)
-                    self.datasets.sort_by(|a, b| b.modified.cmp(&a.modified));
                 }
             }
         }

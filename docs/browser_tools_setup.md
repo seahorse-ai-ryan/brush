@@ -65,22 +65,28 @@ Create `.cursor/mcp.json` with the following content:
 
 ### 3. Start the MCP Server
 
-Run the Browser Tools server:
+There are two ways to start the Browser Tools MCP server:
+
+#### Option A: Start in a Dedicated Terminal (Recommended)
+
+In a Cursor terminal, run:
 
 ```bash
-npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
 ```
 
-You should see output confirming the server is running:
+#### Option B: Use AI Assistant to Start the Server
+
+In an AI chat session, ask the AI to run this specific command:
+
 ```
-Starting Browser Tools Server...
-Requested port: 3025
-Found available port: 3025
-=== Browser Tools Server Started ===
-Aggregator listening on http://0.0.0.0:3025
-Available on the following network addresses:
-  - http://[YOUR_IP]:3025
-For local access use: http://localhost:3025
+Please run the MCP server in the background.
+```
+
+The AI will execute this command:
+
+```bash
+cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
 ```
 
 ### 4. Restart Cursor
@@ -89,11 +95,28 @@ Close and reopen Cursor to ensure it picks up the MCP configuration.
 
 ### 5. Start Brush Development Server
 
-Start the Brush development server:
+There are two ways to start the Trunk server:
+
+#### Option A: Start in a Dedicated Terminal (Recommended)
+
+In a separate Cursor terminal, run:
 
 ```bash
-cd /path/to/brush
-trunk serve --no-autoreload --open=false
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && echo "Stopping Trunk server..." && trunk serve --no-autoreload --open=false
+```
+
+#### Option B: Use AI Assistant to Start the Server
+
+In an AI chat session, ask the AI to run this specific command:
+
+```
+Please start the Trunk server.
+```
+
+The AI will execute this command:
+
+```bash
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && echo "Stopping Trunk server..." && trunk serve --no-autoreload --open=false
 ```
 
 ### 6. Open in Browser and Verify
@@ -109,12 +132,23 @@ trunk serve --no-autoreload --open=false
 - **MCP server not capturing logs**: Make sure the Browser Tools extension is enabled and properly configured for the localhost domain.
 - **Cursor not connecting to MCP**: Verify the MCP configuration file is in the correct location and has the right format.
 - **Port conflicts**: If port 3025 is already in use, choose a different port and update both the server startup command and the MCP configuration.
+- **Web app not loading properly**: Check for SRI (Subresource Integrity) errors in the browser console. These are automatically handled by a fix in `index.html`.
+- **Seeing "no filesystem on this platform" errors**: These are expected in WASM environments and are now handled properly in the code.
 
 ## Notes for Brush Development
 
 - Console logs from the application should appear in the MCP server output
 - Cursor can access these logs to provide enhanced debugging capabilities
 - This setup is optional but recommended for a better development experience
+- When testing file uploads, a web-specific code path is used to avoid filesystem errors
+
+## Stopping the Servers
+
+To stop both servers when you're done:
+
+```bash
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && (pkill -f "browser-tools-server" || true) && echo "Stopped all servers."
+```
 
 ## References
 
