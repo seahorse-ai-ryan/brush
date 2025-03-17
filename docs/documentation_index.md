@@ -12,6 +12,8 @@ This document serves as the central index for Brush documentation. Brush is a Ga
 - **[Export Service](export_service.md)**: The centralized export functionality
 - **[Development Environment](development_environment.md)**: Setting up and working with the codebase
 - **[Vibe Coding Guide](vibe_coding_guide.md)**: Coding standards and best practices
+- **[Browser Tools Setup](browser_tools_setup.md)**: How to set up Browser Tools MCP for enhanced development and debugging
+- **[Web Debugging Guide](debugging-web.md)**: Comprehensive guide for debugging web applications with Browser Tools MCP
 
 ## Core Functionality
 
