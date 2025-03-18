@@ -3,65 +3,81 @@ use core::f32;
 use egui::Response;
 use glam::{Quat, Vec2, Vec3};
 
+#[derive(Clone, Default)]
+pub struct CameraClamping {
+    pub min_focus_distance: Option<f32>,
+    pub max_focus_distance: Option<f32>,
+
+    pub min_pitch: Option<f32>,
+    pub max_pitch: Option<f32>,
+
+    pub min_yaw: Option<f32>,
+    pub max_yaw: Option<f32>,
+}
+
 pub struct CameraController {
     pub position: Vec3,
     pub rotation: Quat,
     pub focus_distance: f32,
 
-    min_focus_distance: Option<f32>,
-    max_focus_distance: Option<f32>,
-
-    min_pitch: Option<f32>,
-    max_pitch: Option<f32>,
+    clamping: CameraClamping,
 
     roll: Quat,
     fly_velocity: Vec3,
     orbit_velocity: Vec2,
     speed_scale: f32,
 }
-
 pub fn smooth_orbit(
     position: Vec3,
     rotation: Quat,
     base_roll: Quat,
     delta_yaw: f32,
     delta_pitch: f32,
-
-    min_pitch: Option<f32>,
-    max_pitch: Option<f32>,
+    clamping: &CameraClamping,
     dt: f32,
-
     distance: f32,
 ) -> (Vec3, Quat) {
     // Calculate focal point (where we're looking at)
     let focal_point = position + rotation * Vec3::Z * distance;
 
     // Extract current pitch angle from rotation
-    // We need to determine the current pitch relative to the base orientation
     let forward = rotation * Vec3::Z;
     let current_pitch = -forward.y.asin();
 
     // Clamp the new pitch angle
     let new_pitch = smooth_clamp(
         current_pitch - delta_pitch,
-        min_pitch.map(|x| x.to_radians()),
-        max_pitch.map(|x| x.to_radians()),
+        clamping.min_pitch.map(|x| x.to_radians()),
+        clamping.max_pitch.map(|x| x.to_radians()),
         dt,
         50.0,
     );
 
-    // New delta clamped to not go over min/max pitch.
     let delta_pitch = current_pitch - new_pitch;
+    let pitch = Quat::from_axis_angle(rotation * Vec3::X, -delta_pitch);
 
-    // Create rotation quaternions in camera's local space
-    let pitch_axis = rotation * Vec3::X;
-    let pitch = Quat::from_axis_angle(pitch_axis, -delta_pitch);
+    let forward_proj = Vec3::new(forward.x, 0.0, forward.z).normalize();
+    let current_yaw = (-forward_proj.x).atan2(forward_proj.z);
 
+    // Clamp the new yaw angle
+    let new_yaw = smooth_clamp(
+        current_yaw - delta_yaw,
+        clamping.min_yaw.map(|x| x.to_radians()),
+        clamping.max_yaw.map(|x| x.to_radians()),
+        dt,
+        50.0,
+    );
+
+    // New delta clamped to not go over min/max yaw
+    let delta_yaw = current_yaw - new_yaw;
+
+    // Create yaw rotation quaternion
     let yaw_axis = base_roll * Vec3::NEG_Y;
     let yaw = Quat::from_axis_angle(yaw_axis, -delta_yaw);
 
     let new_rotation = (yaw * pitch * rotation).normalize();
     let new_position = focal_point - new_rotation * Vec3::Z * distance;
+
     (new_position, new_rotation)
 }
 
@@ -101,10 +117,7 @@ impl CameraController {
         radius: f32,
         focus_distance: f32,
         speed_scale: f32,
-        min_focus_distance: Option<f32>,
-        max_focus_distance: Option<f32>,
-        min_pitch: Option<f32>,
-        max_pitch: Option<f32>,
+        clamping: CameraClamping,
     ) -> Self {
         Self {
             position: -Vec3::Z * radius,
@@ -112,15 +125,8 @@ impl CameraController {
             roll: Quat::IDENTITY,
             fly_velocity: Vec3::ZERO,
             orbit_velocity: Vec2::ZERO,
-
             focus_distance,
-
-            min_focus_distance,
-            max_focus_distance,
-
-            min_pitch,
-            max_pitch,
-
+            clamping,
             speed_scale,
         }
     }
@@ -176,8 +182,7 @@ impl CameraController {
             self.roll,
             self.orbit_velocity.x,
             self.orbit_velocity.y,
-            self.min_pitch,
-            self.max_pitch,
+            &self.clamping,
             delta_time,
             self.focus_distance,
         );
@@ -282,8 +287,8 @@ impl CameraController {
 
         self.focus_distance = smooth_clamp(
             self.focus_distance,
-            self.min_focus_distance,
-            self.max_focus_distance,
+            self.clamping.min_focus_distance,
+            self.clamping.max_focus_distance,
             delta_time,
             50.5,
         );

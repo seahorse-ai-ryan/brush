@@ -70,10 +70,31 @@ async fn parse_elem<T: AsyncBufRead + Unpin + 'static, E: PropertyAccess>(
     }
 }
 
-/// Call this in a loop to yield every once in a while.
-async fn try_yield(i: usize) {
-    if i % 50000 == 0 {
-        tokio_wasm::task::yield_now().await;
+struct TimeYield {
+    last_yield: web_time::Instant,
+    tick: usize,
+}
+
+impl TimeYield {
+    fn new() -> Self {
+        Self {
+            last_yield: web_time::Instant::now(),
+            tick: 0,
+        }
+    }
+
+    /// Check if we need to yield. Should be called in loops.
+    async fn try_yield(&mut self) {
+        self.tick += 1;
+
+        // Only check every so many iterations as checking the time isn't super cheap either.
+        if self.tick % 1000 == 0 {
+            let duration = web_time::Instant::now().duration_since(self.last_yield);
+            // Try to yield every 5 milliseconds to keep things responsive.
+            if duration.as_secs_f32() > 5e-3 {
+                tokio_wasm::task::yield_now().await;
+            }
+        }
     }
 }
 
@@ -189,8 +210,10 @@ fn parse_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
 
         let mut last_update = 0;
 
+        let mut yielder = TimeYield::new();
+
         for i in 0..vertex.count {
-            try_yield(i).await;
+            yielder.try_yield().await;
 
             // Doing this after first reading and parsing the points is quite wasteful, but
             // we do need to advance the reader.
@@ -323,10 +346,12 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
             anyhow::bail!("First element should be chunk compression metadata!");
         }
 
+        let mut yielder = TimeYield::new();
+
         let parser = Parser::<QuantMeta>::new();
         let mut quant_metas = vec![];
-        for i in 0..quant_elem.count {
-            try_yield(i).await;
+        for _ in 0..quant_elem.count {
+            yielder.try_yield().await;
             let quant_meta = parse_elem(&mut reader, &parser, header.encoding, quant_elem).await?;
             quant_metas.push(quant_meta);
         }
@@ -354,7 +379,7 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
 
         for i in 0..vertex.count {
             // Occasionally yield.
-            try_yield(i).await;
+            yielder.try_yield().await;
 
             // Doing this after first reading and parsing the points is quite wasteful, but
             // we do need to advance the reader.
@@ -425,7 +450,7 @@ fn parse_compressed_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
 
             let mut total_coeffs = vec![];
             for i in 0..sh_vals.count {
-                try_yield(i).await;
+                yielder.try_yield().await;
 
                 if !valid[i] {
                     continue;
@@ -479,6 +504,7 @@ fn parse_delta_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
 ) -> impl Stream<Item = Result<SplatMessage<B>>> + 'static {
     try_fn_stream(|emitter| async move {
         let parser = Parser::<ParsedGaussian<false>>::new();
+        let mut yielder = TimeYield::new();
 
         // Check for frame count.
         let frame_count = header
@@ -529,7 +555,7 @@ fn parse_delta_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
                 let update_every = element.count.div_ceil(20);
 
                 for i in 0..element.count {
-                    try_yield(i).await;
+                    yielder.try_yield().await;
 
                     // Occasionally send some updated splats.
                     if i % update_every == update_every - 1 {
@@ -612,8 +638,9 @@ fn parse_delta_ply<T: AsyncBufRead + Unpin + 'static, B: Backend>(
                     anyhow::bail!("Need to read base splat first.");
                 };
 
-                for i in 0..element.count {
-                    try_yield(i).await;
+                for _ in 0..element.count {
+                    yielder.try_yield().await;
+
                     // The splat we decode is normed to 0-1 (if quantized), so rescale to
                     // actual values afterwards.
                     let splat_enc =

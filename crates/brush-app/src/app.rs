@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::camera_controls::CameraController;
+use crate::camera_controls::{self, CameraClamping, CameraController};
 use crate::channel::reactive_receiver;
 use crate::panels::SettingsPanel;
 use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
@@ -101,10 +101,7 @@ pub struct CameraSettings {
     pub start_distance: f32,
     pub focus_distance: f32,
     pub speed_scale: f32,
-    pub min_focus_distance: Option<f32>,
-    pub max_focus_distance: Option<f32>,
-    pub min_pitch: Option<f32>,
-    pub max_pitch: Option<f32>,
+    pub clamping: camera_controls::CameraClamping,
 }
 
 pub struct App {
@@ -138,10 +135,7 @@ impl AppContext {
             cam_settings.start_distance,
             cam_settings.focus_distance,
             cam_settings.speed_scale,
-            cam_settings.min_focus_distance,
-            cam_settings.max_focus_distance,
-            cam_settings.min_pitch,
-            cam_settings.max_pitch,
+            cam_settings.clamping.clone(),
         );
 
         // Camera position will be controlled by the orbit controls.
@@ -181,10 +175,7 @@ impl AppContext {
             settings.start_distance,
             settings.focus_distance,
             settings.speed_scale,
-            settings.min_focus_distance,
-            settings.max_focus_distance,
-            settings.min_pitch,
-            settings.max_pitch,
+            settings.clamping.clone(),
         );
         self.cam_settings = settings;
         let cam = self.camera.clone();
@@ -331,12 +322,11 @@ impl App {
             start_distance: radius,
             focus_distance,
             speed_scale: 1.0,
-
-            // TODO: Set these from URI? Unify URI params & embedded app controls?
-            min_pitch: None,
-            max_pitch: None,
-            min_focus_distance: None,
-            max_focus_distance: None,
+            clamping: CameraClamping {
+                min_yaw: Some(-45.0),
+                max_yaw: Some(45.0),
+                ..Default::default()
+            },
         };
 
         let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), settings);

@@ -1,6 +1,6 @@
 #![recursion_limit = "256"]
 
-mod camera_controls;
+pub mod camera_controls;
 mod panels;
 
 mod app;

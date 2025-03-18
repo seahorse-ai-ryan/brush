@@ -163,16 +163,23 @@ mod embedded {
             max_focus_distance: Option<f32>,
             min_pitch: Option<f32>,
             max_pitch: Option<f32>,
+            min_yaw: Option<f32>,
+            max_yaw: Option<f32>,
         ) -> CameraSettings {
             CameraSettings(brush_app::CameraSettings {
                 focal,
                 start_distance,
                 focus_distance,
-                min_focus_distance,
-                max_focus_distance,
-                min_pitch,
-                max_pitch,
                 speed_scale,
+                // TODO: Could make this a seperate JS object.
+                clamping: brush_app::camera_controls::CameraClamping {
+                    min_focus_distance,
+                    max_focus_distance,
+                    min_pitch,
+                    max_pitch,
+                    min_yaw,
+                    max_yaw,
+                },
             })
         }
     }

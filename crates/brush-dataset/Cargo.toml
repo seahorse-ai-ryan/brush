@@ -17,6 +17,7 @@ zip.workspace = true
 glam.workspace = true
 burn.workspace = true
 tracing.workspace = true
+web-time.workspace = true
 log.workspace = true
 ply-rs.workspace = true
 rand.workspace = true
