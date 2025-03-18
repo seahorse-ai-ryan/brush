@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::camera_controls::{self, CameraClamping, CameraController};
+use crate::camera_controls::{self, CameraController};
 use crate::channel::reactive_receiver;
 use crate::panels::SettingsPanel;
 use crate::panels::{DatasetPanel, PresetsPanel, ScenePanel, StatsPanel, TracingPanel};
