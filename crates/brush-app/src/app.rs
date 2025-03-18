@@ -322,11 +322,7 @@ impl App {
             start_distance: radius,
             focus_distance,
             speed_scale: 1.0,
-            clamping: CameraClamping {
-                min_yaw: Some(-45.0),
-                max_yaw: Some(45.0),
-                ..Default::default()
-            },
+            clamping: Default::default(),
         };
 
         let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), settings);
