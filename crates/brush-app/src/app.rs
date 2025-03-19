@@ -29,12 +29,14 @@ use std::io::Error;
 use std::io::ErrorKind;
 use std::pin::Pin;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use egui::{Align2, RichText};
 use brush_dataset::splat_export;
 use tokio_with_wasm::alias as tokio_wasm;
 use crate::export_service::{ExportService, ExportError, ExportFormat};
 use brush_dataset::storage;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 
 #[cfg(not(target_family = "wasm"))]
 use rfd;
@@ -810,8 +812,8 @@ impl App {
         let tree = egui_tiles::Tree::new("brush_tree", root_container, tiles);
 
         // Debug mode parameter
-        let debug_mode = search_params.get("debug").unwrap_or("false");
-        let auto_test = search_params.get("auto_test").unwrap_or("false");
+        let debug_mode = search_params.get("debug").map_or("false", |v| v);
+        let auto_test = search_params.get("auto_test").map_or("false", |v| v);
 
         // If debug mode is enabled, log it
         if debug_mode == "true" {
@@ -833,8 +835,8 @@ impl App {
                 let context_clone = tree_ctx.context.clone();
                 
                 // Schedule test PLY load for after initialization
-                web_sys::window()
-                    .and_then(|w| w.request_animation_frame(
+                if let Some(window) = web_sys::window() {
+                    let _ = window.request_animation_frame(
                         &js_sys::Function::new_with_args("", 
                             &format!("
                                 console.log('🧪 Scheduling test PLY file load');
@@ -844,12 +846,12 @@ impl App {
                                         detail: {{ type: 'load_ply' }}
                                     }}));
                                 }}, 1500);
-                            ").into()
+                            ")
                         )
-                    ).ok())
-                    .ok();
+                    );
+                }
                 
-                // Set up event listener for automated test events
+                // Add event listener for automated test events
                 let context_arc = Arc::clone(&context_clone);
                 let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |_event: web_sys::Event| {
                     log::info!("🧪 Received auto-test event");
@@ -858,17 +860,12 @@ impl App {
                     }
                 }) as Box<dyn FnMut(_)>);
                 
-                web_sys::window()
-                    .and_then(|window| {
-                        window
-                            .add_event_listener_with_callback(
-                                "brush_auto_test",
-                                closure.as_ref().unchecked_ref(),
-                            )
-                            .ok()?;
-                        Some(window)
-                    })
-                    .ok();
+                if let Some(window) = web_sys::window() {
+                    let _ = window.add_event_listener_with_callback(
+                        "brush_auto_test",
+                        closure.as_ref().unchecked_ref(),
+                    );
+                }
                 
                 // Leak the closure to keep it alive (it's only for testing)
                 closure.forget();
@@ -1274,7 +1271,7 @@ impl eframe::App for App {
                 use tokio_with_wasm::alias as tokio_wasm;
                 
                 // Clone what we need for the async task
-                let dataset_detail_overlay = self.dataset_detail_overlay.clone();
+                let _dataset_detail_overlay = self.dataset_detail_overlay.clone();
                 let ctx_clone = ctx.clone();
                 
                 tokio_wasm::task::spawn(async move {
@@ -1306,7 +1303,7 @@ impl eframe::App for App {
                             if !paths.is_empty() {
                                 // Now we need to communicate back to the main thread
                                 // In WASM, we can use the browser's storage or a custom event
-                                let js_window = web_sys::window().unwrap();
+                                let _js_window = web_sys::window().unwrap();
                                 
                                 // Store the paths in localStorage as JSON (simplified approach)
                                 let paths_json = serde_json::to_string(&paths).unwrap_or_default();

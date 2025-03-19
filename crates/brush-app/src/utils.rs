@@ -76,13 +76,11 @@ pub fn auto_load_test_ply(context: &mut crate::app::AppContext) {
     use std::path::PathBuf;
     let test_file = PathBuf::from("test_data/sample.ply");
     
-    // Get the dataset overlay
-    if let Some(dataset_overlay) = context.get_dataset_detail_overlay_mut() {
-        log_info("🧪 DEBUG: Found dataset overlay, initiating test file load");
-        dataset_overlay.set_copy_datasets_to_local(false); // Don't try to copy in web
-        dataset_overlay.set_selected_file(test_file);
-        log_info("🧪 DEBUG: Test PLY file load requested");
-    } else {
-        log_error("🧪 DEBUG: Failed to get dataset overlay for test file load");
-    }
+    // Note: We need to modify this to work with the App struct instead 
+    // since AppContext doesn't have dataset_detail_overlay
+    
+    // This function is used by URL parameter handlers and should be updated
+    // to match the actual structure of the application
+    
+    log_info("🧪 DEBUG: Auto-load test PLY file feature needs updating for the new UI structure");
 } 

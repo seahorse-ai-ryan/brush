@@ -85,11 +85,14 @@ impl ScenePanel {
             return;
         }
 
-        let mut size = size.floor();
+        let size = size.floor();
         
-        // Calculate the current aspect ratio of the available space
-        let current_aspect = size.x / size.y;
-
+        let _current_aspect = size.x / size.y;
+        
+        if let Some(_view_aspect) = context.view_aspect {
+            // Calculate aspect ratio...
+        }
+        
         if let Some(view_aspect) = context.view_aspect {
             // If we have a view aspect ratio, we can choose to either:
             // 1. Use the view's aspect ratio (current behavior)

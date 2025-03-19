@@ -454,7 +454,7 @@ impl DatasetDetailOverlay {
     }
     
     // Helper method to process a selected file
-    fn process_selected_file(&mut self, file_path: PathBuf, dataset_folder: PathBuf) {
+    fn process_selected_file(&mut self, file_path: PathBuf, _dataset_folder: PathBuf) {
         // Web environment requires special handling since filesystem operations aren't available
         #[cfg(target_arch = "wasm32")]
         {
@@ -515,7 +515,7 @@ impl DatasetDetailOverlay {
             if file_extension == "zip" {
                 // Handle ZIP file...
                 let file_stem = file_path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-                let dest_folder = dataset_folder.join(&file_stem);
+                let dest_folder = _dataset_folder.join(&file_stem);
                 
                 // Check if the folder already exists
                 if dest_folder.exists() {
@@ -560,19 +560,19 @@ impl DatasetDetailOverlay {
                         }
                         Err(_) => {
                             // Fall back to copying the zip file as-is
-                            self.copy_file_as_is(&file_path, &dataset_folder);
+                            self.copy_file_as_is(&file_path, &_dataset_folder);
                         }
                     }
                 }
             } else {
                 // For non-zip files, just copy them as before
-                self.copy_file_as_is(&file_path, &dataset_folder);
+                self.copy_file_as_is(&file_path, &_dataset_folder);
             }
         }
     }
     
     // Helper method to copy a file as-is (fallback method)
-    fn copy_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
+    fn copy_file_as_is(&mut self, file_path: &PathBuf, _dataset_folder: &PathBuf) {
         // Get the filename
         let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
         
@@ -600,7 +600,7 @@ impl DatasetDetailOverlay {
         #[cfg(not(target_arch = "wasm32"))]
         {
             // Create the destination path
-            let dest_path = dataset_folder.join(&filename);
+            let dest_path = _dataset_folder.join(&filename);
             
             // Check if the file is already in the dataset folder
             if file_path != &dest_path {
