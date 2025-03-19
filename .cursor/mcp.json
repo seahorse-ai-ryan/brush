@@ -1,0 +1,9 @@
+{
+  "servers": [
+    {
+      "name": "Browser Tools MCP",
+      "url": "http://localhost:3025",
+      "type": "browser"
+    }
+  ]
+} 

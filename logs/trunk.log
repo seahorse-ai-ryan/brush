@@ -1,0 +1,1072 @@
+2025-03-19T05:26:03.541453Z  INFO 🚀 Starting trunk 0.21.7
+2025-03-19T05:26:03.542110Z  INFO ⏫ Found an update of trunk: 0.21.7 -> 0.21.9
+2025-03-19T05:26:03.543326Z  INFO 📦 starting build
+    Blocking waiting for file lock on build directory
+warning: unused import: `std::io::Error`
+ --> crates/rrfd/src/lib.rs:8:5
+  |
+8 | use std::io::Error;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::io::ErrorKind`
+ --> crates/rrfd/src/lib.rs:9:5
+  |
+9 | use std::io::ErrorKind;
+  |     ^^^^^^^^^^^^^^^^^^
+
+   Compiling brush-dataset v0.2.0 (/Users/ryanhickman/code/brush/crates/brush-dataset)
+warning: `rrfd` (lib) generated 2 warnings (run `cargo fix --lib -p rrfd` to apply 2 suggestions)
+   Compiling brush-app v0.2.0 (/Users/ryanhickman/code/brush/crates/brush-app)
+warning: unused import: `std::path::Path`
+ --> crates/brush-dataset/src/storage/mod.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `DatasetInfo` and `StorageType`
+ --> crates/brush-dataset/src/storage/indexed_db.rs:6:29
+  |
+6 | use super::{DatasetStorage, DatasetInfo, StorageType};
+  |                             ^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> crates/brush-dataset/src/storage/filesystem.rs:4:17
+  |
+4 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `DatasetStorage`
+ --> crates/brush-dataset/src/storage/filesystem.rs:7:13
+  |
+7 | use super::{DatasetStorage, DatasetInfo, StorageType};
+  |             ^^^^^^^^^^^^^^
+
+warning: constant `DB_NAME` is never used
+ --> crates/brush-dataset/src/storage/indexed_db.rs:9:7
+  |
+9 | const DB_NAME: &str = "brush_dataset_storage";
+  |       ^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: constant `METADATA_STORE` is never used
+  --> crates/brush-dataset/src/storage/indexed_db.rs:10:7
+   |
+10 | const METADATA_STORE: &str = "metadata";
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `DATASET_STORE` is never used
+  --> crates/brush-dataset/src/storage/indexed_db.rs:11:7
+   |
+11 | const DATASET_STORE: &str = "datasets";
+   |       ^^^^^^^^^^^^^
+
+warning: method `get_total_storage_used` is never used
+   --> crates/brush-dataset/src/storage/filesystem.rs:126:8
+    |
+15  | impl FilesystemStorage {
+    | ---------------------- method in this implementation
+...
+126 |     fn get_total_storage_used(&self) -> Result<u64> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling brush-process v0.2.0 (/Users/ryanhickman/code/brush/crates/brush-process)
+warning: `brush-dataset` (lib) generated 8 warnings (run `cargo fix --lib -p brush-dataset` to apply 4 suggestions)
+warning: unused import: `std::fmt::Debug`
+  --> crates/brush-app/src/app.rs:26:5
+   |
+26 | use std::fmt::Debug;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::hash::Hash`
+  --> crates/brush-app/src/app.rs:27:5
+   |
+27 | use std::hash::Hash;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `std::io::Error`
+  --> crates/brush-app/src/app.rs:28:5
+   |
+28 | use std::io::Error;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::io::ErrorKind`
+  --> crates/brush-app/src/app.rs:29:5
+   |
+29 | use std::io::ErrorKind;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::pin::Pin`
+  --> crates/brush-app/src/app.rs:30:5
+   |
+30 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+  --> crates/brush-app/src/app.rs:32:5
+   |
+32 | use std::time::Duration;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Align2` and `RichText`
+  --> crates/brush-app/src/app.rs:33:12
+   |
+33 | use egui::{Align2, RichText};
+   |            ^^^^^^  ^^^^^^^^
+
+warning: unused import: `brush_dataset::splat_export`
+  --> crates/brush-app/src/app.rs:34:5
+   |
+34 | use brush_dataset::splat_export;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExportError` and `ExportFormat`
+  --> crates/brush-app/src/app.rs:36:44
+   |
+36 | use crate::export_service::{ExportService, ExportError, ExportFormat};
+   |                                            ^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `brush_dataset::storage`
+  --> crates/brush-app/src/app.rs:37:5
+   |
+37 | use brush_dataset::storage;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `brush_dataset::splat_export`
+ --> crates/brush-app/src/panels/scene.rs:1:5
+  |
+1 | use brush_dataset::splat_export;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ControlMessage`
+ --> crates/brush-app/src/panels/scene.rs:2:35
+  |
+2 | use brush_process::process_loop::{ControlMessage, ProcessMessage};
+  |                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `tokio_with_wasm::alias as tokio_wasm`
+  --> crates/brush-app/src/panels/scene.rs:17:5
+   |
+17 | use tokio_with_wasm::alias as tokio_wasm;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ProcessMessage`
+ --> crates/brush-app/src/overlays/controls_detail.rs:2:51
+  |
+2 | use brush_process::process_loop::{ControlMessage, ProcessMessage};
+  |                                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Once`
+ --> crates/brush-app/src/utils.rs:2:5
+  |
+2 | use std::sync::Once;
+  |     ^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> crates/brush-app/src/app.rs:813:63
+    |
+813 |         let debug_mode = search_params.get("debug").unwrap_or("false");
+    |                                                     --------- ^^^^^^^ expected `&String`, found `&str`
+    |                                                     |
+    |                                                     arguments to this method are incorrect
+    |
+    = note: expected reference `&std::string::String`
+               found reference `&'static str`
+help: the return type of this call is `&'static str` due to the type of the argument passed
+   --> crates/brush-app/src/app.rs:813:26
+    |
+813 |         let debug_mode = search_params.get("debug").unwrap_or("false");
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------^
+    |                                                               |
+    |                                                               this argument influences the return type of `unwrap_or`
+note: method defined here
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:998:12
+help: use `Option::map_or` to deref inner value of `Option`
+    |
+813 |         let debug_mode = search_params.get("debug").map_or("false", |v| v);
+    |                                                     ~~~~~~        +++++++
+
+error[E0308]: mismatched types
+   --> crates/brush-app/src/app.rs:814:66
+    |
+814 |         let auto_test = search_params.get("auto_test").unwrap_or("false");
+    |                                                        --------- ^^^^^^^ expected `&String`, found `&str`
+    |                                                        |
+    |                                                        arguments to this method are incorrect
+    |
+    = note: expected reference `&std::string::String`
+               found reference `&'static str`
+help: the return type of this call is `&'static str` due to the type of the argument passed
+   --> crates/brush-app/src/app.rs:814:25
+    |
+814 |         let auto_test = search_params.get("auto_test").unwrap_or("false");
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------^
+    |                                                                  |
+    |                                                                  this argument influences the return type of `unwrap_or`
+note: method defined here
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:998:12
+help: use `Option::map_or` to deref inner value of `Option`
+    |
+814 |         let auto_test = search_params.get("auto_test").map_or("false", |v| v);
+    |                                                        ~~~~~~        +++++++
+
+error[E0277]: the trait bound `str: std::convert::From<std::string::String>` is not satisfied
+   --> crates/brush-app/src/app.rs:839:30
+    |
+839 |   ...                   &format!("
+    |  ________________________^
+840 | | ...                       console.log('🧪 Scheduling test PLY file load');
+841 | | ...                       setTimeout(() => {{
+842 | | ...                           console.log('🧪 Executing automated test: Loading PLY file');
+...   |
+846 | | ...                       }}, 1500);
+847 | | ...                   ").into()
+    | |                        ^ ---- required by a bound introduced by this call
+    | |________________________|
+    |                          the trait `std::convert::From<std::string::String>` is not implemented for `str`
+    |
+    = help: the following other types implement trait `std::convert::From<T>`:
+              `&str` implements `std::convert::From<&icu_locid::extensions::other::subtag::Subtag>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::private::other::Subtag>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::transform::key::Key>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::unicode::attribute::Attribute>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::unicode::key::Key>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::language::Language>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::region::Region>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::script::Script>`
+            and 2 others
+    = note: required for `std::string::String` to implement `Into<str>`
+
+error[E0599]: no method named `ok` found for enum `std::option::Option` in the current scope
+   --> crates/brush-app/src/app.rs:850:22
+    |
+836 | /                 web_sys::window()
+837 | |                     .and_then(|w| w.request_animation_frame(
+838 | |                         &js_sys::Function::new_with_args("", 
+839 | |                             &format!("
+...   |
+849 | |                     ).ok())
+850 | |                     .ok();
+    | |_____________________-^^
+    |
+help: there is a method `or` with a similar name, but with different arguments
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:1524:5
+
+error[E0599]: no method named `unchecked_ref` found for reference `&JsValue` in the current scope
+   --> crates/brush-app/src/app.rs:866:50
+    |
+866 | ...                   closure.as_ref().unchecked_ref(),
+    |                                        ^^^^^^^^^^^^^
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `JsCast` which provides `unchecked_ref` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use wasm_bindgen::JsCast;
+    |
+help: there is a method `unchecked_into` with a similar name
+    |
+866 |                                 closure.as_ref().unchecked_into(),
+    |                                                  ~~~~~~~~~~~~~~
+
+error[E0599]: no method named `ok` found for enum `std::option::Option` in the current scope
+   --> crates/brush-app/src/app.rs:871:22
+    |
+861 | /                 web_sys::window()
+862 | |                     .and_then(|window| {
+863 | |                         window
+864 | |                             .add_event_listener_with_callback(
+...   |
+870 | |                     })
+871 | |                     .ok();
+    | |_____________________-^^
+    |
+help: there is a method `or` with a similar name, but with different arguments
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:1524:5
+
+error[E0599]: no method named `get_dataset_detail_overlay_mut` found for mutable reference `&mut AppContext` in the current scope
+  --> crates/brush-app/src/utils.rs:80:44
+   |
+80 |     if let Some(dataset_overlay) = context.get_dataset_detail_overlay_mut() {
+   |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mut AppContext`
+
+warning: unused variable: `dataset_detail_overlay`
+    --> crates/brush-app/src/app.rs:1277:21
+     |
+1277 |                 let dataset_detail_overlay = self.dataset_detail_overlay.clone();
+     |                     ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_detail_overlay`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `js_window`
+    --> crates/brush-app/src/app.rs:1309:37
+     |
+1309 | ...                   let js_window = web_sys::window().unwrap();
+     |                           ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_js_window`
+
+warning: unused variable: `current_aspect`
+  --> crates/brush-app/src/panels/scene.rs:91:13
+   |
+91 |         let current_aspect = size.x / size.y;
+   |             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_current_aspect`
+
+warning: unused variable: `view_aspect`
+  --> crates/brush-app/src/panels/scene.rs:93:21
+   |
+93 |         if let Some(view_aspect) = context.view_aspect {
+   |                     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_view_aspect`
+
+warning: variable does not need to be mutable
+  --> crates/brush-app/src/panels/scene.rs:88:13
+   |
+88 |         let mut size = size.floor();
+   |             ----^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `dataset_folder`
+   --> crates/brush-app/src/overlays/dataset_detail.rs:457:61
+    |
+457 |     fn process_selected_file(&mut self, file_path: PathBuf, dataset_folder: PathBuf) {
+    |                                                             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_folder`
+
+warning: unused variable: `dataset_folder`
+   --> crates/brush-app/src/overlays/dataset_detail.rs:575:56
+    |
+575 |     fn copy_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
+    |                                                        ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_folder`
+
+Some errors have detailed explanations: E0277, E0308, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `brush-app` (lib) generated 22 warnings
+error: could not compile `brush-app` (lib) due to 7 previous errors; 22 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+2025-03-19T05:26:16.903002Z ERROR ❌ error
+error from build pipeline
+
+Caused by:
+    0: HTML build pipeline failed (1 errors), showing first
+    1: error from asset pipeline
+    2: running cargo build
+    3: error during cargo build execution
+    4: cargo call to executable 'cargo' with args: '["build", "--target=wasm32-unknown-unknown", "--manifest-path", "/Users/ryanhickman/code/brush/crates/brush-app/Cargo.toml"]' returned a bad status: exit status: 101
+2025-03-19T05:26:16.903068Z  INFO 📡 serving static assets at -> /
+2025-03-19T05:26:16.903117Z  INFO 📡 server listening at:
+2025-03-19T05:26:16.903125Z  INFO     🏠 http://127.0.0.1:8080/
+2025-03-19T05:26:16.903128Z  INFO     🏠 http://[::1]:8080/
+2025-03-19T05:26:16.903426Z  INFO     🏠 http://localhost.:8080/
+2025-03-19T16:20:23.873745Z  INFO 📦 starting build
+warning: unused import: `std::io::Error`
+ --> crates/rrfd/src/lib.rs:8:5
+  |
+8 | use std::io::Error;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::io::ErrorKind`
+ --> crates/rrfd/src/lib.rs:9:5
+  |
+9 | use std::io::ErrorKind;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: `rrfd` (lib) generated 2 warnings (run `cargo fix --lib -p rrfd` to apply 2 suggestions)
+   Compiling brush-dataset v0.2.0 (/Users/ryanhickman/code/brush/crates/brush-dataset)
+   Compiling brush-app v0.2.0 (/Users/ryanhickman/code/brush/crates/brush-app)
+warning: unused import: `std::path::Path`
+ --> crates/brush-dataset/src/storage/mod.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `DatasetInfo` and `StorageType`
+ --> crates/brush-dataset/src/storage/indexed_db.rs:6:29
+  |
+6 | use super::{DatasetStorage, DatasetInfo, StorageType};
+  |                             ^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> crates/brush-dataset/src/storage/filesystem.rs:4:17
+  |
+4 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `DatasetStorage`
+ --> crates/brush-dataset/src/storage/filesystem.rs:7:13
+  |
+7 | use super::{DatasetStorage, DatasetInfo, StorageType};
+  |             ^^^^^^^^^^^^^^
+
+warning: constant `DB_NAME` is never used
+ --> crates/brush-dataset/src/storage/indexed_db.rs:9:7
+  |
+9 | const DB_NAME: &str = "brush_dataset_storage";
+  |       ^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: constant `METADATA_STORE` is never used
+  --> crates/brush-dataset/src/storage/indexed_db.rs:10:7
+   |
+10 | const METADATA_STORE: &str = "metadata";
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `DATASET_STORE` is never used
+  --> crates/brush-dataset/src/storage/indexed_db.rs:11:7
+   |
+11 | const DATASET_STORE: &str = "datasets";
+   |       ^^^^^^^^^^^^^
+
+warning: method `get_total_storage_used` is never used
+   --> crates/brush-dataset/src/storage/filesystem.rs:126:8
+    |
+15  | impl FilesystemStorage {
+    | ---------------------- method in this implementation
+...
+126 |     fn get_total_storage_used(&self) -> Result<u64> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling brush-process v0.2.0 (/Users/ryanhickman/code/brush/crates/brush-process)
+warning: `brush-dataset` (lib) generated 8 warnings (run `cargo fix --lib -p brush-dataset` to apply 4 suggestions)
+warning: unused import: `std::fmt::Debug`
+  --> crates/brush-app/src/app.rs:26:5
+   |
+26 | use std::fmt::Debug;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::hash::Hash`
+  --> crates/brush-app/src/app.rs:27:5
+   |
+27 | use std::hash::Hash;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `std::io::Error`
+  --> crates/brush-app/src/app.rs:28:5
+   |
+28 | use std::io::Error;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::io::ErrorKind`
+  --> crates/brush-app/src/app.rs:29:5
+   |
+29 | use std::io::ErrorKind;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::pin::Pin`
+  --> crates/brush-app/src/app.rs:30:5
+   |
+30 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+  --> crates/brush-app/src/app.rs:32:5
+   |
+32 | use std::time::Duration;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Align2` and `RichText`
+  --> crates/brush-app/src/app.rs:33:12
+   |
+33 | use egui::{Align2, RichText};
+   |            ^^^^^^  ^^^^^^^^
+
+warning: unused import: `brush_dataset::splat_export`
+  --> crates/brush-app/src/app.rs:34:5
+   |
+34 | use brush_dataset::splat_export;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExportError` and `ExportFormat`
+  --> crates/brush-app/src/app.rs:36:44
+   |
+36 | use crate::export_service::{ExportService, ExportError, ExportFormat};
+   |                                            ^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `brush_dataset::storage`
+  --> crates/brush-app/src/app.rs:37:5
+   |
+37 | use brush_dataset::storage;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `brush_dataset::splat_export`
+ --> crates/brush-app/src/panels/scene.rs:1:5
+  |
+1 | use brush_dataset::splat_export;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ControlMessage`
+ --> crates/brush-app/src/panels/scene.rs:2:35
+  |
+2 | use brush_process::process_loop::{ControlMessage, ProcessMessage};
+  |                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `tokio_with_wasm::alias as tokio_wasm`
+  --> crates/brush-app/src/panels/scene.rs:17:5
+   |
+17 | use tokio_with_wasm::alias as tokio_wasm;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ProcessMessage`
+ --> crates/brush-app/src/overlays/controls_detail.rs:2:51
+  |
+2 | use brush_process::process_loop::{ControlMessage, ProcessMessage};
+  |                                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Once`
+ --> crates/brush-app/src/utils.rs:2:5
+  |
+2 | use std::sync::Once;
+  |     ^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> crates/brush-app/src/app.rs:813:63
+    |
+813 |         let debug_mode = search_params.get("debug").unwrap_or("false");
+    |                                                     --------- ^^^^^^^ expected `&String`, found `&str`
+    |                                                     |
+    |                                                     arguments to this method are incorrect
+    |
+    = note: expected reference `&std::string::String`
+               found reference `&'static str`
+help: the return type of this call is `&'static str` due to the type of the argument passed
+   --> crates/brush-app/src/app.rs:813:26
+    |
+813 |         let debug_mode = search_params.get("debug").unwrap_or("false");
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------^
+    |                                                               |
+    |                                                               this argument influences the return type of `unwrap_or`
+note: method defined here
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:998:12
+help: use `Option::map_or` to deref inner value of `Option`
+    |
+813 |         let debug_mode = search_params.get("debug").map_or("false", |v| v);
+    |                                                     ~~~~~~        +++++++
+
+error[E0308]: mismatched types
+   --> crates/brush-app/src/app.rs:814:66
+    |
+814 |         let auto_test = search_params.get("auto_test").unwrap_or("false");
+    |                                                        --------- ^^^^^^^ expected `&String`, found `&str`
+    |                                                        |
+    |                                                        arguments to this method are incorrect
+    |
+    = note: expected reference `&std::string::String`
+               found reference `&'static str`
+help: the return type of this call is `&'static str` due to the type of the argument passed
+   --> crates/brush-app/src/app.rs:814:25
+    |
+814 |         let auto_test = search_params.get("auto_test").unwrap_or("false");
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------^
+    |                                                                  |
+    |                                                                  this argument influences the return type of `unwrap_or`
+note: method defined here
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:998:12
+help: use `Option::map_or` to deref inner value of `Option`
+    |
+814 |         let auto_test = search_params.get("auto_test").map_or("false", |v| v);
+    |                                                        ~~~~~~        +++++++
+
+error[E0277]: the trait bound `str: std::convert::From<std::string::String>` is not satisfied
+   --> crates/brush-app/src/app.rs:839:30
+    |
+839 |   ...                   &format!("
+    |  ________________________^
+840 | | ...                       console.log('🧪 Scheduling test PLY file load');
+841 | | ...                       setTimeout(() => {{
+842 | | ...                           console.log('🧪 Executing automated test: Loading PLY file');
+...   |
+846 | | ...                       }}, 1500);
+847 | | ...                   ").into()
+    | |                        ^ ---- required by a bound introduced by this call
+    | |________________________|
+    |                          the trait `std::convert::From<std::string::String>` is not implemented for `str`
+    |
+    = help: the following other types implement trait `std::convert::From<T>`:
+              `&str` implements `std::convert::From<&icu_locid::extensions::other::subtag::Subtag>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::private::other::Subtag>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::transform::key::Key>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::unicode::attribute::Attribute>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::unicode::key::Key>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::language::Language>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::region::Region>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::script::Script>`
+            and 2 others
+    = note: required for `std::string::String` to implement `Into<str>`
+
+error[E0599]: no method named `ok` found for enum `std::option::Option` in the current scope
+   --> crates/brush-app/src/app.rs:850:22
+    |
+836 | /                 web_sys::window()
+837 | |                     .and_then(|w| w.request_animation_frame(
+838 | |                         &js_sys::Function::new_with_args("", 
+839 | |                             &format!("
+...   |
+849 | |                     ).ok())
+850 | |                     .ok();
+    | |_____________________-^^
+    |
+help: there is a method `or` with a similar name, but with different arguments
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:1524:5
+
+error[E0599]: no method named `unchecked_ref` found for reference `&JsValue` in the current scope
+   --> crates/brush-app/src/app.rs:866:50
+    |
+866 | ...                   closure.as_ref().unchecked_ref(),
+    |                                        ^^^^^^^^^^^^^
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `JsCast` which provides `unchecked_ref` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use wasm_bindgen::JsCast;
+    |
+help: there is a method `unchecked_into` with a similar name
+    |
+866 |                                 closure.as_ref().unchecked_into(),
+    |                                                  ~~~~~~~~~~~~~~
+
+error[E0599]: no method named `ok` found for enum `std::option::Option` in the current scope
+   --> crates/brush-app/src/app.rs:871:22
+    |
+861 | /                 web_sys::window()
+862 | |                     .and_then(|window| {
+863 | |                         window
+864 | |                             .add_event_listener_with_callback(
+...   |
+870 | |                     })
+871 | |                     .ok();
+    | |_____________________-^^
+    |
+help: there is a method `or` with a similar name, but with different arguments
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:1524:5
+
+error[E0599]: no method named `get_dataset_detail_overlay_mut` found for mutable reference `&mut AppContext` in the current scope
+  --> crates/brush-app/src/utils.rs:80:44
+   |
+80 |     if let Some(dataset_overlay) = context.get_dataset_detail_overlay_mut() {
+   |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mut AppContext`
+
+warning: unused variable: `dataset_detail_overlay`
+    --> crates/brush-app/src/app.rs:1277:21
+     |
+1277 |                 let dataset_detail_overlay = self.dataset_detail_overlay.clone();
+     |                     ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_detail_overlay`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `js_window`
+    --> crates/brush-app/src/app.rs:1309:37
+     |
+1309 | ...                   let js_window = web_sys::window().unwrap();
+     |                           ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_js_window`
+
+warning: unused variable: `current_aspect`
+  --> crates/brush-app/src/panels/scene.rs:91:13
+   |
+91 |         let current_aspect = size.x / size.y;
+   |             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_current_aspect`
+
+warning: unused variable: `view_aspect`
+  --> crates/brush-app/src/panels/scene.rs:93:21
+   |
+93 |         if let Some(view_aspect) = context.view_aspect {
+   |                     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_view_aspect`
+
+warning: variable does not need to be mutable
+  --> crates/brush-app/src/panels/scene.rs:88:13
+   |
+88 |         let mut size = size.floor();
+   |             ----^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `dataset_folder`
+   --> crates/brush-app/src/overlays/dataset_detail.rs:457:61
+    |
+457 |     fn process_selected_file(&mut self, file_path: PathBuf, dataset_folder: PathBuf) {
+    |                                                             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_folder`
+
+warning: unused variable: `dataset_folder`
+   --> crates/brush-app/src/overlays/dataset_detail.rs:575:56
+    |
+575 |     fn copy_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
+    |                                                        ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_folder`
+
+Some errors have detailed explanations: E0277, E0308, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `brush-app` (lib) generated 22 warnings
+error: could not compile `brush-app` (lib) due to 7 previous errors; 22 warnings emitted
+2025-03-19T16:20:27.472127Z ERROR ❌ error
+error from build pipeline
+
+Caused by:
+    0: HTML build pipeline failed (1 errors), showing first
+    1: error from asset pipeline
+    2: running cargo build
+    3: error during cargo build execution
+    4: cargo call to executable 'cargo' with args: '["build", "--target=wasm32-unknown-unknown", "--manifest-path", "/Users/ryanhickman/code/brush/crates/brush-app/Cargo.toml"]' returned a bad status: exit status: 101
+2025-03-19T16:20:27.472195Z  INFO 📦 starting build
+warning: unused import: `std::io::Error`
+ --> crates/rrfd/src/lib.rs:8:5
+  |
+8 | use std::io::Error;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::io::ErrorKind`
+ --> crates/rrfd/src/lib.rs:9:5
+  |
+9 | use std::io::ErrorKind;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: `rrfd` (lib) generated 2 warnings (run `cargo fix --lib -p rrfd` to apply 2 suggestions)
+warning: unused import: `std::path::Path`
+ --> crates/brush-dataset/src/storage/mod.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `DatasetInfo` and `StorageType`
+ --> crates/brush-dataset/src/storage/indexed_db.rs:6:29
+  |
+6 | use super::{DatasetStorage, DatasetInfo, StorageType};
+  |                             ^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> crates/brush-dataset/src/storage/filesystem.rs:4:17
+  |
+4 | use std::path::{Path, PathBuf};
+  |                 ^^^^
+
+warning: unused import: `DatasetStorage`
+ --> crates/brush-dataset/src/storage/filesystem.rs:7:13
+  |
+7 | use super::{DatasetStorage, DatasetInfo, StorageType};
+  |             ^^^^^^^^^^^^^^
+
+warning: constant `DB_NAME` is never used
+ --> crates/brush-dataset/src/storage/indexed_db.rs:9:7
+  |
+9 | const DB_NAME: &str = "brush_dataset_storage";
+  |       ^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: constant `METADATA_STORE` is never used
+  --> crates/brush-dataset/src/storage/indexed_db.rs:10:7
+   |
+10 | const METADATA_STORE: &str = "metadata";
+   |       ^^^^^^^^^^^^^^
+
+warning: constant `DATASET_STORE` is never used
+  --> crates/brush-dataset/src/storage/indexed_db.rs:11:7
+   |
+11 | const DATASET_STORE: &str = "datasets";
+   |       ^^^^^^^^^^^^^
+
+warning: method `get_total_storage_used` is never used
+   --> crates/brush-dataset/src/storage/filesystem.rs:126:8
+    |
+15  | impl FilesystemStorage {
+    | ---------------------- method in this implementation
+...
+126 |     fn get_total_storage_used(&self) -> Result<u64> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling brush-app v0.2.0 (/Users/ryanhickman/code/brush/crates/brush-app)
+warning: `brush-dataset` (lib) generated 8 warnings (run `cargo fix --lib -p brush-dataset` to apply 4 suggestions)
+warning: unused import: `std::fmt::Debug`
+  --> crates/brush-app/src/app.rs:26:5
+   |
+26 | use std::fmt::Debug;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::hash::Hash`
+  --> crates/brush-app/src/app.rs:27:5
+   |
+27 | use std::hash::Hash;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `std::io::Error`
+  --> crates/brush-app/src/app.rs:28:5
+   |
+28 | use std::io::Error;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::io::ErrorKind`
+  --> crates/brush-app/src/app.rs:29:5
+   |
+29 | use std::io::ErrorKind;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::pin::Pin`
+  --> crates/brush-app/src/app.rs:30:5
+   |
+30 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+  --> crates/brush-app/src/app.rs:32:5
+   |
+32 | use std::time::Duration;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Align2` and `RichText`
+  --> crates/brush-app/src/app.rs:33:12
+   |
+33 | use egui::{Align2, RichText};
+   |            ^^^^^^  ^^^^^^^^
+
+warning: unused import: `brush_dataset::splat_export`
+  --> crates/brush-app/src/app.rs:34:5
+   |
+34 | use brush_dataset::splat_export;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ExportError` and `ExportFormat`
+  --> crates/brush-app/src/app.rs:36:44
+   |
+36 | use crate::export_service::{ExportService, ExportError, ExportFormat};
+   |                                            ^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `brush_dataset::storage`
+  --> crates/brush-app/src/app.rs:37:5
+   |
+37 | use brush_dataset::storage;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `brush_dataset::splat_export`
+ --> crates/brush-app/src/panels/scene.rs:1:5
+  |
+1 | use brush_dataset::splat_export;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ControlMessage`
+ --> crates/brush-app/src/panels/scene.rs:2:35
+  |
+2 | use brush_process::process_loop::{ControlMessage, ProcessMessage};
+  |                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `tokio_with_wasm::alias as tokio_wasm`
+  --> crates/brush-app/src/panels/scene.rs:17:5
+   |
+17 | use tokio_with_wasm::alias as tokio_wasm;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ProcessMessage`
+ --> crates/brush-app/src/overlays/controls_detail.rs:2:51
+  |
+2 | use brush_process::process_loop::{ControlMessage, ProcessMessage};
+  |                                                   ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Once`
+ --> crates/brush-app/src/utils.rs:2:5
+  |
+2 | use std::sync::Once;
+  |     ^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> crates/brush-app/src/app.rs:813:63
+    |
+813 |         let debug_mode = search_params.get("debug").unwrap_or("false");
+    |                                                     --------- ^^^^^^^ expected `&String`, found `&str`
+    |                                                     |
+    |                                                     arguments to this method are incorrect
+    |
+    = note: expected reference `&std::string::String`
+               found reference `&'static str`
+help: the return type of this call is `&'static str` due to the type of the argument passed
+   --> crates/brush-app/src/app.rs:813:26
+    |
+813 |         let debug_mode = search_params.get("debug").unwrap_or("false");
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------^
+    |                                                               |
+    |                                                               this argument influences the return type of `unwrap_or`
+note: method defined here
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:998:12
+help: use `Option::map_or` to deref inner value of `Option`
+    |
+813 |         let debug_mode = search_params.get("debug").map_or("false", |v| v);
+    |                                                     ~~~~~~        +++++++
+
+error[E0308]: mismatched types
+   --> crates/brush-app/src/app.rs:814:66
+    |
+814 |         let auto_test = search_params.get("auto_test").unwrap_or("false");
+    |                                                        --------- ^^^^^^^ expected `&String`, found `&str`
+    |                                                        |
+    |                                                        arguments to this method are incorrect
+    |
+    = note: expected reference `&std::string::String`
+               found reference `&'static str`
+help: the return type of this call is `&'static str` due to the type of the argument passed
+   --> crates/brush-app/src/app.rs:814:25
+    |
+814 |         let auto_test = search_params.get("auto_test").unwrap_or("false");
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------^
+    |                                                                  |
+    |                                                                  this argument influences the return type of `unwrap_or`
+note: method defined here
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:998:12
+help: use `Option::map_or` to deref inner value of `Option`
+    |
+814 |         let auto_test = search_params.get("auto_test").map_or("false", |v| v);
+    |                                                        ~~~~~~        +++++++
+
+error[E0277]: the trait bound `str: std::convert::From<std::string::String>` is not satisfied
+   --> crates/brush-app/src/app.rs:839:30
+    |
+839 |   ...                   &format!("
+    |  ________________________^
+840 | | ...                       console.log('🧪 Scheduling test PLY file load');
+841 | | ...                       setTimeout(() => {{
+842 | | ...                           console.log('🧪 Executing automated test: Loading PLY file');
+...   |
+846 | | ...                       }}, 1500);
+847 | | ...                   ").into()
+    | |                        ^ ---- required by a bound introduced by this call
+    | |________________________|
+    |                          the trait `std::convert::From<std::string::String>` is not implemented for `str`
+    |
+    = help: the following other types implement trait `std::convert::From<T>`:
+              `&str` implements `std::convert::From<&icu_locid::extensions::other::subtag::Subtag>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::private::other::Subtag>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::transform::key::Key>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::unicode::attribute::Attribute>`
+              `&str` implements `std::convert::From<&icu_locid::extensions::unicode::key::Key>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::language::Language>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::region::Region>`
+              `&str` implements `std::convert::From<&icu_locid::subtags::script::Script>`
+            and 2 others
+    = note: required for `std::string::String` to implement `Into<str>`
+
+error[E0599]: no method named `ok` found for enum `std::option::Option` in the current scope
+   --> crates/brush-app/src/app.rs:850:22
+    |
+836 | /                 web_sys::window()
+837 | |                     .and_then(|w| w.request_animation_frame(
+838 | |                         &js_sys::Function::new_with_args("", 
+839 | |                             &format!("
+...   |
+849 | |                     ).ok())
+850 | |                     .ok();
+    | |_____________________-^^
+    |
+help: there is a method `or` with a similar name, but with different arguments
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:1524:5
+
+error[E0599]: no method named `unchecked_ref` found for reference `&JsValue` in the current scope
+   --> crates/brush-app/src/app.rs:866:50
+    |
+866 | ...                   closure.as_ref().unchecked_ref(),
+    |                                        ^^^^^^^^^^^^^
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `JsCast` which provides `unchecked_ref` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use wasm_bindgen::JsCast;
+    |
+help: there is a method `unchecked_into` with a similar name
+    |
+866 |                                 closure.as_ref().unchecked_into(),
+    |                                                  ~~~~~~~~~~~~~~
+
+error[E0599]: no method named `ok` found for enum `std::option::Option` in the current scope
+   --> crates/brush-app/src/app.rs:871:22
+    |
+861 | /                 web_sys::window()
+862 | |                     .and_then(|window| {
+863 | |                         window
+864 | |                             .add_event_listener_with_callback(
+...   |
+870 | |                     })
+871 | |                     .ok();
+    | |_____________________-^^
+    |
+help: there is a method `or` with a similar name, but with different arguments
+   --> /rustc/4d91de4e48198da2e33413efdcd9cd2cc0c46688/library/core/src/option.rs:1524:5
+
+error[E0599]: no method named `get_dataset_detail_overlay_mut` found for mutable reference `&mut AppContext` in the current scope
+  --> crates/brush-app/src/utils.rs:80:44
+   |
+80 |     if let Some(dataset_overlay) = context.get_dataset_detail_overlay_mut() {
+   |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mut AppContext`
+
+warning: unused variable: `dataset_detail_overlay`
+    --> crates/brush-app/src/app.rs:1277:21
+     |
+1277 |                 let dataset_detail_overlay = self.dataset_detail_overlay.clone();
+     |                     ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_detail_overlay`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `js_window`
+    --> crates/brush-app/src/app.rs:1309:37
+     |
+1309 | ...                   let js_window = web_sys::window().unwrap();
+     |                           ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_js_window`
+
+warning: unused variable: `current_aspect`
+  --> crates/brush-app/src/panels/scene.rs:91:13
+   |
+91 |         let current_aspect = size.x / size.y;
+   |             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_current_aspect`
+
+warning: unused variable: `view_aspect`
+  --> crates/brush-app/src/panels/scene.rs:93:21
+   |
+93 |         if let Some(view_aspect) = context.view_aspect {
+   |                     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_view_aspect`
+
+warning: variable does not need to be mutable
+  --> crates/brush-app/src/panels/scene.rs:88:13
+   |
+88 |         let mut size = size.floor();
+   |             ----^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `dataset_folder`
+   --> crates/brush-app/src/overlays/dataset_detail.rs:457:61
+    |
+457 |     fn process_selected_file(&mut self, file_path: PathBuf, dataset_folder: PathBuf) {
+    |                                                             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_folder`
+
+warning: unused variable: `dataset_folder`
+   --> crates/brush-app/src/overlays/dataset_detail.rs:575:56
+    |
+575 |     fn copy_file_as_is(&mut self, file_path: &PathBuf, dataset_folder: &PathBuf) {
+    |                                                        ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dataset_folder`
+
+Some errors have detailed explanations: E0277, E0308, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `brush-app` (lib) generated 22 warnings
+error: could not compile `brush-app` (lib) due to 7 previous errors; 22 warnings emitted
+2025-03-19T16:20:28.959394Z ERROR ❌ error
+error from build pipeline
+
+Caused by:
+    0: HTML build pipeline failed (1 errors), showing first
+    1: error from asset pipeline
+    2: running cargo build
+    3: error during cargo build execution
+    4: cargo call to executable 'cargo' with args: '["build", "--target=wasm32-unknown-unknown", "--manifest-path", "/Users/ryanhickman/code/brush/crates/brush-app/Cargo.toml"]' returned a bad status: exit status: 101

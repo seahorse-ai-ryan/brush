@@ -96,11 +96,11 @@ alwaysApply: true
    ```
    
    ## Documentation
-   - [User Guide](docs/user-guide.md)
-   - [API Reference](docs/api.md)
+   - [User Guide](mdc:docs/user-guide.md)
+   - [API Reference](mdc:docs/api.md)
    
    ## Contributing
-   See [CONTRIBUTING.md](CONTRIBUTING.md)
+   See [CONTRIBUTING.md](mdc:CONTRIBUTING.md)
    ```
 
 2. Error Messages:
@@ -234,12 +234,12 @@ alwaysApply: true
 2. Link Validation:
    ```markdown
    <!-- Good: Relative links -->
-   [User Guide](../docs/user-guide.md)
-   [API Reference](../docs/api.md)
+   [User Guide](mdc:../docs/user-guide.md)
+   [API Reference](mdc:../docs/api.md)
    
    <!-- Good: Anchored links -->
-   [Installation](#installation)
-   [Usage](#usage)
+   [Installation](mdc:#installation)
+   [Usage](mdc:#usage)
    ```
 
 # Help & Support
@@ -271,9 +271,9 @@ alwaysApply: true
    ```markdown
    ## Getting Help
    
-   - [Documentation](docs/)
-   - [Issue Tracker](issues/)
-   - [Discord Community](discord/)
-   - [Stack Overflow](stackoverflow/)
+   - [Documentation](mdc:docs)
+   - [Issue Tracker](mdc:issues)
+   - [Discord Community](mdc:discord)
+   - [Stack Overflow](mdc:stackoverflow)
    ```
 </documentation_standards> 
