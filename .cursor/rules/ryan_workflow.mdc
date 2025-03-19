@@ -37,6 +37,26 @@ When working with AI assistants on the Brush project:
    - Have the AI explain where documentation changes fit in the overall doc structure
    - Record lessons learned for common issues
 
+4. **Workflow Integration:**
+   - Always hit "Accept All" in the Cursor UI before committing changes
+   - AI should never commit changes without explicit confirmation
+   - AI should remind you to accept changes before git operations
+   - Verify committed changes match what you see in the editor
+
+## Git Workflow Best Practices
+
+When using AI assistants with git:
+
+1. **Before Committing Changes:**
+   - AI should always confirm you've accepted changes in Cursor
+   - AI should show `git status` before committing to verify what will be included
+   - AI should not automatically execute git commit or push operations
+   - AI should suggest what to commit and ask for confirmation
+
+2. **After Committing Changes:**
+   - AI should show the commit hash or summary for verification
+   - AI should confirm successful pushes to remote repositories
+
 ## Common Personal Commands
 
 Commands I frequently use:

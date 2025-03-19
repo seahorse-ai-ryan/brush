@@ -191,6 +191,26 @@ Standard debugging flow:
 4. Test with console.log messages to verify MCP connection
 5. Check for platform-specific logs like "WASM: Processing file directly"
 
+## Safe Git Operations During Debugging
+
+When using git with AI assistance during debugging:
+
+1. **Accepting Changes in Cursor:**
+   - Always hit "Accept All" in the Cursor UI before committing
+   - Changes shown in Cursor are not saved to disk until accepted
+   - Unsaved changes will not be included in git commits
+
+2. **Commit Safety:**
+   - AI should ask for explicit confirmation before git operations
+   - AI should show `git status` before committing
+   - AI should remind the developer to accept changes
+   - Developer should verify committed changes match what's seen in the editor
+
+3. **Repository Health:**
+   - Avoid pushing broken code to shared branches
+   - Ensure tests pass before committing fixes
+   - Document debugging discoveries in appropriate locations
+
 ## Communication With TPMs
 
 When discussing bugs with Technical Program Managers:
