@@ -40,6 +40,7 @@ impl PropertyAccess for ParsedGaussian<false> {
         let ascii = key.as_bytes();
 
         let value = match property {
+            Property::Double(value) => value as f32,
             Property::Float(value) => value,
             Property::UChar(value) => (value as f32) / (u8::MAX as f32 - 1.0),
             Property::UShort(value) => (value as f32) / (u16::MAX as f32 - 1.0),
