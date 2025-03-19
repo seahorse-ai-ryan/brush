@@ -175,6 +175,22 @@ Example of correct platform-specific code:
 }
 ```
 
+## Web Platform Special Considerations
+
+The Brush application has special handling for web platform limitations:
+1. Uses platform-specific code to handle file operations in WASM environments
+2. Automatically disables SRI (Subresource Integrity) checks in development
+3. Provides fallbacks for filesystem operations that aren't available in browsers
+
+## Standard Debugging Flow
+
+Standard debugging flow:
+1. Start the MCP server first (to capture logs)
+2. Start the Trunk server second (to serve the application)
+3. Open Chrome and navigate to http://localhost:8080
+4. Test with console.log messages to verify MCP connection
+5. Check for platform-specific logs like "WASM: Processing file directly"
+
 ## Communication With TPMs
 
 When discussing bugs with Technical Program Managers:
