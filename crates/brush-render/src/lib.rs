@@ -5,7 +5,7 @@ use burn::tensor::ops::{FloatTensor, IntTensor};
 use burn::tensor::{ElementConversion, Int, TensorMetadata};
 use burn_cubecl::CubeBackend;
 use burn_fusion::Fusion;
-use burn_wgpu::graphics::AutoGraphicsApi;
+use burn_wgpu::graphics::{AutoGraphicsApi, GraphicsApi};
 use burn_wgpu::{RuntimeOptions, WgpuDevice, WgpuRuntime};
 use camera::Camera;
 use shaders::helpers::TILE_WIDTH;
@@ -216,6 +216,7 @@ pub fn burn_init_device(adapter: Adapter, device: Device, queue: Queue) -> WgpuD
         adapter,
         device,
         queue,
+        backend: AutoGraphicsApi::backend(),
     };
     burn_wgpu::init_device(setup, burn_options())
 }
