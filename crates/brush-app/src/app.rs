@@ -23,12 +23,18 @@ use egui_tiles::SimplificationOptions;
 use egui_tiles::{Container, Tile, TileId, Tiles};
 use glam::{Affine3A, Quat, Vec3};
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::io::Error;
+use std::io::ErrorKind;
+use std::pin::Pin;
 use std::path::PathBuf;
 use std::time::Duration;
 use egui::{Align2, RichText};
 use brush_dataset::splat_export;
 use tokio_with_wasm::alias as tokio_wasm;
 use crate::export_service::{ExportService, ExportError, ExportFormat};
+use brush_dataset::storage;
 
 #[cfg(not(target_family = "wasm"))]
 use rfd;
@@ -139,6 +145,12 @@ pub struct AppContext {
     
     // Export service for handling splat exports
     export_service: ExportService,
+    
+    // Storage for datasets
+    #[cfg(target_family = "wasm")]
+    storage: Option<brush_dataset::storage::indexed_db::IndexedDbStorage>,
+    #[cfg(not(target_family = "wasm"))]
+    storage: Option<brush_dataset::storage::filesystem::FilesystemStorage>,
 }
 
 #[derive(Clone)]
@@ -181,7 +193,90 @@ impl AppContext {
             running_process: None,
             cam_settings: cam_settings.clone(),
             export_service: ExportService::new(None),
+            #[cfg(target_family = "wasm")]
+            storage: None,
+            #[cfg(not(target_family = "wasm"))]
+            storage: None,
         }
+    }
+    
+    /// Initialize the storage system
+    #[cfg(target_arch = "wasm32")]
+    pub async fn initialize_storage(&mut self) -> std::io::Result<()> {
+        use brush_dataset::storage::indexed_db::IndexedDbStorage;
+        use brush_dataset::storage::DatasetStorage;
+        use crate::utils::{log_info, log_error};
+        
+        log_info("Initializing IndexedDB storage");
+        
+        // Create storage and initialize it
+        match IndexedDbStorage::new() {
+            Ok(mut storage) => {
+                if let Err(err) = storage.initialize() {
+                    log_error(&format!("Failed to initialize IndexedDB: {}", err));
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()));
+                }
+                
+                self.storage = Some(storage);
+                log_info("IndexedDB storage initialized successfully");
+                Ok(())
+            }
+            Err(err) => {
+                log_error(&format!("Failed to create IndexedDB storage: {}", err));
+                Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+            }
+        }
+    }
+    
+    /// Initialize the storage system
+    #[cfg(not(target_family = "wasm"))]
+    pub fn initialize_storage(&mut self) -> anyhow::Result<()> {
+        use brush_dataset::storage::filesystem::FilesystemStorage;
+        use std::path::PathBuf;
+        
+        log::info!("Initializing filesystem storage...");
+        
+        // Get the default dataset directory
+        let dataset_dir = dirs::data_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("brush")
+            .join("datasets");
+        
+        log::info!("Using dataset directory: {:?}", dataset_dir);
+        
+        let mut storage = FilesystemStorage::new(dataset_dir);
+        if let Err(err) = storage.initialize() {
+            log::error!("Failed to initialize filesystem storage: {}", err);
+            return Err(err);
+        }
+        
+        self.storage = Some(storage);
+        log::info!("Filesystem storage initialized successfully");
+        Ok(())
+    }
+    
+    /// Get a reference to the storage
+    #[cfg(target_family = "wasm")]
+    pub fn storage(&self) -> Option<&brush_dataset::storage::indexed_db::IndexedDbStorage> {
+        self.storage.as_ref()
+    }
+    
+    /// Get a mutable reference to the storage
+    #[cfg(target_family = "wasm")]
+    pub fn storage_mut(&mut self) -> Option<&mut brush_dataset::storage::indexed_db::IndexedDbStorage> {
+        self.storage.as_mut()
+    }
+    
+    /// Get a reference to the storage
+    #[cfg(not(target_family = "wasm"))]
+    pub fn storage(&self) -> Option<&brush_dataset::storage::filesystem::FilesystemStorage> {
+        self.storage.as_ref()
+    }
+    
+    /// Get a mutable reference to the storage
+    #[cfg(not(target_family = "wasm"))]
+    pub fn storage_mut(&mut self) -> Option<&mut brush_dataset::storage::filesystem::FilesystemStorage> {
+        self.storage.as_mut()
     }
 
     fn match_controls_to(&mut self, cam: &Camera) {
@@ -509,6 +604,10 @@ impl App {
         start_uri_override: Option<String>,
         reset_windows: bool,
     ) -> Self {
+        // Add debug message for app initialization
+        #[cfg(target_family = "wasm")]
+        crate::utils::log_info("Brush application initializing...");
+        
         // Brush is always in dark mode for now, as it looks better and I don't care much to
         // put in the work to support both light and dark mode!
         cc.egui_ctx
@@ -524,6 +623,10 @@ impl App {
             state.device.clone(),
             state.queue.clone(),
         );
+
+        // Log device initialization
+        #[cfg(target_family = "wasm")]
+        crate::utils::log_debug("WGPU device initialized successfully");
 
         // Parse URL parameters.
         let mut zen = false;
@@ -584,42 +687,36 @@ impl App {
         };
         let context = AppContext::new(device.clone(), cc.egui_ctx.clone(), &settings);
 
-        let mut tiles: Tiles<PaneType> = Tiles::default();
-        let scene_pane = ScenePanel::new(
-            state.device.clone(),
-            state.queue.clone(),
-            state.renderer.clone(),
-            zen,
-        );
-
-        let scene_pane_id = tiles.insert_pane(Box::new(scene_pane));
-
-        let root_container = if !zen {
-            #[cfg(feature = "tracing")]
-            {
-                // If tracing is enabled, add the tracing panel
-                let tracing_pane = tiles.insert_pane(Box::new(TracingPanel::default()));
-
-            let mut lin = egui_tiles::Linear::new(
-                egui_tiles::LinearDir::Horizontal,
-                    vec![tracing_pane, scene_pane_id],
-            );
-                lin.shares.set_share(tracing_pane, 0.2);
-            tiles.insert_container(lin)
-            }
-            
-            #[cfg(not(feature = "tracing"))]
-            {
-                // Just use the scene panel
-                scene_pane_id
-            }
-        } else {
-            scene_pane_id
-        };
-
-        let tree = egui_tiles::Tree::new("brush_tree", root_container, tiles);
-
+        // Create the shared context
         let context = Arc::new(RwLock::new(context));
+        
+        // Initialize storage
+        #[cfg(target_family = "wasm")]
+        {
+            use tokio_with_wasm::alias as tokio_wasm;
+            
+            // Clone context for the async task
+            let context_clone = context.clone();
+            
+            // Initialize storage asynchronously
+            tokio_wasm::task::spawn(async move {
+                if let Err(err) = context_clone.write().expect("Lock poisoned").initialize_storage().await {
+                    log::error!("Failed to initialize IndexedDB storage: {}", err);
+                } else {
+                    log::info!("IndexedDB storage initialized successfully");
+                }
+            });
+        }
+        
+        #[cfg(not(target_family = "wasm"))]
+        {
+            if let Err(err) = context.write().expect("Lock poisoned").initialize_storage() {
+                log::error!("Failed to initialize filesystem storage: {}", err);
+            } else {
+                log::info!("Filesystem storage initialized successfully");
+            }
+        }
+
         let _ = create_callback.send(AppCreateCb {
             context: context.clone(),
         });
@@ -675,6 +772,107 @@ impl App {
                 .write()
                 .expect("Lock poisoned")
                 .connect_to(running);
+        }
+
+        let mut tiles: Tiles<PaneType> = Tiles::default();
+        let scene_pane = ScenePanel::new(
+            state.device.clone(),
+            state.queue.clone(),
+            state.renderer.clone(),
+            zen,
+        );
+
+        let scene_pane_id = tiles.insert_pane(Box::new(scene_pane));
+
+        let root_container = if !zen {
+            #[cfg(feature = "tracing")]
+            {
+                // If tracing is enabled, add the tracing panel
+                let tracing_pane = tiles.insert_pane(Box::new(TracingPanel::default()));
+
+            let mut lin = egui_tiles::Linear::new(
+                egui_tiles::LinearDir::Horizontal,
+                    vec![tracing_pane, scene_pane_id],
+            );
+                lin.shares.set_share(tracing_pane, 0.2);
+            tiles.insert_container(lin)
+            }
+            
+            #[cfg(not(feature = "tracing"))]
+            {
+                // Just use the scene panel
+                scene_pane_id
+            }
+        } else {
+            scene_pane_id
+        };
+
+        let tree = egui_tiles::Tree::new("brush_tree", root_container, tiles);
+
+        // Debug mode parameter
+        let debug_mode = search_params.get("debug").unwrap_or("false");
+        let auto_test = search_params.get("auto_test").unwrap_or("false");
+
+        // If debug mode is enabled, log it
+        if debug_mode == "true" {
+            log::info!("🧪 Debug mode enabled");
+            
+            // Configure any debug-specific settings
+            #[cfg(target_arch = "wasm32")]
+            crate::utils::log_info("Debug mode enabled via URL parameter");
+        }
+
+        // If auto-test is enabled, queue a test PLY file to be loaded
+        if auto_test == "true" {
+            log::info!("🧪 Automated testing enabled - will load test PLY file");
+            
+            #[cfg(target_arch = "wasm32")]
+            {
+                use std::sync::Arc;
+                // Clone the context for test execution
+                let context_clone = tree_ctx.context.clone();
+                
+                // Schedule test PLY load for after initialization
+                web_sys::window()
+                    .and_then(|w| w.request_animation_frame(
+                        &js_sys::Function::new_with_args("", 
+                            &format!("
+                                console.log('🧪 Scheduling test PLY file load');
+                                setTimeout(() => {{
+                                    console.log('🧪 Executing automated test: Loading PLY file');
+                                    window.dispatchEvent(new CustomEvent('brush_auto_test', {{
+                                        detail: {{ type: 'load_ply' }}
+                                    }}));
+                                }}, 1500);
+                            ").into()
+                        )
+                    ).ok())
+                    .ok();
+                
+                // Set up event listener for automated test events
+                let context_arc = Arc::clone(&context_clone);
+                let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |_event: web_sys::Event| {
+                    log::info!("🧪 Received auto-test event");
+                    if let Ok(mut ctx) = context_arc.write() {
+                        crate::utils::auto_load_test_ply(&mut ctx);
+                    }
+                }) as Box<dyn FnMut(_)>);
+                
+                web_sys::window()
+                    .and_then(|window| {
+                        window
+                            .add_event_listener_with_callback(
+                                "brush_auto_test",
+                                closure.as_ref().unchecked_ref(),
+                            )
+                            .ok()?;
+                        Some(window)
+                    })
+                    .ok();
+                
+                // Leak the closure to keep it alive (it's only for testing)
+                closure.forget();
+            }
         }
 
         Self {
@@ -806,6 +1004,13 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Add debug message for first frame
+        static FIRST_FRAME: std::sync::Once = std::sync::Once::new();
+        FIRST_FRAME.call_once(|| {
+            #[cfg(target_family = "wasm")]
+            crate::utils::log_info("Brush application loaded and ready");
+        });
+        
         self.receive_messages();
 
         // Handle WASM file selection events
@@ -819,11 +1024,17 @@ impl eframe::App for App {
                         // Reset the flag
                         let _ = js_sys::Reflect::set(&window, &"filesSelectedEventOccurred".into(), &false.into());
                         
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_debug("Files selected event detected");
+                        
                         // Get the selected file paths
                         if let Ok(paths_json) = js_sys::Reflect::get(&window, &"selectedFilePaths".into()) {
                             if let Some(paths_str) = paths_json.as_string() {
                                 if let Ok(paths) = serde_json::from_str::<Vec<PathBuf>>(&paths_str) {
                                     if !paths.is_empty() {
+                                        #[cfg(target_family = "wasm")]
+                                        crate::utils::log_info(&format!("Processing {} selected files", paths.len()));
+                                        
                                         self.dataset_detail_overlay.set_selected_files(paths);
                                     }
                                 }
@@ -887,8 +1098,14 @@ impl eframe::App for App {
                     );
                     
                     if datasets_button.clicked() {
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_debug("Datasets button clicked");
+                        
                         let is_open = self.dataset_detail_overlay.is_open();
                         self.dataset_detail_overlay.set_open(!is_open);
+                        
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_info(&format!("Dataset panel is now {}", if !is_open { "open" } else { "closed" }));
                     }
                     
                     // Tooltip for the datasets button
@@ -912,8 +1129,14 @@ impl eframe::App for App {
                     );
                     
                     if settings_button.clicked() {
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_debug("Settings button clicked");
+                        
                         let is_open = self.settings_detail_overlay.is_open();
                         self.settings_detail_overlay.set_open(!is_open);
+                        
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_info(&format!("Settings panel is now {}", if !is_open { "open" } else { "closed" }));
                     }
                     
                     // Tooltip for the settings button
@@ -937,8 +1160,14 @@ impl eframe::App for App {
                     );
                     
                     if stats_button.clicked() {
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_debug("Stats button clicked");
+                        
                         let is_open = self.stats_detail_overlay.is_open();
                         self.stats_detail_overlay.set_open(!is_open);
+                        
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_info(&format!("Stats panel is now {}", if !is_open { "open" } else { "closed" }));
                     }
                     
                     // Tooltip for the stats button
@@ -962,8 +1191,14 @@ impl eframe::App for App {
                     );
                     
                     if controls_button.clicked() {
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_debug("Controls button clicked");
+                        
                         let is_open = self.controls_detail_overlay.is_open();
                         self.controls_detail_overlay.set_open(!is_open);
+                        
+                        #[cfg(target_family = "wasm")]
+                        crate::utils::log_info(&format!("Controls panel is now {}", if !is_open { "open" } else { "closed" }));
                     }
                     
                     // Tooltip for the controls button

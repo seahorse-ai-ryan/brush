@@ -400,12 +400,57 @@ impl DatasetDetailOverlay {
     
     // New method to handle the selected file
     pub(crate) fn set_selected_file(&mut self, file_path: PathBuf) {
-        // Reset all file selection flags
+        let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        
+        // Debug logging for file selection
+        #[cfg(target_arch = "wasm32")]
+        crate::utils::log_info(&format!("🔍 File selected: {}", filename));
+        
+        // Check the file extension to validate it's a supported format
+        if let Some(ext) = file_path.extension() {
+            let ext_str = ext.to_string_lossy().to_lowercase();
+            
+            // List of supported extensions
+            const SUPPORTED_EXTENSIONS: [&str; 2] = ["ply", "zip"];
+            
+            if !SUPPORTED_EXTENSIONS.contains(&ext_str.as_str()) {
+                // Log unsupported file format
+                #[cfg(target_arch = "wasm32")]
+                crate::utils::log_error(&format!("❌ Unsupported file format: {}", ext_str));
+                return;
+            }
+            
+            #[cfg(target_arch = "wasm32")]
+            crate::utils::log_info(&format!("✅ Supported file format: {}", ext_str));
+        } else {
+            // Log missing extension
+            #[cfg(target_arch = "wasm32")]
+            crate::utils::log_error("❌ File has no extension");
+            return;
+        }
+        
+        // Reset file selection flags
         self.show_file_dialog = false;
         self.file_selection_in_progress = false;
         
-        // Store the file path for processing
-        self.pending_file_import = Some(file_path);
+        // Process the selected file if we have a dataset folder
+        if let Some(dataset_folder) = self.datasets_folder.clone() {
+            // Log processing attempt
+            #[cfg(target_arch = "wasm32")]
+            crate::utils::log_info(&format!("🔄 Processing file: {} with dataset folder: {:?}", 
+                                           filename, dataset_folder));
+            
+            // Process the file
+            self.process_selected_file(file_path, dataset_folder);
+            
+            // Log completion
+            #[cfg(target_arch = "wasm32")]
+            crate::utils::log_info(&format!("✅ File processed: {}", filename));
+        } else {
+            // Log error - no dataset folder
+            #[cfg(target_arch = "wasm32")]
+            crate::utils::log_error("❌ No dataset folder available for file processing");
+        }
     }
     
     // Helper method to process a selected file
@@ -1530,6 +1575,21 @@ impl DatasetDetailOverlay {
     /// Get whether to copy datasets to local folder
     pub(crate) fn copy_datasets_to_local(&self) -> bool {
         self.copy_datasets_to_local
+    }
+    
+    /// Sets whether to copy datasets to local folder
+    /// Used primarily for testing/debugging
+    pub(crate) fn set_copy_datasets_to_local(&mut self, should_copy: bool) {
+        self.copy_datasets_to_local = should_copy;
+        
+        #[cfg(target_arch = "wasm32")]
+        {
+            if should_copy {
+                crate::utils::log_warn("Copy datasets to local folder enabled in WASM environment - this may fail");
+            } else {
+                crate::utils::log_info("Copy datasets to local folder disabled (appropriate for WASM)");
+            }
+        }
     }
     
     /// Get the datasets folder
