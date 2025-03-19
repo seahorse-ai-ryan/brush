@@ -14,6 +14,7 @@ This document serves as the central index for Brush documentation. Brush is a Ga
 - **[Vibe Coding Guide](vibe_coding_guide.md)**: Coding standards and best practices
 - **[Browser Tools Setup](browser_tools_setup.md)**: How to set up Browser Tools MCP for enhanced development and debugging
 - **[Web Debugging Guide](debugging-web.md)**: Comprehensive guide for debugging web applications with Browser Tools MCP
+- **[AI-Assisted Debugging](ai_assisted_debugging.md)**: Structured approach for using AI agents to debug Brush applications
 
 ## Core Functionality
 
