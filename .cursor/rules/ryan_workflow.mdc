@@ -1,6 +1,57 @@
 ---
-description: 
+description: Ryan's personal workflow for Brush development
 globs: 
 alwaysApply: false
 ---
- 
+
+# Ryan's Brush Development Workflow
+
+## Environment Setup
+
+My typical development environment setup:
+
+```bash
+# Start MCP server for browser tools
+cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+
+# In a separate terminal, start Trunk server
+cd /Users/ryanhickman/code/brush && trunk serve --no-autoreload --open=false
+```
+
+## AI-Assisted Development
+
+When working with AI assistants on the Brush project:
+
+1. **Start each session with context:**
+   - Provide the current branch: `new-ui`
+   - Mention any recent significant changes
+   - Specify the goals for the current session
+
+2. **Debugging process:**
+   - Share error logs from MCP server and Trunk
+   - Ask the AI to analyze root causes before suggesting fixes
+   - Have the AI explain the reasoning behind proposed changes
+
+3. **Documentation updates:**
+   - Request that the AI update relevant documentation
+   - Have the AI explain where documentation changes fit in the overall doc structure
+   - Record lessons learned for common issues
+
+## Common Personal Commands
+
+Commands I frequently use:
+
+```bash
+# Kill all development servers
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && (pkill -f "browser-tools-server" || true)
+
+# Quick status check
+git status && ls -la .cursor/rules/
+
+# Commit and push workflow files
+git add .cursor/rules/ryan_workflow.mdc && git commit -m "Update personal workflow documentation" && git push origin new-ui
+```
+
+## NOTE: PERSONAL RULES FILE
+
+This file contains my personal workflow preferences and is not intended for upstream contribution. It should remain in the project's .cursor/rules directory for my own use but should not be pushed to the main repository. 

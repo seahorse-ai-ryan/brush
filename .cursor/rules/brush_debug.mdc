@@ -115,7 +115,7 @@ cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && (pkill -
 ### Launch Debug Environment
 To quickly set up a complete debug environment:
 ```bash
-cd /Users/ryanhickman/code/brush && ./debug_launcher.sh
+cd /Users/ryanhickman/code/brush && ./scripts/dev/debug_launcher.sh
 ```
 
 This sets up:
