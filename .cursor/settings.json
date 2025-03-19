@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "glob_to_rules": {
+      "**/*.rs": ["brush_coding_guide.mdc", "brush_technical.mdc"],
+      "crates/brush-app/**/*": ["brush_project.mdc", "brush_debug.mdc"],
+      "crates/brush-web/**/*": ["brush_project.mdc", "brush_debug.mdc"],
+      "**/*": ["ryan_workflow.mdc"]
+    }
+  },
+  "editor": {
+    "formatOnSave": true,
+    "formatOnType": false,
+    "tabSize": 4,
+    "insertSpaces": true
+  },
+  "chat": {
+    "defaultModel": "claude-3-5-sonnet",
+    "autoAttachCursorRules": true,
+    "autoAttachFiles": true,
+    "maxFileSizeKb": 4096
+  }
+} 

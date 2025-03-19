@@ -1,0 +1,210 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Brush Debugging Workflow
+
+## Web Application Debugging Process
+
+When debugging Brush web applications, follow this structured process:
+
+### 1. Clear Bug Identification
+
+Before attempting any fixes, you MUST:
+
+- Analyze error patterns in compilation output, runtime logs, and browser console
+- Form a clear hypothesis about the root cause
+- Document the exact error messages
+- Identify which files need modifications
+- Provide a concise description of the expected vs. actual behavior
+
+Example bug identification format:
+```
+Bug identification:
+- Issue: [Short description of the bug]
+- Error messages: [Specific error messages, including line numbers if available]
+- Affected files: [List of files that need modification]
+- Environment: [Web/WASM, Chrome browser, etc.]
+- Reproduction steps: [How to trigger the bug]
+```
+
+### 2. Root Cause Analysis
+
+After identifying the bug, perform thorough analysis:
+
+- Determine if the issue is platform-specific (web vs. desktop)
+- Identify specific component(s) affected (UI, rendering, data management, etc.)
+- Examine data flow leading to the error
+- Check for similar patterns in previously fixed issues
+
+Document your analysis:
+```
+Root cause analysis:
+- Suspected cause: [Why the bug is occurring]
+- Evidence: [What in the code/logs supports this]
+- Related patterns: [Similar issues seen before]
+- System impact: [Other components affected]
+```
+
+### 3. Solution Strategy
+
+Before implementing changes, explain:
+
+- The approach you'll take to fix the issue
+- Specific code changes required
+- Any potential side effects or risks
+- How you'll verify the fix works
+
+### 4. Implementation and Testing
+
+When implementing changes:
+
+1. Make focused, incremental changes to one file at a time
+2. Provide clear explanations of what each change does
+3. After code changes, automatically reload the browser:
+   ```bash
+   cd /Users/ryanhickman/code/brush && curl -X POST http://localhost:8080/_trunk/reload
+   ```
+4. Check console logs for errors or warnings
+5. Verify the fix works as expected
+
+### 5. Documentation and Knowledge Capture
+
+After resolving the issue:
+
+1. Document the fix in the code with clear comments
+2. Update relevant files in the /docs directory
+3. Capture lessons learned in brush_lessons.mdc
+4. Ensure the fix works across all relevant platforms
+
+## Server Management Commands
+
+### Start MCP Server
+```bash
+cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+```
+
+### Start Trunk Server (Preferred Method for AI-Assisted Debugging)
+```bash
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve --no-autoreload --open=false
+```
+Run this command inline in the AI assistant chat to:
+- See compilation errors immediately in the conversation
+- Maintain context between code changes and errors
+- Allow the AI to directly address compilation issues
+- Avoid switching between tabs or windows
+
+### Start Trunk Server with Error Filtering (Alternative Method)
+```bash
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve --no-autoreload --open=false 2>&1 | tee >(grep -E "error|panicked|exception|warning" --color=always)
+```
+
+### Force Browser Reload
+```bash
+cd /Users/ryanhickman/code/brush && curl -X POST http://localhost:8080/_trunk/reload
+```
+
+### Kill All Servers
+```bash
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && (pkill -f "browser-tools-server" || true) && echo "Stopped all servers."
+```
+
+## Automated Testing & Debugging
+
+### Launch Debug Environment
+To quickly set up a complete debug environment:
+```bash
+cd /Users/ryanhickman/code/brush && ./debug_launcher.sh
+```
+
+This sets up:
+1. A test PLY file in test_data/ (if needed)
+2. The MCP server for console capture
+3. The Trunk server for the web application
+4. Opens the debug launcher page
+
+### Run Automated Test Scenarios
+To test specific functionality without manual interaction:
+```
+http://localhost:8080/?debug=true&auto_test=true&test=ply-loading
+```
+
+Available test scenarios:
+- `ply-loading`: Tests PLY file loading
+- `ui-rendering`: Tests UI rendering after data load
+
+### Analyze Debug Logs
+After testing, analyze the captured logs:
+```bash
+cd /Users/ryanhickman/code/brush && ./analyze_logs.js mcp_log.txt
+```
+
+This will generate a report highlighting:
+- Critical errors
+- Warnings
+- Important info messages
+- Recommendations for fixing identified issues
+
+## Web-Specific Development Patterns
+
+When working on code that needs to run in both web and native environments:
+
+1. Use `#[cfg(target_arch = "wasm32")]` for web-specific code paths
+2. Use `#[cfg(not(target_arch = "wasm32"))]` for native-only code
+3. Avoid direct filesystem operations in web code
+4. Use platform-specific error handling
+5. Implement chunked processing for memory-intensive operations
+6. Handle async operations properly in the UI
+
+Example of correct platform-specific code:
+
+```rust
+#[cfg(target_arch = "wasm32")]
+{
+    // Web-specific implementation
+    utils::log_info("Running in web environment");
+    // Use web-compatible APIs
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+{
+    // Native implementation
+    std::fs::create_dir_all(path)?;
+    // Use filesystem APIs
+}
+```
+
+## Communication With TPMs
+
+When discussing bugs with Technical Program Managers:
+
+1. **Summarize Technical Issues in Business Terms**:
+   - Explain root causes without implementation details
+   - Focus on user impact and system constraints
+   - Use analogies for complex technical concepts
+
+2. **Present Options with Trade-offs**:
+   - Provide multiple approaches when appropriate
+   - Highlight trade-offs in terms of:
+     - Development time
+     - Performance impact
+     - Cross-platform compatibility
+     - User experience
+
+3. **Provide Clear Status Updates**:
+   - Current state of the issue
+   - Remaining steps to resolution
+   - Any blockers or dependencies
+   - Estimated time to completion
+
+Example TPM communication:
+```
+Status update on web file loading issue:
+- Root cause: The application is using native filesystem APIs in web context
+- Fix approach: Implementing separate code paths for web vs. desktop
+- Progress: 80% complete (2 of 3 components fixed)
+- Remaining work: Update tests and documentation
+- Estimated completion: By end of day
+- Testing needed: Verify on Chrome, Firefox, and Safari
+``` 
