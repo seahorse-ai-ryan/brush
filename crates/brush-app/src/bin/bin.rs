@@ -3,6 +3,7 @@
 #[allow(unused)]
 use brush_app::App;
 use brush_app::app::AppCreateCb;
+use brush_app::utils::set_panic_hook;
 
 use brush_process::process_loop::start_process;
 #[allow(unused)]
@@ -13,6 +14,9 @@ type MainResult = Result<(), clap::Error>;
 
 #[cfg(target_family = "wasm")]
 type MainResult = Result<(), ()>;
+
+// Simple build timestamp for debugging
+const BUILD_TIME: &str = "2025-03-17 (manual)";
 
 #[allow(clippy::unnecessary_wraps)] // Error isn't need on wasm but that's ok.
 fn main() -> MainResult {
@@ -67,13 +71,13 @@ fn main() -> MainResult {
                 }
 
                 let title = if cfg!(debug_assertions) {
-                    "Brush  -  Debug"
+                    format!("Brush - Debug [{}]", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
                 } else {
-                    "Brush"
+                    "Brush".to_string()
                 };
 
                 eframe::run_native(
-                    title,
+                    &title,
                     native_options,
                     Box::new(move |cc| Ok(Box::new(App::new(cc, send, None, args.reset_windows)))),
                 )
@@ -94,7 +98,17 @@ fn main() -> MainResult {
     {
         use tokio_with_wasm::alias as tokio_wasm;
         use wasm_bindgen::JsCast;
+        use brush_app::utils::log_info;
 
+        // Set up the panic hook to ensure errors are properly logged to console
+        set_panic_hook();
+        
+        // Log application startup with a distinctive message that should be easy to spot
+        log_info("🔴🔴🔴 BRUSH APPLICATION STARTING 🔴🔴🔴");
+        
+        // Also try direct web_sys console log
+        web_sys::console::log_1(&"🟢🟢🟢 DIRECT CONSOLE.LOG TEST 🟢🟢🟢".into());
+        
         if cfg!(debug_assertions) {
             eframe::WebLogger::init(log::LevelFilter::Debug).ok();
         }
@@ -115,6 +129,17 @@ fn main() -> MainResult {
                     ..Default::default()
                 };
 
+                let (send, _rec) = tokio::sync::oneshot::channel();
+
+                // Set the document title with build timestamp in debug mode
+                if cfg!(debug_assertions) {
+                    if let Some(window) = web_sys::window() {
+                        let document = window.document().unwrap();
+                        document.set_title(&format!("Brush - Debug [{}]", 
+                            js_sys::Date::new_0().to_iso_string().as_string().unwrap_or_default()));
+                    }
+                }
+
                 eframe::WebRunner::new()
                     .start(
                         canvas,
@@ -134,6 +159,8 @@ fn main() -> MainResult {
 mod embedded {
     use super::start_process;
     use brush_app::App;
+    use brush_app::utils;
+    use brush_app::utils::set_panic_hook;
     use brush_process::{data_source::DataSource, process_loop::ProcessArgs};
     use std::future::IntoFuture;
     use tokio::sync::mpsc::UnboundedSender;
@@ -154,6 +181,12 @@ mod embedded {
     impl EmbeddedApp {
         #[wasm_bindgen(constructor)]
         pub fn new(canvas_name: &str, start_uri: &str) -> Self {
+            // Set up the panic hook to ensure errors are properly logged to console
+            set_panic_hook();
+            
+            // Log embedded app initialization
+            utils::log_info(&format!("Initializing embedded Brush app with canvas: {}", canvas_name));
+            
             let wgpu_options = brush_ui::create_egui_options();
             let document = web_sys::window()
                 .expect("Failed to get winow")
@@ -165,6 +198,8 @@ mod embedded {
                 .dyn_into::<web_sys::HtmlCanvasElement>()
                 .unwrap_or_else(|_| panic!("Found canvas {canvas_name} was in fact not a canvas"));
 
+            utils::log_debug("Canvas element found and validated");
+
             let (send, rec) = tokio::sync::oneshot::channel();
 
             let (cmd_send, mut cmd_rec) = tokio::sync::mpsc::unbounded_channel();
@@ -172,12 +207,12 @@ mod embedded {
             let start_uri = start_uri.to_owned();
 
             // On wasm, run as a local task.
-            tokio_wasm::task::spawn(async {
+            tokio_wasm::task::spawn(async move {
                 eframe::WebRunner::new()
                     .start(
                         canvas,
                         eframe::WebOptions::default(),
-                        Box::new(|cc| Box::new(App::new(cc, send, Some(start_uri.to_string()), false))),
+                        Box::new(move |cc| Ok(Box::new(App::new(cc, send, Some(start_uri.clone()), false)))),
                     )
                     .await
                     .expect("Failed to start eframe");

@@ -19,7 +19,7 @@ path = "src/bin/bin.rs"
 brush-process.path = "../brush-process"
 brush-ui.path = "../brush-ui"
 brush-render.path = "../brush-render"
-brush-dataset.path = "../brush-dataset"
+brush-dataset = { path = "../brush-dataset", features = [] }
 brush-train.path = "../brush-train"
 
 sync-span.path = "../sync-span"
@@ -43,6 +43,7 @@ web-time.workspace = true
 dirs = "5.0"
 zip.workspace = true
 chrono = "0.4"
+serde_json.workspace = true
 
 log.workspace = true
 thiserror = "1.0"
@@ -67,11 +68,14 @@ winit = { version = "0.30", features = ["default"] }
 rfd = "0.12"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
+brush-dataset = { path = "../brush-dataset", features = ["web-storage"] }
 tracing-wasm.workspace = true
 tokio = { workspace = true, features = ["io-util", "rt"] }
 wasm-bindgen.workspace = true
 console_error_panic_hook.workspace = true
-web-sys.workspace = true
+web-sys = { workspace = true, features = ["console"] }
+js-sys.workspace = true
+wasm-bindgen-futures = "0.4"
 wasm-logger.workspace = true
 getrandom = { version = "0.3", features = ["wasm_js"] }
 
@@ -90,3 +94,6 @@ ignored = ["winit"] # Need winit to set backend.
 
 [lints]
 workspace = true
+
+[build-dependencies]
+chrono = "0.4"

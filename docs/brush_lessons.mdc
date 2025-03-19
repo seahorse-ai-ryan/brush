@@ -1,1 +1,106 @@
- 
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# UI Development
+// ... existing code ...
+
+# File Handling
+// ... existing code ...
+
+# Performance Optimization
+// ... existing code ...
+
+# Cross-Platform Development
+## Web Platform
+// ... existing code ...
+
+## Node.js Integration
+1. Problem: Managing Node.js dependencies in Rust projects
+   - Symptoms: Inconsistent dependency versions, complex setup process
+   - Solution: Use package.json and setup script
+   ```json
+   // Good: Minimal package.json for dev tools
+   {
+     "name": "brush-dev-tools",
+     "version": "1.0.0",
+     "private": true,
+     "scripts": {
+       "start-mcp": "browser-tools-server"
+     },
+     "devDependencies": {
+       "@agentdeskai/browser-tools-server": "^0.1.0"
+     }
+   }
+   ```
+
+2. Problem: Inconsistent debugging environment
+   - Symptoms: Different behavior across developer machines
+   - Solution: Standardized setup script
+   ```bash
+   # Good: Setup script for consistent environment
+   #!/bin/bash
+   # setup-dev-tools.sh
+   
+   echo "Installing Node.js dependencies for development tools..."
+   npm install
+   echo "Setup complete! You can now run 'npm run start-mcp' to start the BrowserTools MCP server."
+   ```
+
+3. Problem: Mixing Rust and Node.js toolchains
+   - Symptoms: Confusion about which tools to use for what purpose
+   - Solution: Clear separation of concerns
+   ```markdown
+   # Good: Clear documentation of tool usage
+   ## Development Tools
+   
+   This project uses two separate toolchains:
+   
+   1. **Rust/Cargo**: For the core application
+      - Build: `cargo build`
+      - Run: `cargo run`
+      - Test: `cargo test`
+   
+   2. **Node.js/npm**: For web debugging tools only
+      - Setup: `./setup-dev-tools.sh`
+      - Start MCP server: `npm run start-mcp`
+   ```
+
+# Graphics & Rendering
+// ... existing code ...
+
+# JavaScript Integration
+// ... existing code ...
+
+# Web Debugging
+1. Problem: Console log visibility
+   - Symptoms: Unable to see web console logs in development environment
+   - Solution: Use BrowserTools MCP server
+   ```rust
+   // Good: Structured logging for web
+   #[cfg(target_arch = "wasm32")]
+   fn log_error(msg: &str, err: &Error) {
+       console_error!("Error: {} - {:?}", msg, err);
+   }
+   ```
+
+2. Problem: Trunk server auto-reload issues
+   - Symptoms: Unexpected behavior and crashes on auto-reload
+   - Solution: Disable auto-reload
+   ```bash
+   # Good: Stable server configuration
+   trunk serve --no-autoreload --open=false
+   ```
+
+3. Problem: Port conflicts
+   - Symptoms: "Address already in use" errors
+   - Solution: Proper process management
+   ```bash
+   # Good: Clean process termination
+   pkill -f "trunk serve" || true
+   pkill -f "browser-tools-server" || true
+   ```
+
+# Best Practices
+// ... existing code ... 

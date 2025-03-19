@@ -61,6 +61,7 @@ assert_approx_eq = "1.1.0"
 safetensors = "0.4.5"
 log = "0.4.22"
 wasm-bindgen = "0.2.97"
+js-sys = "0.3.74"
 
 naga_oil = { version = "0.17", default-features = false }
 wgpu = { version = "24", features = ["naga-ir"] }
@@ -101,6 +102,18 @@ web-sys = { version = "0.3.74", features = [
     "Window",
     "Location",
     "UrlSearchParams",
+    "IdbDatabase",
+    "IdbFactory",
+    "IdbObjectStore",
+    "IdbTransaction",
+    "IdbRequest",
+    "IdbOpenDbRequest",
+    "IdbKeyRange",
+    "IdbCursor",
+    "IdbIndex",
+    "Storage",
+    "StorageManager",
+    "console",
 ] }
 wasm-logger = "0.2.0"
 zip = { version = "2.2.1", default-features = false, features = ["deflate"] }

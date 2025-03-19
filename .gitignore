@@ -25,7 +25,12 @@ images/
 /target
 /src/splat_render/shaders/mod.rs
 
-
+# Node.js dependencies
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Ignore bench files by now, need a better solution.
 /crates/brush-render/test_cases/bench_*.safetensors

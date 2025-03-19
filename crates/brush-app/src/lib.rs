@@ -6,6 +6,7 @@ pub mod export_service;
 pub mod orbit_controls;
 pub mod panels;
 pub mod overlays;
+pub mod utils;
 
 pub use app::App;
 use burn::backend::Autodiff;

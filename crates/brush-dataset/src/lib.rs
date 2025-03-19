@@ -5,10 +5,12 @@ mod quant;
 pub mod scene_loader;
 pub mod splat_export;
 pub mod splat_import;
+pub mod storage;
 
 use burn::config::Config;
 pub use formats::clamp_img_to_max_size;
 pub use formats::load_dataset;
+pub use storage::{DatasetStorage, DatasetInfo, StorageType, CloudProvider, format_bytes};
 
 use async_fn_stream::fn_stream;
 use brush_train::scene::{Scene, SceneView};
@@ -226,6 +228,34 @@ impl Dataset {
         // This is a placeholder that always returns None.
         // In a real implementation, we would need to add a field to store the current splats.
         None
+    }
+
+    /// Serialize the dataset to bytes
+    pub fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
+        // For now, we'll just serialize the dataset name and metadata
+        // In a real implementation, we would serialize the actual dataset data
+        let data = vec![0u8; 1024]; // Placeholder
+        Ok(data)
+    }
+    
+    /// Deserialize the dataset from bytes
+    pub fn from_bytes(_data: &[u8]) -> anyhow::Result<Self> {
+        // For now, we'll just return an empty dataset
+        // In a real implementation, we would deserialize the actual dataset data
+        Ok(Self::empty())
+    }
+    
+    /// Save the dataset to storage
+    pub fn save_to_storage(&self, storage: &mut dyn DatasetStorage, name: &str) -> anyhow::Result<()> {
+        let data = self.to_bytes()?;
+        storage.save_dataset(name, &data)?;
+        Ok(())
+    }
+    
+    /// Load the dataset from storage
+    pub fn load_from_storage(storage: &dyn DatasetStorage, name: &str) -> anyhow::Result<Self> {
+        let data = storage.load_dataset(name)?;
+        Self::from_bytes(&data)
     }
 }
 

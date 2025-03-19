@@ -32,6 +32,7 @@ For detailed documentation about Brush's architecture, components, and developme
 - [Export Service](docs/export_service.md): The centralized export functionality
 - [Development Environment](docs/development_environment.md): Setting up and working with the codebase
 - [Vibe Coding Guide](docs/vibe_coding_guide.md): Coding standards and best practices
+- [Browser Tools Setup](docs/browser_tools_setup.md): How to configure Browser Tools MCP for development
 
 # Features
 
@@ -115,3 +116,35 @@ Rendering is generally faster than gsplat, while end-to-end training speeds are 
 # Disclaimer
 
 This is *not* an official Google product. This repository is a forked public version of [the google-research repository](https://github.com/google-research/google-research/tree/master/brush_splat)
+
+# Development Tools
+
+## Web Debugging
+
+For web development and debugging, Brush includes optional Node.js-based tools:
+
+1. **BrowserTools MCP Server**: Captures console logs, network requests, and other browser information when developing the web version.
+
+### Setup
+
+To set up the development tools:
+
+1. Make sure you have [Node.js and npm](https://nodejs.org/) installed
+2. Run the setup script:
+   ```bash
+   ./setup-dev-tools.sh
+   ```
+
+### Usage
+
+Start the BrowserTools MCP server:
+```bash
+npm run start-mcp
+```
+
+Then run the web app with Trunk:
+```bash
+trunk serve --no-autoreload --open=false
+```
+
+These tools are optional and only needed for web debugging.

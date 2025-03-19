@@ -4,10 +4,10 @@
   "description": "Development tools for Brush project",
   "private": true,
   "scripts": {
-    "start-mcp": "browser-tools-server"
+    "start-mcp": "npx @agentdeskai/browser-tools-server@1.2.0"
   },
   "devDependencies": {
-    "@agentdeskai/browser-tools-server": "^0.1.0",
+    "@agentdeskai/browser-tools-server": "^1.2.0",
     "chrome-remote-interface": "^0.33.3"
   }
 }

@@ -28,5 +28,15 @@ async-fn-stream.workspace = true
 clap.workspace = true
 path-clean = "1.0.1"
 
+# WASM dependencies
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { workspace = true, optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+
+[features]
+default = []
+web-storage = ["wasm-bindgen", "js-sys", "web-sys", "wasm-bindgen-futures"]
+
 [lints]
 workspace = true
