@@ -63,7 +63,7 @@ sleep 3
 
 # Launch debug page
 echo "Opening debug launcher..."
-$OPEN_CMD debug.html
+$OPEN_CMD public/debug.html
 
 echo "Debug environment ready."
 echo "Press Ctrl+C to stop all servers and clean up."

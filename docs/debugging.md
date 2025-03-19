@@ -57,7 +57,7 @@ npm install -g @agentdeskai/browser-tools-server
 ### Quick Debug Environment
 For rapid testing with test data:
 ```bash
-cd /Users/ryanhickman/code/brush && ./debug_launcher.sh
+cd /Users/ryanhickman/code/brush && ./scripts/dev/debug_launcher.sh
 ```
 
 ### Testing URL Parameters

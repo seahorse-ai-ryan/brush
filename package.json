@@ -4,7 +4,7 @@
   "description": "Development tools for Brush project",
   "private": true,
   "scripts": {
-    "start-mcp": "npx @agentdeskai/browser-tools-server@1.2.0"
+    "start-mcp": "./scripts/dev/start_mcp.sh"
   },
   "devDependencies": {
     "@agentdeskai/browser-tools-server": "^1.2.0",

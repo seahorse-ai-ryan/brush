@@ -132,7 +132,7 @@ To set up the development tools:
 1. Make sure you have [Node.js and npm](https://nodejs.org/) installed
 2. Run the setup script:
    ```bash
-   ./setup-dev-tools.sh
+   ./scripts/dev/setup-dev-tools.sh
    ```
 
 ### Usage
