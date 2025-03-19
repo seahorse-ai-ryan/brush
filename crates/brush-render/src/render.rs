@@ -14,8 +14,11 @@ use brush_kernel::create_uniform_buffer;
 use brush_kernel::{CubeCount, calc_cube_count};
 use brush_prefix_sum::prefix_sum;
 use brush_sort::radix_argsort;
-use burn::tensor::DType;
-use burn::tensor::ops::{FloatTensorOps, IntTensorOps};
+use burn::tensor::{DType, Tensor};
+use burn::tensor::{
+    Int,
+    ops::{FloatTensorOps, IntTensorOps},
+};
 
 use burn_cubecl::BoolElement;
 use burn_wgpu::CubeTensor;
@@ -196,10 +199,6 @@ pub(crate) fn render_forward<BT: BoolElement>(
         uniforms_buffer.clone(),
         &[num_intersections_offset..num_intersections_offset + 1],
     );
-    let intersect_wg_buf = create_dispatch_buffer(
-        num_intersections.clone(),
-        MapGaussiansToIntersect::WORKGROUP_SIZE,
-    );
 
     // Each intersection maps to a gaussian.
     let (tile_offsets, compact_gid_from_isect) = {
@@ -222,21 +221,31 @@ pub(crate) fn render_forward<BT: BoolElement>(
             prefix_sum(tiles_hit_per_splat)
         });
 
-        tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(||
-        // SAFETY: Kernel has to contain no OOB indexing.
-        unsafe {
-            client.execute_unchecked(
-                MapGaussiansToIntersect::task(),
-                CubeCount::Dynamic(intersect_wg_buf.handle.clone().binding()),
-                vec![
-                    num_intersections.clone().handle.binding(),
-                    isect_info.handle.clone().binding(),
-                    cum_tiles_hit.handle.binding(),
-                    tile_counts.handle.clone().binding(),
-                    tile_id_from_isect.handle.clone().binding(),
-                    compact_gid_from_isect.handle.clone().binding(),
-                ],
+        tracing::trace_span!("MapGaussiansToIntersect", sync_burn = true).in_scope(|| {
+            // The workgroup size is [256, 2] to be an effective 512 threads.
+            let num_intersects: Tensor<BBase<BT>, 1, Int> =
+                Tensor::from_primitive(num_intersections.clone());
+            let dispatch = (num_intersects + 1) / 2;
+            let intersect_wg_buf = create_dispatch_buffer(
+                dispatch.into_primitive(),
+                MapGaussiansToIntersect::WORKGROUP_SIZE,
             );
+
+            // SAFETY: Kernel has to contain no OOB indexing.
+            unsafe {
+                client.execute_unchecked(
+                    MapGaussiansToIntersect::task(),
+                    CubeCount::Dynamic(intersect_wg_buf.handle.binding()),
+                    vec![
+                        num_intersections.clone().handle.binding(),
+                        isect_info.handle.clone().binding(),
+                        cum_tiles_hit.handle.binding(),
+                        tile_counts.handle.clone().binding(),
+                        tile_id_from_isect.handle.clone().binding(),
+                        compact_gid_from_isect.handle.clone().binding(),
+                    ],
+                );
+            }
         });
 
         // We're sorting by tile ID, but we know beforehand what the maximum value

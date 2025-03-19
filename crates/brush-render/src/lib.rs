@@ -47,7 +47,12 @@ pub struct RenderStats {
     pub num_intersections: u32,
 }
 
-const INTERSECTS_UPPER_BOUND: u32 = shaders::map_gaussian_to_intersects::WORKGROUP_SIZE[0] * 65535;
+const fn total_size(wg_size: [u32; 3]) -> u32 {
+    wg_size[0] * wg_size[1] * wg_size[2]
+}
+
+const INTERSECTS_UPPER_BOUND: u32 =
+    total_size(shaders::map_gaussian_to_intersects::WORKGROUP_SIZE) * 65535;
 const GAUSSIANS_UPPER_BOUND: u32 = 256 * 65535;
 
 impl<B: Backend> RenderAux<B> {

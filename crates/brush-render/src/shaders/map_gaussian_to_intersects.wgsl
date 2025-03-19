@@ -15,9 +15,9 @@ struct IsectInfo {
 @group(0) @binding(5) var<storage, read_write> compact_gid_from_isect: array<i32>;
 
 @compute
-@workgroup_size(512, 1, 1)
+@workgroup_size(256, 2, 1)
 fn main(@builtin(global_invocation_id) gid: vec3u) {
-    let total_id = i32(gid.x);
+    let total_id = i32(gid.x * 2 + gid.y);
 
     if total_id >= num_intersections {
         return;
