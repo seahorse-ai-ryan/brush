@@ -114,14 +114,15 @@ fn smooth_clamp(val: f32, min: Option<f32>, max: Option<f32>, dt: f32, lambda: f
 
 impl CameraController {
     pub fn new(
-        radius: f32,
+        position: Vec3,
+        rotation: Quat,
         focus_distance: f32,
         speed_scale: f32,
         clamping: CameraClamping,
     ) -> Self {
         Self {
-            position: -Vec3::Z * radius,
-            rotation: Quat::IDENTITY,
+            position,
+            rotation,
             roll: Quat::IDENTITY,
             fly_velocity: Vec3::ZERO,
             orbit_velocity: Vec2::ZERO,

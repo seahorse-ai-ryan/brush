@@ -132,6 +132,7 @@ mod embedded {
     use super::start_process;
     use brush_app::App;
     use brush_process::{data_source::DataSource, process_loop::ProcessArgs};
+    use glam::Quat;
     use std::future::IntoFuture;
     use tokio::sync::mpsc::UnboundedSender;
     use tokio_with_wasm::alias as tokio_wasm;
@@ -156,7 +157,9 @@ mod embedded {
         #[wasm_bindgen(constructor)]
         pub fn new(
             focal: f64,
-            start_distance: f32,
+            x: f32,
+            y: f32,
+            z: f32,
             focus_distance: f32,
             speed_scale: f32,
             min_focus_distance: Option<f32>,
@@ -168,7 +171,10 @@ mod embedded {
         ) -> CameraSettings {
             CameraSettings(brush_app::CameraSettings {
                 focal,
-                start_distance,
+                // TODO: Allow vecs?
+                position: glam::vec3(x, y, z),
+                // TODO: How to handle rotations?
+                rotation: Quat::IDENTITY,
                 focus_distance,
                 speed_scale,
                 // TODO: Could make this a separate JS object.

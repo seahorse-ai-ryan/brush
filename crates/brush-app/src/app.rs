@@ -98,7 +98,8 @@ fn parse_search(search: &str) -> HashMap<String, String> {
 #[derive(Clone)]
 pub struct CameraSettings {
     pub focal: f64,
-    pub start_distance: f32,
+    pub position: Vec3,
+    pub rotation: Quat,
     pub focus_distance: f32,
     pub speed_scale: f32,
     pub clamping: camera_controls::CameraClamping,
@@ -132,7 +133,8 @@ impl AppContext {
     fn new(device: WgpuDevice, ctx: egui::Context, cam_settings: CameraSettings) -> Self {
         let model_transform = Affine3A::IDENTITY;
         let controls = CameraController::new(
-            cam_settings.start_distance,
+            cam_settings.position,
+            cam_settings.rotation,
             cam_settings.focus_distance,
             cam_settings.speed_scale,
             cam_settings.clamping.clone(),
@@ -172,7 +174,8 @@ impl AppContext {
 
     pub fn set_cam_settings(&mut self, settings: CameraSettings) {
         self.controls = CameraController::new(
-            settings.start_distance,
+            settings.position,
+            settings.rotation,
             settings.focus_distance,
             settings.speed_scale,
             settings.clamping.clone(),
@@ -304,10 +307,42 @@ impl App {
             zen = z.parse::<bool>().unwrap_or(false);
         }
 
-        let radius = search_params
-            .get("start_distance")
-            .and_then(|f| f.parse().ok())
-            .unwrap_or(4.0);
+        fn vec_from_uri(uri: &str) -> Option<Vec3> {
+            let parts: Vec<&str> = uri.split(',').collect();
+            if parts.len() == 3 {
+                Some(Vec3::new(
+                    parts[0].parse().ok()?,
+                    parts[1].parse().ok()?,
+                    parts[2].parse().ok()?,
+                ))
+            } else {
+                None
+            }
+        }
+
+        fn quat_from_uri(uri: &str) -> Option<Quat> {
+            let parts: Vec<&str> = uri.split(',').collect();
+            if parts.len() == 4 {
+                Some(Quat::from_xyzw(
+                    parts[0].parse().ok()?,
+                    parts[1].parse().ok()?,
+                    parts[2].parse().ok()?,
+                    parts[3].parse().ok()?,
+                ))
+            } else {
+                None
+            }
+        }
+
+        // TODO: Integrate this with the embedded API.
+        let position = search_params
+            .get("position")
+            .and_then(|f| vec_from_uri(f))
+            .unwrap_or(-Vec3::Z * 2.5);
+        let rotation = search_params
+            .get("rotation")
+            .and_then(|f| quat_from_uri(f))
+            .unwrap_or(Quat::IDENTITY);
         let focus_distance = search_params
             .get("focus_distance")
             .and_then(|f| f.parse().ok())
@@ -316,12 +351,16 @@ impl App {
             .get("focal")
             .and_then(|f| f.parse().ok())
             .unwrap_or(0.8);
-
+        let speed_scale = search_params
+            .get("speed_scale")
+            .and_then(|f| f.parse().ok())
+            .unwrap_or(1.0);
         let settings = CameraSettings {
             focal,
-            start_distance: radius,
+            position,
+            rotation,
             focus_distance,
-            speed_scale: 1.0,
+            speed_scale,
             clamping: Default::default(),
         };
 
