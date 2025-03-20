@@ -1,21 +1,21 @@
 ---
 description: Ryan's personal workflow for Brush development
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Ryan's Brush Development Workflow
 
 ## Environment Setup
 
-My typical development environment setup:
+My preferred development environment setup follows the standard workflow in `brush_dev_workflow.mdc` with these personal modifications:
 
 ```bash
-# Start MCP server for browser tools
+# My preferred MCP server startup command
 cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
 
-# In a separate terminal, start Trunk server
-cd /Users/ryanhickman/code/brush && trunk serve --no-autoreload --open=false
+# My preferred Trunk server command (when running manually)
+cd /Users/ryanhickman/code/brush && trunk serve
 ```
 
 ## AI-Assisted Development
@@ -71,6 +71,15 @@ git status && ls -la .cursor/rules/
 # Commit and push workflow files
 git add .cursor/rules/ryan_workflow.mdc && git commit -m "Update personal workflow documentation" && git push origin new-ui
 ```
+
+## Rule Organization
+
+For AI-assisted development, refer to:
+- `brush_dev_workflow.mdc` - Standard development workflow (always applied)
+- `brush_debug.mdc` - Specific debugging techniques (on demand)
+- `brush_coding_guide.mdc` - Coding standards and best practices
+- `brush_technical.mdc` - Technical implementation details
+- `brush_project.mdc` - Project overview and architecture
 
 ## NOTE: PERSONAL RULES FILE
 

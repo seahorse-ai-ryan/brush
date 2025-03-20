@@ -1,5 +1,5 @@
 ---
-description: 
+description: Debugging workflows and tools for Brush
 globs: 
 alwaysApply: false
 ---
@@ -78,13 +78,9 @@ After resolving the issue:
 3. Capture lessons learned in brush_lessons.mdc
 4. Ensure the fix works across all relevant platforms
 
-## Server Management Commands
+## Advanced Debugging Techniques
 
-### Start MCP Server
-For browser console debugging, start the MCP server in a separate terminal:
-```bash
-cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
-```
+### MCP Server Configuration
 
 > **Important**: The MCP server must be configured properly in Cursor first:
 > 1. Create `.cursor/mcp.json` with content:
@@ -103,111 +99,78 @@ cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 
 > 3. Make sure the BrowserTools Chrome extension is installed
 > 4. Open the Chrome Developer Tools in the tab you want to debug
 
-### Start Trunk Server (Preferred Method for AI-Assisted Debugging)
+### Monitor Console Logs
+
+To see all console logs in real-time:
 ```bash
-cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve
+curl -s http://localhost:3025/console-logs | jq .
 ```
-Run this command inline in the AI assistant chat to:
-- See compilation errors immediately in the conversation
-- Maintain context between code changes and errors
-- Allow the AI to directly address compilation issues
-- Avoid switching between tabs or windows
 
-### Start Trunk Server with Error Filtering (Alternative Method)
+### Filter for Specific Error Types
+
+To focus on specific errors:
 ```bash
-cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve --no-autoreload --open=false 2>&1 | tee >(grep -E "error|panicked|exception|warning" --color=always)
+curl -s http://localhost:3025/console-logs | jq '.[] | select(.level=="error" and (.message | contains("filesystem")))'
 ```
 
-### Force Browser Reload
+### Specialized Debug Commands
+
+For running in debug mode with performance metrics:
 ```bash
-cd /Users/ryanhickman/code/brush && curl -X POST http://localhost:8080/_trunk/reload
+cd /Users/ryanhickman/code/brush && RUST_LOG=debug trunk serve
 ```
 
-### Kill All Servers
+### Network Request Analysis
+
+The MCP server captures network requests, allowing analysis of API calls and resource loading. To examine network activity:
 ```bash
-cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && (pkill -f "browser-tools-server" || true) && echo "Stopped all servers."
+curl -s http://localhost:3025/network-requests | jq .
 ```
 
-## Automated Testing & Debugging
+### Memory Profiling
 
-### Launch Debug Environment
-To quickly set up a complete debug environment:
-```bash
-cd /Users/ryanhickman/code/brush && ./scripts/dev/debug_launcher.sh
-```
+For memory issues, use the Chrome DevTools Memory tab:
+1. Open DevTools > Memory tab
+2. Take a heap snapshot
+3. Look for large objects and leak patterns
 
-This sets up:
-1. A test PLY file in test_data/ (if needed)
-2. The MCP server for console capture
-3. The Trunk server for the web application
-4. Opens the debug launcher page
+## Platform-Specific Debugging
 
-### Run Automated Test Scenarios
-To test specific functionality without manual interaction:
-```
-http://localhost:8080/?debug=true&auto_test=true&test=ply-loading
-```
+### WASM-Specific Debug Techniques
 
-Available test scenarios:
-- `ply-loading`: Tests PLY file loading
-- `ui-rendering`: Tests UI rendering after data load
-
-### Analyze Debug Logs
-After testing, analyze the captured logs:
-```bash
-cd /Users/ryanhickman/code/brush && ./analyze_logs.js mcp_log.txt
-```
-
-This will generate a report highlighting:
-- Critical errors
-- Warnings
-- Important info messages
-- Recommendations for fixing identified issues
-
-## Web-Specific Development Patterns
-
-When working on code that needs to run in both web and native environments:
+When debugging WASM-specific issues:
 
 1. Use `#[cfg(target_arch = "wasm32")]` for web-specific code paths
 2. Use `#[cfg(not(target_arch = "wasm32"))]` for native-only code
-3. Avoid direct filesystem operations in web code
-4. Use platform-specific error handling
-5. Implement chunked processing for memory-intensive operations
-6. Handle async operations properly in the UI
+3. Add WASM-specific debug logging:
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   {
+       // Web-specific implementation
+       utils::log_info("Running in web environment");
+       // Add detailed debug logs
+       utils::log_debug(&format!("Processing file: {:?}", file_path));
+   }
+   ```
 
-Example of correct platform-specific code:
+4. Check for browser limitations, especially:
+   - Filesystem operations (not available)
+   - IndexedDB access (async/await patterns)
+   - Memory constraints (chunked processing)
 
-```rust
-#[cfg(target_arch = "wasm32")]
-{
-    // Web-specific implementation
-    utils::log_info("Running in web environment");
-    // Use web-compatible APIs
-}
+### Desktop/Native Debug Techniques
 
-#[cfg(not(target_arch = "wasm32"))]
-{
-    // Native implementation
-    std::fs::create_dir_all(path)?;
-    // Use filesystem APIs
-}
-```
+For desktop-specific issues:
 
-## Web Platform Special Considerations
+1. Use environment variables for debugging:
+   ```bash
+   RUST_BACKTRACE=1 RUST_LOG=trace cargo run
+   ```
 
-The Brush application has special handling for web platform limitations:
-1. Uses platform-specific code to handle file operations in WASM environments
-2. Automatically disables SRI (Subresource Integrity) checks in development
-3. Provides fallbacks for filesystem operations that aren't available in browsers
-
-## Standard Debugging Flow
-
-Standard debugging flow:
-1. Start the MCP server first (to capture logs)
-2. Start the Trunk server second (to serve the application)
-3. Open Chrome and navigate to http://localhost:8080
-4. Test with console.log messages to verify MCP connection
-5. Check for platform-specific logs like "WASM: Processing file directly"
+2. Employ platform-specific tools:
+   - Linux: valgrind, gdb
+   - macOS: lldb, Instruments
+   - Windows: Visual Studio debugger
 
 ## Safe Git Operations During Debugging
 
@@ -223,11 +186,6 @@ When using git with AI assistance during debugging:
    - AI should show `git status` before committing
    - AI should remind the developer to accept changes
    - Developer should verify committed changes match what's seen in the editor
-
-3. **Repository Health:**
-   - Avoid pushing broken code to shared branches
-   - Ensure tests pass before committing fixes
-   - Document debugging discoveries in appropriate locations
 
 ## Communication With TPMs
 

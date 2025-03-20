@@ -1,1 +1,120 @@
- 
+---
+description: Standard development workflow for Brush
+globs: [".rs", ".toml", ".md"]
+alwaysApply: true
+---
+
+# Brush Development Workflow
+
+This rule provides standard guidance for daily development on the Brush project.
+
+## 🚀 Development Setup
+
+When starting a new development session:
+
+### 1. Start MCP Server
+
+First, start the MCP server to capture browser console logs:
+
+```bash
+cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+```
+
+When using this command with Cursor's AI terminal tool:
+- Set `is_background: true` to run in the background
+- Set `require_user_approval: false` to prevent opening a new tab
+
+### 2. Start Trunk Server
+
+Start the Trunk server to build and serve the application:
+
+```bash
+cd /Users/ryanhickman/code/brush && trunk serve
+```
+
+When using this command with Cursor's AI terminal tool:
+- Set `is_background: false` to see output directly in the chat
+- Set `require_user_approval: false` to prevent opening a new tab
+
+For extensive builds that might cause chat stalling, use:
+
+```bash
+cd /Users/ryanhickman/code/brush && mkdir -p logs && trunk serve > logs/trunk_output.log 2>&1 & echo "Trunk server started with PID $! - logs in logs/trunk_output.log"
+```
+
+### 3. Access the Application
+
+Open the application in Chrome:
+```
+http://localhost:8080/
+```
+
+Ensure Chrome DevTools are open and the BrowserTools extension is active.
+
+## 📝 Development Cycle
+
+A typical development cycle consists of:
+
+1. **Modify code** in the codebase
+2. **Wait for Trunk** to rebuild (automatic with hot reload)
+3. **Test changes** in the browser
+4. **Check console logs** via MCP server
+5. **Repeat** until feature is complete
+
+## 🧪 Testing and Validation
+
+For testing your changes:
+
+1. **URL Parameters**:
+   - `?debug=true` - Enable debug mode
+   - `?diagnostic=true` - Enable diagnostic logging
+   - `?test=ply-loading` - Test specific functionality
+
+2. **Browser Reload**:
+   If hot reload isn't working, manually trigger:
+   ```bash
+   curl -X POST http://localhost:8080/_trunk/reload
+   ```
+
+## 🛠 Common Issues
+
+### Trunk Server Already Running
+If you get "Address already in use" errors:
+
+```bash
+pkill -f "trunk serve" || true
+```
+Then try starting Trunk again.
+
+### Stalled Chat
+If the chat stalls due to verbose Trunk output:
+- Use the background processing approach above
+- Monitor logs with: `tail -n 20 logs/trunk_output.log`
+- Check for errors: `grep -E "error|failed|panic" logs/trunk_output.log`
+
+## 🔍 Cross-Platform Considerations
+
+When writing code that needs to work across platforms:
+
+1. Use `#[cfg(target_arch = "wasm32")]` for web-specific code
+2. Use `#[cfg(not(target_arch = "wasm32"))]` for native-only code
+3. Be mindful of browser limitations (filesystem access, etc.)
+4. Test on both web and native platforms when possible
+
+## 📁 Project Structure Reference
+
+- `crates/brush-app/` - Main application code
+  - `src/app.rs` - Application entry point
+  - `src/overlays/` - UI overlays including dataset handling
+  - `src/panels/` - Main UI panels
+- `crates/brush-dataset/` - Dataset management
+- `crates/brush-render/` - Rendering pipeline
+- `docs/` - Documentation files
+
+## 📖 Further Resources
+
+For more detailed information:
+- `brush_debug.mdc` - For debugging-specific workflows
+- `brush_technical.mdc` - For technical implementation standards
+- `brush_coding_guide.mdc` - For coding conventions
+- `ryan_workflow.mdc` - For Ryan's personal preferences 
