@@ -17,7 +17,7 @@ When starting a new development session:
 First, start the MCP server to capture browser console logs:
 
 ```bash
-cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+cd <project_root> && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
 ```
 
 When using this command with Cursor's AI terminal tool:
@@ -29,7 +29,7 @@ When using this command with Cursor's AI terminal tool:
 Start the Trunk server to build and serve the application:
 
 ```bash
-cd /Users/ryanhickman/code/brush && trunk serve
+cd <project_root> && trunk serve
 ```
 
 When using this command with Cursor's AI terminal tool:
@@ -39,7 +39,7 @@ When using this command with Cursor's AI terminal tool:
 For extensive builds that might cause chat stalling, use:
 
 ```bash
-cd /Users/ryanhickman/code/brush && mkdir -p logs && trunk serve > logs/trunk_output.log 2>&1 & echo "Trunk server started with PID $! - logs in logs/trunk_output.log"
+cd <project_root> && mkdir -p logs && trunk serve > logs/trunk_output.log 2>&1 & echo "Trunk server started with PID $! - logs in logs/trunk_output.log"
 ```
 
 ### 3. Access the Application

@@ -171,6 +171,19 @@ This document captures practical solutions, patterns, and knowledge gained durin
   - Maintains logs for later inspection
 - **Implementation**: See `.cursor/rules/brush_debug.mdc` for specific commands
 
+### Problem: Editing Cursor rule files
+- **Issue**: Changes to Cursor rule files (.mdc) don't save properly or appear to vanish
+- **Solution**: Use the close-and-save approach
+  ```
+  1. Make your changes to the .mdc file
+  2. Close Cursor completely
+  3. When prompted with "Unsaved Changes", click "Save All"
+  4. Reopen Cursor to verify changes are applied
+  ```
+- **Alternative**: Edit rule files in an external editor like VSCode
+- **Root cause**: Cursor handles .mdc files differently than regular code files
+- **References**: Multiple reports in Cursor forums confirm this is a known issue
+
 ### Problem: Port conflicts
 - **Issue**: "Address already in use" errors
 - **Solution**: Kill existing processes before starting servers

@@ -13,10 +13,18 @@ My preferred development environment setup follows the standard workflow in `bru
 ```bash
 # My preferred MCP server startup command
 cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+```
+When using this command with Cursor's AI terminal tool:
+- Set `is_background: true` to run in the background
+- Set `require_user_approval: false` to prevent opening a new tab
 
+```bash
 # My preferred Trunk server command (when running manually)
 cd /Users/ryanhickman/code/brush && trunk serve
 ```
+When using this command with Cursor's AI terminal tool:
+- Set `is_background: false` to see output directly in the chat
+- Set `require_user_approval: false` to prevent opening a new tab
 
 ## AI-Assisted Development
 

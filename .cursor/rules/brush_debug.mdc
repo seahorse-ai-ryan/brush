@@ -64,7 +64,7 @@ When implementing changes:
 2. Provide clear explanations of what each change does
 3. After code changes, automatically reload the browser:
    ```bash
-   cd /Users/ryanhickman/code/brush && curl -X POST http://localhost:8080/_trunk/reload
+   cd <project_root> && curl -X POST http://localhost:8080/_trunk/reload
    ```
 4. Check console logs for errors or warnings
 5. Verify the fix works as expected
@@ -117,7 +117,7 @@ curl -s http://localhost:3025/console-logs | jq '.[] | select(.level=="error" an
 
 For running in debug mode with performance metrics:
 ```bash
-cd /Users/ryanhickman/code/brush && RUST_LOG=debug trunk serve
+cd <project_root> && RUST_LOG=debug trunk serve
 ```
 
 ### Network Request Analysis
@@ -185,38 +185,4 @@ When using git with AI assistance during debugging:
    - AI should ask for explicit confirmation before git operations
    - AI should show `git status` before committing
    - AI should remind the developer to accept changes
-   - Developer should verify committed changes match what's seen in the editor
-
-## Communication With TPMs
-
-When discussing bugs with Technical Program Managers:
-
-1. **Summarize Technical Issues in Business Terms**:
-   - Explain root causes without implementation details
-   - Focus on user impact and system constraints
-   - Use analogies for complex technical concepts
-
-2. **Present Options with Trade-offs**:
-   - Provide multiple approaches when appropriate
-   - Highlight trade-offs in terms of:
-     - Development time
-     - Performance impact
-     - Cross-platform compatibility
-     - User experience
-
-3. **Provide Clear Status Updates**:
-   - Current state of the issue
-   - Remaining steps to resolution
-   - Any blockers or dependencies
-   - Estimated time to completion
-
-Example TPM communication:
-```
-Status update on web file loading issue:
-- Root cause: The application is using native filesystem APIs in web context
-- Fix approach: Implementing separate code paths for web vs. desktop
-- Progress: 80% complete (2 of 3 components fixed)
-- Remaining work: Update tests and documentation
-- Estimated completion: By end of day
-- Testing needed: Verify on Chrome, Firefox, and Safari
-``` 
+   - Developer should verify committed changes match what's seen in the editor 
