@@ -1,0 +1,72 @@
+---
+description: Guide for using MCP Browser Tools with Cursor in Brush development
+globs: 
+alwaysApply: false
+---
+# Using MCP Browser Tools with Cursor
+
+This guide explains how to use the Browser Tools MCP in Cursor for accessing Chrome console logs and browser information during Brush development.
+
+## Setup Prerequisites
+
+1. **MCP Configuration**
+   - Brush uses the global MCP configuration in `~/.cursor/mcp.json`
+   - Configuration includes the browser-tools MCP server
+   - No project-specific configuration is needed
+
+2. **Chrome Extension**
+   - The Browser Tools MCP Chrome Extension must be installed
+   - Extension allows Cursor AI to access console logs, network requests, and DOM state
+
+3. **Browser Tools Server**
+   - Start the server with: `npx @agentdeskai/browser-tools-server@1.2.0 --port 3025`
+   - This server captures and provides browser data to Cursor
+
+## Using MCP Browser Tools in Cursor
+
+When properly configured, Cursor can use special MCP tool calls to access browser information. These tools are handled by the underlying AI model and work in both agent and chat mode.
+
+Things AI can access:
+
+1. **Console Logs**
+   - All console output including log, warn, error messages
+   - Full error stacks and objects
+
+2. **Network Requests**
+   - API calls, fetch requests, XMLHttpRequests
+   - Response status and headers
+
+3. **DOM Elements**
+   - Selected elements in the browser
+   - Element properties and attributes
+
+4. **Screenshots**
+   - Capture current browser view for visual debugging
+
+## Workflow for Browser Debugging
+
+1. Start the Browser Tools Server (once per session)
+2. Open Chrome with the Browser Tools extension enabled
+3. Navigate to the Brush application
+4. Open Chrome DevTools to activate the extension
+5. Use Cursor to analyze and debug the application
+
+## Troubleshooting
+
+If MCP Browser Tools aren't working:
+
+1. Ensure both MCP server and Browser Tools server are running
+2. Verify the Chrome extension is installed and active
+3. Check that Chrome DevTools is open in the target tab
+4. Look for console logs in the terminal running the Browser Tools server
+
+## Requesting Browser Data in Cursor
+
+Examples of how to ask Cursor to use MCP Browser Tools:
+
+```
+"Can you check the browser console logs for any errors?"
+"What network requests are being made when loading a dataset?"
+"Can you take a screenshot of the current browser view?"
+"Check if there are any WASM-related warnings in the console"
+``` 
