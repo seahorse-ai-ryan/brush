@@ -31,8 +31,10 @@ npm install /Users/ryanhickman/code/browser-tools-mcp-trunk/browser-tools-server
 
 2. Start the MCP server with Trunk integration (once per session):
    ```bash
-   npx @agentdeskai/browser-tools-server@1.2.0 --port 3030
+   npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
    ```
+
+   > **IMPORTANT**: Always use port 3025. If you get an "Address already in use" error, assume the MCP server is already running and do not try a different port.
 
 3. Open Chrome with:
    - DevTools panel open
@@ -41,7 +43,7 @@ npm install /Users/ryanhickman/code/browser-tools-mcp-trunk/browser-tools-server
 
 4. Make code changes:
    - Trunk will automatically rebuild on file changes
-   - Check for errors with: `curl http://localhost:3030/api/combined-errors`
+   - Check for errors with: `curl http://localhost:3025/api/combined-errors`
 
 ## Benefits
 
