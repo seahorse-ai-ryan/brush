@@ -81,9 +81,27 @@ After resolving the issue:
 ## Server Management Commands
 
 ### Start MCP Server
+For browser console debugging, start the MCP server in a separate terminal:
 ```bash
 cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
 ```
+
+> **Important**: The MCP server must be configured properly in Cursor first:
+> 1. Create `.cursor/mcp.json` with content:
+>    ```json
+>    {
+>      "servers": [
+>        {
+>          "name": "browser-tools",
+>          "type": "command", 
+>          "command": "npx @agentdeskai/browser-tools-mcp@1.2.0"
+>        }
+>      ]
+>    }
+>    ```
+> 2. Restart Cursor for the changes to take effect
+> 3. Make sure the BrowserTools Chrome extension is installed
+> 4. Open the Chrome Developer Tools in the tab you want to debug
 
 ### Start Trunk Server (Preferred Method for AI-Assisted Debugging)
 ```bash

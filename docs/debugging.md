@@ -40,7 +40,7 @@ npm install -g @agentdeskai/browser-tools-server
 
 2. **Start the Trunk Server**
    ```bash
-   cd /Users/ryanhickman/code/brush && trunk serve --no-autoreload --open=false
+   cd /Users/ryanhickman/code/brush && trunk serve
    ```
    
    If you get "Address already in use" errors:
@@ -48,6 +48,10 @@ npm install -g @agentdeskai/browser-tools-server
    pkill -f "trunk serve" || true
    ```
    Then try starting Trunk again.
+   
+   For AI-assisted debugging with verbose output (to prevent chat stalling):
+   - Use background processing with log redirection
+   - See `.cursor/rules/brush_debug.mdc` for specific commands
 
 3. **Open in Browser**
    ```

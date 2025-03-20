@@ -153,14 +153,23 @@ This document captures practical solutions, patterns, and knowledge gained durin
 
 ### Problem: Trunk server auto-reload issues
 - **Issue**: Automatic reloading causing inconsistent state
-- **Solution**: Disable auto-reload and use manual reload
+- **Solution**: Use manual reload when needed
   ```bash
-  # Start with auto-reload disabled
-  trunk serve --no-autoreload --open=false
+  # Start Trunk
+  trunk serve
   
   # Manual reload when needed
   curl -X POST http://localhost:8080/_trunk/reload
   ```
+
+### Problem: Chat stalling with verbose output
+- **Issue**: "Skip and continue" appearing when Trunk generates too much output
+- **Solution**: Run Trunk in the background with output redirection
+- **Benefits**: 
+  - Prevents chat from becoming unresponsive
+  - Allows monitoring progress without interrupting conversation
+  - Maintains logs for later inspection
+- **Implementation**: See `.cursor/rules/brush_debug.mdc` for specific commands
 
 ### Problem: Port conflicts
 - **Issue**: "Address already in use" errors

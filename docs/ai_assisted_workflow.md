@@ -44,20 +44,50 @@ This guide outlines best practices for using AI agents (like Claude in Cursor) t
 ### Starting the Development Environment
 To start an AI-assisted debugging session:
 
-1. **Start the MCP Server** (Give this command to the AI):
+1. **Ensure MCP is properly configured in Cursor**:
+   
+   Create or update `.cursor/mcp.json` with the correct configuration:
+   ```json
+   {
+     "servers": [
+       {
+         "name": "browser-tools",
+         "type": "command",
+         "command": "npx @agentdeskai/browser-tools-mcp@1.2.0"
+       }
+     ]
+   }
+   ```
+   After creating/updating this file, restart Cursor for changes to take effect.
+
+2. **Start the MCP Server** (Use this command in the terminal):
    ```bash
    cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server --port 3025
    ```
+   This starts the server that collects browser logs and events.
+   
+   When using this command with Cursor's AI terminal tool:
+   - Set `is_background: true` to run the process in the background
+   - Set `require_user_approval: false` to prevent opening a new confirmation tab
+   
+   These parameters ensure the server starts immediately when you click the run button.
 
-2. **Have the AI start Trunk** (in-chat):
+3. **Have the AI start Trunk** (in-chat):
    ```bash
-   cd /Users/ryanhickman/code/brush && trunk serve --no-autoreload --open=false
+   cd /Users/ryanhickman/code/brush && trunk serve
    ```
 
-3. **Open Brush in Chrome**:
+   When using this with the AI in Cursor:
+   - For normal debugging: Have the AI run the command inline to see errors directly
+   - For verbose compilation: Have the AI redirect output to a log file to prevent chat stalling
+   - Reference `.cursor/rules/brush_debug.mdc` for specific commands
+
+4. **Open Brush in Chrome**:
    ```
    http://localhost:8080/
    ```
+   
+   Ensure that Chrome Developer Tools are open to see console logs.
 
 ## Effective AI Collaboration Patterns
 
