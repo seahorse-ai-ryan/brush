@@ -105,7 +105,7 @@ cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 
 
 ### Start Trunk Server (Preferred Method for AI-Assisted Debugging)
 ```bash
-cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve --no-autoreload --open=false
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve
 ```
 Run this command inline in the AI assistant chat to:
 - See compilation errors immediately in the conversation
