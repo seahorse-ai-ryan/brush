@@ -842,6 +842,7 @@ dependencies = [
 name = "brush-app"
 version = "0.2.0"
 dependencies = [
+ "anyhow",
  "brush-cli",
  "brush-dataset",
  "brush-process",
@@ -864,6 +865,7 @@ dependencies = [
  "rrfd",
  "sync-span",
  "tokio",
+ "tokio-stream",
  "tokio_with_wasm",
  "tracing",
  "tracing-subscriber",
@@ -883,8 +885,11 @@ name = "brush-cli"
 version = "0.2.0"
 dependencies = [
  "brush-process",
+ "burn-wgpu",
  "clap",
+ "humantime",
  "indicatif",
+ "tokio-stream",
 ]
 
 [[package]]

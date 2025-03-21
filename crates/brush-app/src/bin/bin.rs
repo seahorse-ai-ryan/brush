@@ -3,7 +3,8 @@
 #[allow(unused)]
 use brush_app::{App, AppCreateCb};
 
-use brush_process::process_loop::start_process;
+use brush_app::running_process::start_process;
+
 #[allow(unused)]
 use tokio::sync::oneshot::error::RecvError;
 
@@ -56,8 +57,12 @@ fn main() -> MainResult {
                         let context: Result<AppCreateCb, RecvError> = rec.await;
                         if let Ok(context) = context {
                             let mut context = context.context.write().expect("Lock poisoned");
-                            let process =
-                                start_process(source, args.process, context.device.clone());
+                            let process = start_process(
+                                source,
+                                args.process,
+                                context.device.clone(),
+                                context.egui_ctx.clone(),
+                            );
                             context.connect_to(process);
                         }
                     });
@@ -79,10 +84,8 @@ fn main() -> MainResult {
                 let Some(source) = args.source else {
                     panic!("Validation of args failed?");
                 };
-
                 let device = brush_render::burn_init_setup().await;
-                let process = start_process(source, args.process, device);
-                brush_cli::ui::process_ui(process).await;
+                brush_cli::ui::process_ui(source, args.process, device).await;
             }
         });
     }
@@ -240,6 +243,7 @@ mod embedded {
                                 data_source,
                                 ProcessArgs::default(),
                                 ctx.device.clone(),
+                                ctx.egui_ctx.clone(),
                             );
                             ctx.connect_to(process);
                         }
