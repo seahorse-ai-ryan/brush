@@ -20,9 +20,13 @@ First, start the MCP server to capture browser console logs:
 cd <project_root> && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
 ```
 
-When using this command with Cursor's AI terminal tool:
-- Set `is_background: true` to run in the background
-- Set `require_user_approval: false` to prevent opening a new tab
+Note: To avoid port conflicts, kill any existing MCP servers before starting a new one:
+
+```bash
+cd <project_root> && (pkill -f "browser-tools-server" || true) && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+```
+
+⚠️ **IMPORTANT**: Start the MCP server by pasting this as a plain code block with triple backticks. DO NOT use the run_terminal_cmd tool to avoid opening new terminal tabs.
 
 ### 2. Start Trunk Server
 
@@ -32,9 +36,13 @@ Start the Trunk server to build and serve the application:
 cd <project_root> && trunk serve
 ```
 
-When using this command with Cursor's AI terminal tool:
-- Set `is_background: false` to see output directly in the chat
-- Set `require_user_approval: false` to prevent opening a new tab
+Note: To avoid port conflicts, kill any existing Trunk servers before starting a new one:
+
+```bash
+cd <project_root> && (pkill -f "trunk serve" || true) && trunk serve
+```
+
+⚠️ **IMPORTANT**: Start the Trunk server by pasting this as a plain code block with triple backticks. DO NOT use the run_terminal_cmd tool to avoid opening new terminal tabs.
 
 For extensive builds that might cause chat stalling, use:
 
@@ -55,11 +63,14 @@ Ensure Chrome DevTools are open and the BrowserTools extension is active.
 
 A typical development cycle consists of:
 
-1. **Modify code** in the codebase
-2. **Wait for Trunk** to rebuild (automatic with hot reload)
-3. **Test changes** in the browser
-4. **Check console logs** via MCP server
-5. **Repeat** until feature is complete
+1. **Start servers** - MCP and Trunk in separate terminal panels (not tabs)
+2. **Modify code** in the codebase
+3. **Observe Trunk** automatically rebuilding (no manual restart needed)
+4. **Browser auto-reloads** when build completes
+5. **Check MCP logs** to see console output and errors
+6. **Repeat** until feature is complete
+
+This workflow is fully automated - you make changes, and everything else happens automatically.
 
 ## 🧪 Testing and Validation
 
@@ -85,6 +96,21 @@ If you get "Address already in use" errors:
 pkill -f "trunk serve" || true
 ```
 Then try starting Trunk again.
+
+### MCP Server Already Running
+If you get port conflicts with the MCP server:
+
+```bash
+pkill -f "browser-tools-server" || true
+```
+Then try starting the MCP server again.
+
+### Kill All Development Servers
+To stop all running development servers:
+
+```bash
+pkill -f "trunk serve" || true && pkill -f "browser-tools-server" || true
+```
 
 ### Stalled Chat
 If the chat stalls due to verbose Trunk output:

@@ -10,21 +10,54 @@ alwaysApply: true
 
 My preferred development environment setup follows the standard workflow in `brush_dev_workflow.mdc` with these personal modifications:
 
-```bash
-# My preferred MCP server startup command
-cd /Users/ryanhickman/code/brush && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
-```
-When using this command with Cursor's AI terminal tool:
-- Set `is_background: true` to run in the background
-- Set `require_user_approval: false` to prevent opening a new tab
+### MCP Server
+⚠️ **IMPORTANT**: Start the MCP server by pasting this as a plain code block with triple backticks. DO NOT use the run_terminal_cmd tool.
 
 ```bash
-# My preferred Trunk server command (when running manually)
-cd /Users/ryanhickman/code/brush && trunk serve
+cd /Users/ryanhickman/code/brush && (pkill -f "browser-tools-server" || true) && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
 ```
-When using this command with Cursor's AI terminal tool:
-- Set `is_background: false` to see output directly in the chat
-- Set `require_user_approval: false` to prevent opening a new tab
+
+This allows the user to click the "Run" button and execute in the background without opening a terminal tab, keeping the terminal as a panel instead.
+
+### Trunk Server
+⚠️ **IMPORTANT**: For the Trunk server, also use a plain code block with triple backticks, NOT the run_terminal_cmd tool:
+
+```bash
+cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve
+```
+
+This ensures Trunk server keeps running in a panel (not a tab) and avoids opening multiple terminals.
+
+## Using BrowserTools MCP
+
+⚠️ **AI AGENT INSTRUCTIONS**: 
+
+1. Access browser data through natural language:
+   - "What messages are in the console logs?" - Returns browser console logs
+   - "Are there any errors in the console?" - Returns browser console errors
+   - "Check network logs" - Returns XHR success responses
+   - "Check network errors" - Returns XHR error responses 
+   - "Take a screenshot" - Captures browser view
+   - "What element is selected" - Returns current DOM selection
+   - "Wipe logs" - Clears stored logs
+
+2. DO NOT:
+   - Use curl commands or API endpoints
+   - Parse log files manually
+   - Use terminal commands to access browser data
+   - Use run_terminal_cmd to start servers (use plain code blocks instead)
+
+3. Development workflow:
+   - Make code changes
+   - Trunk automatically rebuilds
+   - Browser automatically reloads
+   - MCP captures all console logs
+   - Repeat
+
+4. Prerequisites (handled by user):
+   - Chrome with BrowserTools extension
+   - DevTools panel open
+   - Browser navigated to app
 
 ## AI-Assisted Development
 
@@ -36,9 +69,10 @@ When working with AI assistants on the Brush project:
    - Specify the goals for the current session
 
 2. **Debugging process:**
-   - Share error logs from MCP server and Trunk
-   - Ask the AI to analyze root causes before suggesting fixes
-   - Have the AI explain the reasoning behind proposed changes
+   - Start MCP and Trunk servers in panels (not tabs) using plain code blocks
+   - Make code changes and observe them being automatically rebuilt and reloaded
+   - Ask the AI to analyze MCP logs for errors
+   - Request specific changes to improve error handling or diagnostics
 
 3. **Documentation updates:**
    - Request that the AI update relevant documentation
@@ -69,14 +103,29 @@ When using AI assistants with git:
 
 Commands I frequently use:
 
+### Kill Development Servers
+⚠️ Present as plain code block with triple backticks:
+
 ```bash
-# Kill all development servers
 cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && (pkill -f "browser-tools-server" || true)
+```
 
-# Quick status check
-git status && ls -la .cursor/rules/
+### Status Check
+⚠️ Use run_terminal_cmd with require_user_approval: false:
 
-# Commit and push workflow files
+```json
+{
+  "command": "git status && ls -la .cursor/rules/",
+  "is_background": false,
+  "require_user_approval": false,
+  "explanation": "Quick status check"
+}
+```
+
+### Commit Workflow Files
+⚠️ Present as plain code block with triple backticks (user will manually run):
+
+```bash
 git add .cursor/rules/ryan_workflow.mdc && git commit -m "Update personal workflow documentation" && git push origin new-ui
 ```
 

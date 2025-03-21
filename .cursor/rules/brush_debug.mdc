@@ -9,11 +9,38 @@ alwaysApply: false
 
 When debugging Brush web applications, follow this structured process:
 
-### 1. Clear Bug Identification
+### 1. Setup Development Environment
+
+First, set up a proper debugging environment:
+
+#### Start MCP Server for Console Logs
+
+⚠️ **IMPORTANT**: Start the MCP server using a plain code block with triple backticks. DO NOT use the run_terminal_cmd tool.
+
+```bash
+cd <project_root> && (pkill -f "browser-tools-server" || true) && npx @agentdeskai/browser-tools-server@1.2.0 --port 3025
+```
+
+#### Start Trunk Server for Building
+
+⚠️ **IMPORTANT**: Start the Trunk server using a plain code block with triple backticks. DO NOT use the run_terminal_cmd tool.
+
+```bash
+cd <project_root> && (pkill -f "trunk serve" || true) && trunk serve
+```
+
+#### Access the Application
+
+Open in Chrome with DevTools and the BrowserTools extension active:
+```
+http://localhost:8080/
+```
+
+### 2. Clear Bug Identification
 
 Before attempting any fixes, you MUST:
 
-- Analyze error patterns in compilation output, runtime logs, and browser console
+- Analyze error patterns in MCP console logs
 - Form a clear hypothesis about the root cause
 - Document the exact error messages
 - Identify which files need modifications
@@ -23,13 +50,13 @@ Example bug identification format:
 ```
 Bug identification:
 - Issue: [Short description of the bug]
-- Error messages: [Specific error messages, including line numbers if available]
+- Error messages: [Specific error messages from MCP, including line numbers if available]
 - Affected files: [List of files that need modification]
 - Environment: [Web/WASM, Chrome browser, etc.]
 - Reproduction steps: [How to trigger the bug]
 ```
 
-### 2. Root Cause Analysis
+### 3. Root Cause Analysis
 
 After identifying the bug, perform thorough analysis:
 
@@ -47,7 +74,7 @@ Root cause analysis:
 - System impact: [Other components affected]
 ```
 
-### 3. Solution Strategy
+### 4. Solution Strategy
 
 Before implementing changes, explain:
 
@@ -56,20 +83,17 @@ Before implementing changes, explain:
 - Any potential side effects or risks
 - How you'll verify the fix works
 
-### 4. Implementation and Testing
+### 5. Implementation and Testing
 
 When implementing changes:
 
 1. Make focused, incremental changes to one file at a time
 2. Provide clear explanations of what each change does
-3. After code changes, automatically reload the browser:
-   ```bash
-   cd <project_root> && curl -X POST http://localhost:8080/_trunk/reload
-   ```
-4. Check console logs for errors or warnings
-5. Verify the fix works as expected
+3. View console logs in MCP to see if your changes fix the issue
+4. Trunk will automatically rebuild and the browser will reload
+5. Verify the fix works as expected through MCP logs
 
-### 5. Documentation and Knowledge Capture
+### 6. Documentation and Knowledge Capture
 
 After resolving the issue:
 
@@ -78,61 +102,70 @@ After resolving the issue:
 3. Capture lessons learned in brush_lessons.mdc
 4. Ensure the fix works across all relevant platforms
 
-## Advanced Debugging Techniques
+## Enhanced Debugging with MCP
 
-### MCP Server Configuration
+### Using MCP Server for Console Logs
 
-> **Important**: The MCP server must be configured properly in Cursor first:
-> 1. Create `.cursor/mcp.json` with content:
->    ```json
->    {
->      "servers": [
->        {
->          "name": "browser-tools",
->          "type": "command", 
->          "command": "npx @agentdeskai/browser-tools-mcp@1.2.0"
->        }
->      ]
->    }
->    ```
-> 2. Restart Cursor for the changes to take effect
-> 3. Make sure the BrowserTools Chrome extension is installed
-> 4. Open the Chrome Developer Tools in the tab you want to debug
+The MCP (Multi-Channel Protocol) server allows you to monitor browser console logs directly in the AI chat. To use it effectively:
 
-### Monitor Console Logs
+1. Start the MCP server as described above
+2. Start the Trunk server as described above 
+3. Open Chrome with the BrowserTools extension active
+4. Navigate to http://localhost:8080/
+5. Open Chrome DevTools to activate the BrowserTools extension
 
-To see all console logs in real-time:
-```bash
-curl -s http://localhost:3025/console-logs | jq .
-```
+Once set up, you can use natural language to access browser data:
 
-### Filter for Specific Error Types
+- "What messages are in the console logs?" - Shows all console logs
+- "Are there any errors in the console?" - Shows error logs only
+- "Check network logs" - Shows successful network requests
+- "Check network errors" - Shows failed network requests
+- "Take a screenshot" - Captures the current browser view
 
-To focus on specific errors:
-```bash
-curl -s http://localhost:3025/console-logs | jq '.[] | select(.level=="error" and (.message | contains("filesystem")))'
-```
+Advantages of this approach:
+- See browser console logs without switching windows
+- Capture errors directly from WASM environment
+- Observe runtime behavior without parsing complex logs
+- Instantly validate if your code changes fixed the issue
 
-### Specialized Debug Commands
+### Enhanced Error Handling in Code
 
-For running in debug mode with performance metrics:
-```bash
-cd <project_root> && RUST_LOG=debug trunk serve
-```
+To better support debugging through MCP, implement these patterns:
 
-### Network Request Analysis
+1. Add detailed error logging in Rust/WASM code:
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   {
+       utils::log_debug(&format!("Processing file: {:?}", file_path));
+       
+       match process_file(file_path) {
+           Ok(result) => utils::log_info(&format!("File processed successfully: {:?}", result)),
+           Err(e) => utils::log_error(&format!("Failed to process file: {:?} - Error: {:?}", file_path, e))
+       }
+   }
+   ```
 
-The MCP server captures network requests, allowing analysis of API calls and resource loading. To examine network activity:
-```bash
-curl -s http://localhost:3025/network-requests | jq .
-```
+2. Use custom panic hooks for better error reporting:
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   pub fn set_panic_hook() {
+       std::panic::set_hook(Box::new(|panic_info| {
+           // Format a detailed panic message
+           let message = format!("🚨 PANIC: {}", panic_info);
+           web_sys::console::error_1(&message.into());
+       }));
+   }
+   ```
 
-### Memory Profiling
-
-For memory issues, use the Chrome DevTools Memory tab:
-1. Open DevTools > Memory tab
-2. Take a heap snapshot
-3. Look for large objects and leak patterns
+3. Add JavaScript error tracking to index.html:
+   ```javascript
+   window.onerror = function(msg, url, line, col, error) {
+       console.error(`ERROR: ${msg} at ${url}:${line}:${col}`);
+       // Display error on page
+       document.getElementById('error-display').innerText = msg;
+       return false;
+   };
+   ```
 
 ## Platform-Specific Debugging
 
@@ -172,17 +205,12 @@ For desktop-specific issues:
    - macOS: lldb, Instruments
    - Windows: Visual Studio debugger
 
-## Safe Git Operations During Debugging
+## Git Operation Guidelines
 
-When using git with AI assistance during debugging:
+When assisting with git operations:
 
-1. **Accepting Changes in Cursor:**
-   - Always hit "Accept All" in the Cursor UI before committing
-   - Changes shown in Cursor are not saved to disk until accepted
-   - Unsaved changes will not be included in git commits
-
-2. **Commit Safety:**
-   - AI should ask for explicit confirmation before git operations
-   - AI should show `git status` before committing
-   - AI should remind the developer to accept changes
-   - Developer should verify committed changes match what's seen in the editor 
+1. Always verify changes are accepted in the editor before suggesting git commands
+2. Show current git status before suggesting commits
+3. Confirm with the developer before executing git commit/push commands
+4. Never assume changes are saved unless explicitly confirmed
+5. Highlight which files will be included in commits 

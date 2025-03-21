@@ -27,3 +27,37 @@ When solving complex technical issues:
 
 4. Include this documentation step as part of the solution delivery, not as an afterthought.
 </documentation_responsibilities>
+
+<lesson_learned>
+## Improved WASM Debugging with MCP Server
+
+### Issue
+Debugging Rust/WASM applications in the browser was cumbersome and inefficient due to:
+- Console logs were difficult to monitor across multiple terminal windows
+- Runtime errors ("unreachable" in WASM) were hard to diagnose
+- Manual terminal management led to port conflicts and window clutter
+- Error context was often lost when switching between code and browser
+
+### Solution Implemented
+We created an integrated debugging workflow using:
+1. MCP server to capture and relay browser console logs directly to the AI agent
+2. Enhanced panic hooks in Rust/WASM to provide detailed error information
+3. Structured JavaScript logging with consistent formatting
+4. UI components to display error states visibly to the user
+5. Automated terminal management with specific code block format to prevent tab proliferation
+
+### Key Lessons
+1. **Plain Code Blocks vs Terminal Commands**: AI assistants should use plain code blocks with triple backticks rather than `run_terminal_cmd` to avoid spawning new terminal tabs.
+2. **Consistent Error Patterns**: Implementing consistent error patterns (prefixes, emojis) makes logs easier to filter and analyze.
+3. **Comprehensive Error Capture**: Adding custom panic hooks and error handlers in both Rust and JavaScript ensures no errors are missed.
+4. **Terminal Management**: Using `pkill` to clean up existing processes before starting new ones prevents port conflicts.
+5. **Visual Feedback**: Adding loading indicators and error displays in the UI improves the user experience during debugging.
+6. **Enhanced MCP Queries**: Using natural language queries like "What messages are in the console logs?" provides better context than generic commands.
+
+### Implementation Details
+- Updated panic hooks in `utils.rs` to provide detailed error information
+- Added structured logging in `index.html` for consistent message formatting
+- Enhanced error handling in IndexedDB storage initialization
+- Created visual status indicators for the UI
+- Updated documentation to reflect the new debugging workflow
+</lesson_learned>

@@ -121,19 +121,77 @@
         }
     </style>
     
-    <!-- Script to fix the /brush-demo/ path issue -->
+    <!-- Enhanced error handling with detailed diagnostic script -->
     <script>
-        // Check if we're on a path with /brush-demo/ and redirect to root if needed
-        (function() {
+        // Application state tracking
+        window.brushAppState = {
+            startTime: Date.now(),
+            loadingSteps: [],
+            errors: [],
+            initialized: false
+        };
+        
+        // Log both to console and MCP
+        function logWithMCP(level, message) {
+            // Track loading steps
+            window.brushAppState.loadingSteps.push({
+                timestamp: Date.now() - window.brushAppState.startTime,
+                message: message
+            });
+            
+            // Log to console with appropriate level
+            if (level === 'error') {
+                console.error('⛔️ BRUSH_ERROR:', message);
+            } else if (level === 'warn') {
+                console.warn('⚠️ BRUSH_WARN:', message);
+            } else if (level === 'info') {
+                console.info('ℹ️ BRUSH_INFO:', message);
+            } else {
+                console.log('🔵 BRUSH_LOG:', message);
+            }
+        }
+        
+        // Track errors
+        window.onerror = function(msg, url, line, col, error) {
+            const errorDetails = {
+                message: msg,
+                source: url,
+                line: line, 
+                column: col,
+                error: error ? error.stack : 'No stack trace',
+                timestamp: Date.now() - window.brushAppState.startTime
+            };
+            
+            window.brushAppState.errors.push(errorDetails);
+            logWithMCP('error', `JavaScript error: ${msg} at ${url}:${line}:${col}`);
+            
+            // Display error on page for easier debugging
+            const statusEl = document.getElementById('loader-status');
+            if (statusEl) {
+                statusEl.innerText = `Error: ${msg}`;
+                statusEl.style.color = '#ff5555';
+            }
+            
+            return false; // Don't prevent default error handling
+        };
+        
+        // Test MCP capture by logging various levels
+        window.addEventListener('DOMContentLoaded', function() {
+            logWithMCP('info', '🟢 MCP TEST: DOM Content Loaded - Testing MCP capture');
+            logWithMCP('warn', '🟠 MCP TEST: Warning test');
+            logWithMCP('error', '🔴 MCP TEST: Error test (not a real error)');
+            logWithMCP('info', '🎯 WORKFLOW TEST: This message confirms the edit-compile-reload cycle is working! [' + new Date().toISOString() + ']');
+            
+            // Check if we're on a path with /brush-demo/ and redirect to root if needed
             const path = window.location.pathname;
             if (path.includes('/brush-demo/')) {
-                console.log('🔴 Detected /brush-demo/ in path, redirecting to root');
+                logWithMCP('info', '🔄 Detected /brush-demo/ in path, redirecting to root');
                 const newPath = path.replace('/brush-demo/', '/');
                 const newUrl = window.location.origin + newPath + window.location.search + window.location.hash;
                 window.history.replaceState(null, '', newUrl);
-                console.log('🔴 Redirected to: ' + newUrl);
+                logWithMCP('info', '✅ Redirected to: ' + newUrl);
             }
-        })();
+        });
     </script>
     
     <!-- Disable subresource integrity checks for local development -->
@@ -175,21 +233,57 @@
     <!-- the id is hardcoded in main.rs . so, make sure both match. -->
     <canvas id="main_canvas"></canvas>
 
+    <!-- Loading indicator with diagnostics -->
+    <div class="spinner-text-container">
+        <div class="spinner-with-text">
+            <div class="lds-dual-ring"></div>
+            <div class="loading-text">Loading Brush...</div>
+            <div id="loader-status" class="loader-status">Initializing...</div>
+        </div>
+    </div>
+
     <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
     <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
     <script>
+        // Update loading status
+        const updateStatus = function(message) {
+            const statusEl = document.getElementById('loader-status');
+            if (statusEl) {
+                statusEl.innerText = message;
+            }
+            logWithMCP('info', 'Loading: ' + message);
+        };
+        
         // We disable caching during development so that we always view the latest version.
         if (
             "serviceWorker" in navigator &&
             window.location.hash !== "#dev"
         ) {
             window.addEventListener("load", function () {
-                navigator.serviceWorker.register("sw.js");
+                updateStatus('Registering service worker...');
+                navigator.serviceWorker.register("sw.js").then(function() {
+                    updateStatus('Service worker registered');
+                }).catch(function(err) {
+                    updateStatus('Service worker registration failed: ' + err);
+                    logWithMCP('error', 'Service worker registration failed: ' + err);
+                });
             });
         }
         
-        // Log a message to test if console logs are being captured
-        console.log('🟠🟠🟠 PAGE LOADED - TESTING CONSOLE LOG CAPTURE 🟠🟠🟠');
+        // Log application load completion
+        window.addEventListener("load", function() {
+            updateStatus('Page loaded, waiting for WASM...');
+            logWithMCP('info', '🎉 PAGE LOADED - Waiting for WASM initialization');
+            
+            // Check if app isn't initialized after 10 seconds (likely error)
+            setTimeout(function() {
+                if (!window.brushAppState.initialized) {
+                    const errorMsg = 'Application failed to initialize within 10 seconds';
+                    logWithMCP('error', errorMsg);
+                    updateStatus(errorMsg);
+                }
+            }, 10000);
+        });
     </script>
 </body>
 

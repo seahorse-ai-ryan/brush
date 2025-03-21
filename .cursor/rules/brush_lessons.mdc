@@ -221,6 +221,81 @@ alwaysApply: true
    }
    ```
 
+# Debugging and Diagnostics
+1. Problem: Difficult to debug WASM runtime errors
+   - Symptoms: "RuntimeError: unreachable" with no stack trace
+   - Solution: Enhanced panic hooks and structured logging
+   ```rust
+   // Good: Improved panic hook for WASM
+   #[cfg(target_arch = "wasm32")]
+   pub fn set_panic_hook() {
+       std::panic::set_hook(Box::new(|panic_info| {
+           // Get details from the panic
+           let message = if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
+               *msg
+           } else if let Some(msg) = panic_info.payload().downcast_ref::<String>() {
+               msg.as_str()
+           } else {
+               "Unknown panic"
+           };
+           
+           // Format with location info
+           let location = panic_info.location()
+               .map_or("unknown location", |loc| loc.file());
+           
+           // Create distinctive message
+           let full_message = format!("🚨 PANIC: {} at {}", message, location);
+           
+           // Log through web_sys
+           web_sys::console::error_1(&full_message.into());
+           
+           // Use standard panic hook as fallback
+           console_error_panic_hook::hook(panic_info);
+       }));
+   }
+   ```
+
+2. Problem: Browser console logs hard to track
+   - Symptoms: Missing important log messages, tracking issues across browser tabs
+   - Solution: MCP server with consistent logging patterns
+   ```javascript
+   // Good: JavaScript logging with MCP
+   function logWithMCP(level, message) {
+       // Log to console with appropriate level and prefix
+       if (level === 'error') {
+           console.error('⛔️ ERROR:', message);
+       } else if (level === 'warn') {
+           console.warn('⚠️ WARN:', message);
+       } else if (level === 'info') {
+           console.info('ℹ️ INFO:', message);
+       } else {
+           console.log('🔵 LOG:', message);
+       }
+   }
+   
+   // Use in code
+   logWithMCP('error', 'Failed to initialize storage');
+   ```
+
+3. Problem: Error state not visible in UI
+   - Symptoms: Silent failures with no user feedback
+   - Solution: Error display component and status updates
+   ```javascript
+   // Good: User-visible error reporting
+   function updateStatus(message, isError = false) {
+       const statusEl = document.getElementById('status-display');
+       if (statusEl) {
+           statusEl.innerText = message;
+           statusEl.style.color = isError ? '#ff5555' : '#ffffff';
+       }
+   }
+   
+   window.onerror = function(msg, url, line, col, error) {
+       updateStatus(`Error: ${msg}`, true);
+       return false;
+   };
+   ```
+
 # Best Practices
 1. Debug Logging:
    ```rust

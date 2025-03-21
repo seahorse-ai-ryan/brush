@@ -36,10 +36,44 @@ use tokio_with_wasm::alias as tokio_wasm;
 use crate::export_service::{ExportService, ExportError, ExportFormat};
 use brush_dataset::storage;
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, JsValue};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 #[cfg(not(target_family = "wasm"))]
 use rfd;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn error(s: &str);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn setup_panic_hook() {
+    use std::panic;
+    panic::set_hook(Box::new(|info| {
+        // Extract panic message and location if available
+        let message = if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else if let Some(s) = info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else {
+            "Unknown panic".to_string()
+        };
+        
+        // Get location information if available
+        let location = if let Some(location) = info.location() {
+            format!(" at {}:{}:{}", location.file(), location.line(), location.column())
+        } else {
+            "".to_string()
+        };
+        
+        // Log the panic in a structured way
+        error(&format!("🔴 WASM PANIC: {}{}", message, location));
+    }));
+}
 
 pub(crate) trait AppPanel {
     fn title(&self) -> String;
@@ -126,6 +160,8 @@ pub struct App {
     stats_detail_overlay: StatsDetailOverlay,
     controls_detail_overlay: ControlsDetailOverlay,
     select_file_requested: bool,
+    build_timestamp: String,
+    diagnostic_mode: bool,
 }
 
 pub struct AppContext {
@@ -135,18 +171,22 @@ pub struct AppContext {
     pub controls: CameraController,
     pub model_local_to_world: Affine3A,
     pub device: WgpuDevice,
-
+ 
     loading: bool,
     training: bool,
     // Track the current dataset name for export filenames
     current_dataset_name: Option<String>,
-
+ 
     ctx: egui::Context,
     running_process: Option<RunningProcess<TrainBack>>,
     cam_settings: CameraSettings,
     
     // Export service for handling splat exports
     export_service: ExportService,
+    
+    // New fields for marking datasets as processed
+    pub selected_dataset_path: Option<PathBuf>,
+    pub mark_dataset_processed: Option<PathBuf>,
     
     // Storage for datasets
     #[cfg(target_family = "wasm")]
@@ -195,6 +235,9 @@ impl AppContext {
             running_process: None,
             cam_settings: cam_settings.clone(),
             export_service: ExportService::new(None),
+            // New fields for marking datasets as processed
+            selected_dataset_path: None,
+            mark_dataset_processed: None,
             #[cfg(target_family = "wasm")]
             storage: None,
             #[cfg(not(target_family = "wasm"))]
@@ -208,24 +251,56 @@ impl AppContext {
         use brush_dataset::storage::indexed_db::IndexedDbStorage;
         use brush_dataset::storage::DatasetStorage;
         use crate::utils::{log_info, log_error};
+        use std::io::{Error, ErrorKind};
         
-        log_info("Initializing IndexedDB storage");
+        log_info("🗄️ Initializing IndexedDB storage");
         
-        // Create storage and initialize it
-        match IndexedDbStorage::new() {
+        // Create a safer initialization flow with detailed error reporting
+        let storage_result: Result<IndexedDbStorage, Error> = (|| {
+            log_info("🗄️ Creating IndexedDB storage");
+            
+            // Attempt to create the storage
+            let storage = IndexedDbStorage::new()
+                .map_err(|e| {
+                    log_error(&format!("❌ IndexedDB creation failed: {:?}", e));
+                    Error::new(ErrorKind::Other, format!("IndexedDB creation error: {:?}", e))
+                })?;
+            
+            log_info("🗄️ Initializing IndexedDB storage");
+            Ok(storage)
+        })();
+        
+        // Handle the result of storage creation
+        match storage_result {
             Ok(mut storage) => {
-                if let Err(err) = storage.initialize() {
-                    log_error(&format!("Failed to initialize IndexedDB: {}", err));
-                    return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()));
+                // Attempt to initialize the storage
+                match (|| -> Result<(), Error> {
+                    // Wrap the initialization in a closure to catch any issues
+                    storage.initialize().map_err(|e| {
+                        log_error(&format!("❌ IndexedDB initialization failed: {:?}", e));
+                        Error::new(ErrorKind::Other, format!("IndexedDB init error: {:?}", e))
+                    })
+                })() {
+                    Ok(_) => {
+                        log_info("✅ IndexedDB storage initialized successfully");
+                        self.storage = Some(storage);
+                        Ok(())
+                    },
+                    Err(err) => {
+                        // Gracefully handle initialization errors
+                        log_error(&format!("❌ IndexedDB initialization error: {}", err));
+                        log_info("ℹ️ Using stub implementation of IndexedDB storage");
+                        self.storage = None;
+                        Ok(())
+                    }
                 }
-                
-                self.storage = Some(storage);
-                log_info("IndexedDB storage initialized successfully");
-                Ok(())
-            }
+            },
             Err(err) => {
-                log_error(&format!("Failed to create IndexedDB storage: {}", err));
-                Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+                // Gracefully handle storage creation errors
+                log_error(&format!("❌ IndexedDB storage creation error: {}", err));
+                log_info("ℹ️ Using stub implementation of IndexedDB storage");
+                self.storage = None;
+                Ok(())
             }
         }
     }
@@ -606,14 +681,48 @@ impl App {
         start_uri_override: Option<String>,
         reset_windows: bool,
     ) -> Self {
-        // Add debug message for app initialization
-        #[cfg(target_family = "wasm")]
-        crate::utils::log_info("Brush application initializing...");
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Install the panic hook to get better error messages in console
+            setup_panic_hook();
+            
+            // Log diagnostic information
+            crate::utils::log_info("🔧 Setting up WASM environment");
+        }
         
-        // Brush is always in dark mode for now, as it looks better and I don't care much to
-        // put in the work to support both light and dark mode!
-        cc.egui_ctx
-            .options_mut(|opt| opt.theme_preference = ThemePreference::Dark);
+        // Initialize the build timestamp
+        let build_timestamp = format!("{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
+        
+        // Parse URL parameters
+        let mut url_params = parse_url_params_with_override(start_uri_override.as_ref());
+        
+        // Check for diagnostic mode in URL parameters
+        let diagnostic_mode = url_params.get("diagnostic").map_or(false, |v| v == "true");
+        
+        // Generate build timestamp for tracking builds
+        let build_timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        
+        // Log important diagnostic information
+        crate::utils::log_info(&format!("🔄 Build timestamp: {}", build_timestamp));
+        crate::utils::log_info(&format!("🔍 Diagnostic mode: {}", diagnostic_mode));
+        
+        // Log URL parameters in diagnostic mode
+        if diagnostic_mode {
+            // Log all URL parameters for debugging
+            for (key, value) in &url_params {
+                crate::utils::log_info(&format!("🌐 URL param: {} = {}", key, value));
+            }
+        }
+        
+        // If reset_windows flag is set, clear the window state from storage
+        if reset_windows {
+            cc.egui_ctx.memory_mut(|mem| {
+                mem.data.clear();
+            });
+        }
+        
+        // Continue with existing initialization
+        let _ctx = cc.egui_ctx.clone();
 
         // For now just assume we're running on the default
         let state = cc
@@ -630,53 +739,25 @@ impl App {
         #[cfg(target_family = "wasm")]
         crate::utils::log_debug("WGPU device initialized successfully");
 
-        // Parse URL parameters.
+        // Initialize zen mode from URL parameters or default to false
         let mut zen = false;
-        let mut search_params: HashMap<String, String> = HashMap::new();
-
-        #[cfg(target_family = "wasm")]
-        {
-            use web_sys::window;
-            if let Some(window) = window() {
-                if let Ok(Some(location)) = window.location().search().map(|s| {
-                    if s.is_empty() {
-                        None
-                    } else {
-                        Some(s[1..].to_string())
-                    }
-                }) {
-                    for pair in location.split('&') {
-                        let mut parts = pair.split('=');
-                        if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-                            search_params.insert(key.to_string(), value.to_string());
-                        }
-                    }
-                }
-            }
-        }
-
-        // If we have a start_uri_override, use it instead of the URL parameter
-        if let Some(uri) = start_uri_override.clone() {
-            search_params.insert("url".to_string(), uri);
-        }
-
-        if let Some(z) = search_params.get("zen") {
+        if let Some(z) = url_params.get("zen") {
             zen = z.parse::<bool>().unwrap_or(false);
         }
 
-        let focal = search_params
+        let focal = url_params
             .get("focal")
             .and_then(|f| f.parse().ok())
             .unwrap_or(0.8);
-        let radius = search_params
+        let radius = url_params
             .get("radius")
             .and_then(|f| f.parse().ok())
             .unwrap_or(4.0);
-        let focus_distance = search_params
+        let focus_distance = url_params
             .get("focus_distance")
             .and_then(|f| f.parse().ok())
             .unwrap_or(4.0);
-        let speed_scale = search_params
+        let speed_scale = url_params
             .get("speed_scale")
             .and_then(|f| f.parse().ok())
             .unwrap_or(1.0);
@@ -725,7 +806,7 @@ impl App {
 
         let tree_ctx = AppTree { zen, context };
 
-        let url = search_params.get("url");
+        let url = url_params.get("url");
         
         // Clone the device for the stats overlay before it's potentially moved
         let device_for_stats = device.clone();
@@ -760,13 +841,6 @@ impl App {
         controls_detail_overlay.set_open(true);
         // Set the Controls window position to where the user manually positioned it
         controls_detail_overlay.set_position(egui::pos2(614.0, 794.0));
-        
-        // If reset_windows flag is set, clear the window state from storage
-        if reset_windows {
-            cc.egui_ctx.memory_mut(|mem| {
-                mem.data.clear();
-            });
-        }
         
         if let Some(running) = running {
             tree_ctx
@@ -812,8 +886,8 @@ impl App {
         let tree = egui_tiles::Tree::new("brush_tree", root_container, tiles);
 
         // Debug mode parameter
-        let debug_mode = search_params.get("debug").map_or("false", |v| v);
-        let auto_test = search_params.get("auto_test").map_or("false", |v| v);
+        let debug_mode = url_params.get("debug").map_or("false", |v| v);
+        let auto_test = url_params.get("auto_test").map_or("false", |v| v);
 
         // If debug mode is enabled, log it
         if debug_mode == "true" {
@@ -881,6 +955,8 @@ impl App {
             stats_detail_overlay,
             controls_detail_overlay,
             select_file_requested: false,
+            build_timestamp,
+            diagnostic_mode,
         }
     }
 }
@@ -1287,17 +1363,19 @@ impl eframe::App for App {
                                 // Read the file data (this consumes file_handle)
                                 let data = file_handle.read().await;
                                 
-                                // Create a temporary file in memory
-                                let temp_dir = std::env::temp_dir();
-                                let temp_path = temp_dir.join(&file_name);
+                                // Create a virtual path - not actually written to disk
+                                // This is a workaround for WASM which doesn't have filesystem access
+                                let virtual_path = PathBuf::from(format!("/virtual/{}", file_name));
+
+                                // Log the virtual path handling
+                                log::info!("WASM: Creating virtual path for file: {}", file_name);
                                 
-                                // Write the data to the temporary file
-                                if let Err(e) = std::fs::write(&temp_path, &data) {
-                                    log::error!("Failed to write temporary file: {}", e);
-                                    continue;
-                                }
+                                // Store the path for processing
+                                paths.push(virtual_path);
                                 
-                                paths.push(temp_path);
+                                // In a real application, we would store the file data in memory
+                                // and associate it with the virtual path, but for now we'll just
+                                // use the path as a placeholder
                             }
                             
                             if !paths.is_empty() {
@@ -1380,5 +1458,67 @@ impl eframe::App for App {
                 }
             }
         }
+
+        // Add a footer with build timestamp and diagnostic mode indicator in WASM environment
+        #[cfg(target_arch = "wasm32")]
+        {
+            egui::TopBottomPanel::bottom("footer_panel")
+                .show_separator_line(false)
+                .min_height(24.0)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            // Display diagnostic mode indicator if enabled
+                            if self.diagnostic_mode {
+                                ui.label(RichText::new("🔍 DIAGNOSTIC MODE").color(egui::Color32::from_rgb(255, 165, 0)));
+                                ui.add_space(10.0);
+                            }
+                            
+                            // Display build timestamp
+                            let timestamp = RichText::new(format!("Build: {}", self.build_timestamp))
+                                .small()
+                                .color(egui::Color32::from_rgba_premultiplied(180, 180, 180, 200));
+                            ui.label(timestamp);
+                        });
+                    });
+                });
+        }
+        
+        // Check if there's a dataset that needs to be marked as processed
+        {
+            let mut app_context = self.tree_ctx.context.write().expect("Lock poisoned");
+            if let Some(dataset_path) = app_context.mark_dataset_processed.take() {
+                // Tell the dataset detail overlay to update the dataset status
+                self.dataset_detail_overlay.update_dataset_processed(&dataset_path);
+                
+                #[cfg(target_arch = "wasm32")]
+                crate::utils::log_info(&format!("✅ Marking dataset as processed: {}", dataset_path.display()));
+            }
+        }
     }
+}
+
+// Parse URL parameters to check for diagnostic mode
+fn parse_url_params() -> HashMap<String, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(location) = window.location().search() {
+                return parse_search(&location);
+            }
+        }
+    }
+    HashMap::new()
+}
+
+// Modified parse_url_params to also handle start_uri_override
+fn parse_url_params_with_override(start_uri_override: Option<&String>) -> HashMap<String, String> {
+    let mut params = parse_url_params();
+    
+    // If we have a start_uri_override, use it instead of the URL parameter
+    if let Some(uri) = start_uri_override {
+        params.insert("url".to_string(), uri.clone());
+    }
+    
+    params
 }

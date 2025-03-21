@@ -106,8 +106,23 @@ fn main() -> MainResult {
         // Log application startup with a distinctive message that should be easy to spot
         log_info("🔴🔴🔴 BRUSH APPLICATION STARTING 🔴🔴🔴");
         
+        // Add a test message with timestamp to verify our edit-compile-reload workflow
+        let now = js_sys::Date::new_0();
+        log_info(&format!("🛠️🛠️🛠️ RUST CODE EDIT TEST: Workflow verification [{}] 🛠️🛠️🛠️", 
+                          now.to_iso_string().as_string().unwrap_or_default()));
+        
         // Also try direct web_sys console log
         web_sys::console::log_1(&"🟢🟢🟢 DIRECT CONSOLE.LOG TEST 🟢🟢🟢".into());
+        
+        // Mark application as initialized in JavaScript
+        if let Some(window) = web_sys::window() {
+            if let Some(brush_app) = js_sys::Reflect::get(&window, &"brushAppState".into()).ok() {
+                if brush_app.is_object() {
+                    let _ = js_sys::Reflect::set(&brush_app, &"initialized".into(), &true.into());
+                    web_sys::console::log_1(&"✅✅✅ BRUSH APPLICATION INITIALIZED ✅✅✅".into());
+                }
+            }
+        }
         
         if cfg!(debug_assertions) {
             eframe::WebLogger::init(log::LevelFilter::Debug).ok();
