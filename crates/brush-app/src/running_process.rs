@@ -1,11 +1,16 @@
 use brush_process::{
     data_source::DataSource,
-    process_loop::{ControlMessage, ProcessArgs, ProcessMessage, process_stream},
+    process_loop::{ProcessArgs, ProcessMessage, process_stream},
 };
 use burn_wgpu::WgpuDevice;
 use tokio::sync::mpsc::{Receiver, UnboundedSender};
 use tokio_stream::StreamExt;
 use tokio_with_wasm::alias as tokio_wasm;
+
+#[derive(Debug, Clone)]
+pub enum ControlMessage {
+    Paused(bool),
+}
 
 pub struct RunningProcess {
     pub start_args: ProcessArgs,

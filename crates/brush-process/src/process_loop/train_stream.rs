@@ -113,17 +113,6 @@ pub(crate) async fn train_stream(
         let (new_splats, refine) = trainer.refine_if_needed(iter, splats).await;
         splats = new_splats;
 
-        if let Some(stats) = refine {
-            visualize.log_refine_stats(iter, &stats)?;
-            emitter
-                .emit(ProcessMessage::RefineStep {
-                    stats: Box::new(stats),
-                    cur_splat_count: splats.num_splats(),
-                    iter,
-                })
-                .await;
-        }
-
         #[allow(unused)]
         let export_path =
             Path::new(process_config.export_path.as_deref().unwrap_or(".")).to_owned();
@@ -227,30 +216,42 @@ pub(crate) async fn train_stream(
 
         visualize.log_splat_stats(iter, &splats)?;
 
+        // Log out train stats.
+        if iter % process_args.rerun_config.rerun_log_train_stats_every == 0 || is_last_step {
+            visualize.log_train_stats(iter, stats.clone()).await?;
+        }
+
+        // Add up time from this step.
+        train_duration += step_time.elapsed();
+
+        // Emit some messages. Important to not count these in the training time (as this might pause).
+        if let Some(stats) = refine {
+            visualize.log_refine_stats(iter, &stats)?;
+            emitter
+                .emit(ProcessMessage::RefineStep {
+                    stats: Box::new(stats),
+                    cur_splat_count: splats.num_splats(),
+                    iter,
+                })
+                .await;
+        }
+
         // How frequently to update the UI after a training step.
         const UPDATE_EVERY: u32 = 5;
 
         if iter % UPDATE_EVERY == 0 || is_last_step {
             let message = ProcessMessage::TrainStep {
                 splats: Box::new(splats.valid()),
-                stats: Box::new(stats.clone()),
+                stats: Box::new(stats),
                 iter,
                 total_elapsed: train_duration,
             };
             emitter.emit(message).await;
         }
 
-        // Log out train stats.
-        if iter % process_args.rerun_config.rerun_log_train_stats_every == 0 || is_last_step {
-            visualize.log_train_stats(iter, stats).await?;
-        }
-
         if is_last_step {
             break;
         }
-
-        // Add up time from this step.
-        train_duration += step_time.elapsed();
     }
 
     Ok(())

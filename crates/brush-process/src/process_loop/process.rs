@@ -98,8 +98,3 @@ pub fn process_stream(
         Ok(())
     })
 }
-
-#[derive(Debug, Clone)]
-pub enum ControlMessage {
-    Paused(bool),
-}
