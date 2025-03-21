@@ -8,14 +8,8 @@ use brush_app::running_process::start_process;
 #[allow(unused)]
 use tokio::sync::oneshot::error::RecvError;
 
-#[cfg(not(target_family = "wasm"))]
-type MainResult = Result<(), clap::Error>;
-
-#[cfg(target_family = "wasm")]
-type MainResult = Result<(), ()>;
-
 #[allow(clippy::unnecessary_wraps)] // Error isn't need on wasm but that's ok.
-fn main() -> MainResult {
+fn main() -> Result<(), anyhow::Error> {
     let wgpu_options = brush_ui::create_egui_options();
 
     #[allow(unused)]
@@ -33,8 +27,10 @@ fn main() -> MainResult {
             .build()
             .expect("Failed to initialize tokio runtime");
 
-        runtime.block_on(async {
-            env_logger::init();
+        runtime.block_on(async move {
+            env_logger::builder()
+                .target(env_logger::Target::Stdout)
+                .init();
 
             if args.with_viewer {
                 let icon = eframe::icon_data::from_png_bytes(
@@ -78,16 +74,17 @@ fn main() -> MainResult {
                     title,
                     native_options,
                     Box::new(move |cc| Ok(Box::new(App::new(cc, send, None)))),
-                )
-                .expect("Failed to run egui app");
+                )?;
             } else {
                 let Some(source) = args.source else {
                     panic!("Validation of args failed?");
                 };
                 let device = brush_render::burn_init_setup().await;
-                brush_cli::ui::process_ui(source, args.process, device).await;
+                brush_cli::ui::process_ui(source, args.process, device).await?;
             }
-        });
+
+            anyhow::Result::<(), anyhow::Error>::Ok(())
+        })?;
     }
 
     #[cfg(target_family = "wasm")]
@@ -122,7 +119,7 @@ fn main() -> MainResult {
                         Box::new(|cc| Ok(Box::new(App::new(cc, send, None)))),
                     )
                     .await
-                    .expect("failed to start eframe");
+                    .expect("failed to start eframe"); // Ideally reported as a result but doesn't really matter.
             });
         }
     }

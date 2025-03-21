@@ -99,7 +99,7 @@ async fn test_reference() -> Result<()> {
     };
 
     for (i, path) in ["tiny_case", "basic_case", "mix_case"].iter().enumerate() {
-        println!("Checking path {path}");
+        log::info!("Checking path {path}");
 
         let mut buffer = Vec::new();
         let _ = File::open(format!("./test_cases/{path}.safetensors"))?.read_to_end(&mut buffer)?;

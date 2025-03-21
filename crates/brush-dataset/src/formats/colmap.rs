@@ -143,9 +143,12 @@ async fn read_views(
                 let (_, quat, translation) = cam_to_world.to_scale_rotation_translation();
 
                 let camera = Camera::new(translation, quat, fovx, fovy, center_uv);
+                let path = path.to_string_lossy().to_string();
+
+                log::info!("Loaded COLMAP image at path {path}");
 
                 let view = SceneView {
-                    path: path.to_string_lossy().to_string(),
+                    path,
                     camera,
                     image,
                     img_type,

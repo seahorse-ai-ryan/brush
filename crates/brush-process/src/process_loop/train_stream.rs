@@ -28,23 +28,25 @@ pub(crate) async fn train_stream(
     device: WgpuDevice,
     emitter: TryStreamEmitter<ProcessMessage, anyhow::Error>,
 ) -> anyhow::Result<()> {
-    let process_config = &process_args.process_config;
+    log::info!("Start of training stream");
 
+    log::info!("Create rerun {}", process_args.rerun_config.rerun_enabled);
+    let visualize = VisualizeTools::new(process_args.rerun_config.rerun_enabled);
+
+    let process_config = &process_args.process_config;
     emitter
         .emit(ProcessMessage::StartLoading { training: true })
         .await;
 
+    log::info!("Using seed {}", process_config.seed);
     <TrainBack as Backend>::seed(process_config.seed);
     let mut rng = rand::rngs::StdRng::from_seed([process_config.seed as u8; 32]);
 
-    // Load initial splats if included
-    let mut initial_splats = None;
-
+    log::info!("Loading dataset");
     let mut dataset = Dataset::empty();
     let (mut splat_stream, mut data_stream) =
         brush_dataset::load_dataset(vfs.clone(), &process_args.load_config, &device).await?;
-
-    let visualize = VisualizeTools::new(process_args.rerun_config.rerun_enabled);
+    log::info!("Dataset loaded");
 
     // Read dataset stream.
     while let Some(d) = data_stream.next().await {
@@ -60,7 +62,10 @@ pub(crate) async fn train_stream(
 
     let estimated_up = dataset.estimate_up();
 
+    log::info!("Loading initial splats if any.");
     // Read initial splats if any.
+    let mut initial_splats = None;
+
     while let Some(message) = splat_stream.next().await {
         let message = message?;
         let msg = ProcessMessage::ViewSplats {
@@ -82,6 +87,8 @@ pub(crate) async fn train_stream(
     let splats = if let Some(splats) = initial_splats {
         splats
     } else {
+        log::info!("Starting with random splat config.");
+
         // By default, spawn the splats in bounds.
         let bounds = dataset.train.bounds();
         let bounds_extent = bounds.extent.length();
@@ -91,6 +98,7 @@ pub(crate) async fn train_stream(
             .train
             .adjusted_bounds(bounds_extent * 0.25, bounds_extent);
         let config = RandomSplatsConfig::new();
+
         Splats::from_random_config(&config, adjusted_bounds, &mut rng, &device)
     };
 
@@ -104,6 +112,7 @@ pub(crate) async fn train_stream(
     let mut dataloader = SceneLoader::new(&train_scene, 42, &device);
     let mut trainer = SplatTrainer::new(&process_args.train_config, &device);
 
+    log::info!("Start training loop.");
     for iter in process_args.process_config.start_iter..process_args.train_config.total_steps {
         let step_time = Instant::now();
 
@@ -238,7 +247,6 @@ pub(crate) async fn train_stream(
 
         // How frequently to update the UI after a training step.
         const UPDATE_EVERY: u32 = 5;
-
         if iter % UPDATE_EVERY == 0 || is_last_step {
             let message = ProcessMessage::TrainStep {
                 splats: Box::new(splats.valid()),
@@ -247,10 +255,6 @@ pub(crate) async fn train_stream(
                 total_elapsed: train_duration,
             };
             emitter.emit(message).await;
-        }
-
-        if is_last_step {
-            break;
         }
     }
 

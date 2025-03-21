@@ -85,8 +85,6 @@ pub fn process_stream(
         let paths: Vec<_> = vfs.file_names().collect();
         log::info!("Mounted VFS with {} files", paths.len());
 
-        println!("Start Process loop.");
-
         if paths
             .iter()
             .all(|p| p.extension().is_some_and(|p| p == "ply"))

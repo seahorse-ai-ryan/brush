@@ -229,7 +229,7 @@ pub(crate) fn stream_fut_parallel<T: Send + 'static>(
             .unwrap_or(8)
     };
 
-    log::info!("Loading stream with {parallel} threads");
+    log::info!("Loading dataset stream with {parallel} threads");
 
     let mut futures = futures;
     fn_stream(|emitter| async move {
