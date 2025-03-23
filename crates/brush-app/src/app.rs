@@ -35,6 +35,7 @@ use brush_dataset::splat_export;
 use tokio_with_wasm::alias as tokio_wasm;
 use crate::export_service::{ExportService, ExportError, ExportFormat};
 use brush_dataset::storage;
+use brush_dataset::DatasetStorage;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::{JsCast, JsValue};
 #[cfg(target_arch = "wasm32")]
@@ -192,7 +193,7 @@ pub struct AppContext {
     #[cfg(target_family = "wasm")]
     storage: Option<brush_dataset::storage::indexed_db::IndexedDbStorage>,
     #[cfg(not(target_family = "wasm"))]
-    storage: Option<brush_dataset::storage::filesystem::FilesystemStorage>,
+    storage: Option<brush_dataset::storage::DefaultStorage>,
 }
 
 #[derive(Clone)]
@@ -307,9 +308,10 @@ impl AppContext {
     
     /// Initialize the storage system
     #[cfg(not(target_family = "wasm"))]
-    pub fn initialize_storage(&mut self) -> anyhow::Result<()> {
-        use brush_dataset::storage::filesystem::FilesystemStorage;
+    pub fn initialize_storage(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        use brush_dataset::storage::DefaultStorage;
         use std::path::PathBuf;
+        use std::io::{Error, ErrorKind};
         
         log::info!("Initializing filesystem storage...");
         
@@ -321,10 +323,11 @@ impl AppContext {
         
         log::info!("Using dataset directory: {:?}", dataset_dir);
         
-        let mut storage = FilesystemStorage::new(dataset_dir);
+        let mut storage = DefaultStorage::new(dataset_dir);
         if let Err(err) = storage.initialize() {
-            log::error!("Failed to initialize filesystem storage: {}", err);
-            return Err(err);
+            let error_msg = format!("Failed to initialize filesystem storage: {}", err);
+            log::error!("{}", error_msg);
+            return Err(Box::new(Error::new(ErrorKind::Other, error_msg)));
         }
         
         self.storage = Some(storage);
@@ -346,13 +349,13 @@ impl AppContext {
     
     /// Get a reference to the storage
     #[cfg(not(target_family = "wasm"))]
-    pub fn storage(&self) -> Option<&brush_dataset::storage::filesystem::FilesystemStorage> {
+    pub fn storage(&self) -> Option<&brush_dataset::storage::DefaultStorage> {
         self.storage.as_ref()
     }
     
     /// Get a mutable reference to the storage
     #[cfg(not(target_family = "wasm"))]
-    pub fn storage_mut(&mut self) -> Option<&mut brush_dataset::storage::filesystem::FilesystemStorage> {
+    pub fn storage_mut(&mut self) -> Option<&mut brush_dataset::storage::DefaultStorage> {
         self.storage.as_mut()
     }
 
@@ -681,6 +684,20 @@ impl App {
         start_uri_override: Option<String>,
         reset_windows: bool,
     ) -> Self {
+        // Add macOS-specific debug logs
+        #[cfg(target_os = "macos")]
+        {
+            println!("BRUSH_DEBUG: App::new() called, initializing app components on macOS");
+            println!("BRUSH_DEBUG: macOS version: {}", std::process::Command::new("sw_vers")
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_else(|_| "unknown".to_string()));
+            
+            // Check if we're running in a GUI environment
+            let has_display = std::env::var("DISPLAY").is_ok();
+            println!("BRUSH_DEBUG: Display environment variable: {}", if has_display { "set" } else { "not set" });
+        }
+        
         #[cfg(target_arch = "wasm32")]
         {
             // Install the panic hook to get better error messages in console
@@ -689,6 +706,8 @@ impl App {
             // Log diagnostic information
             crate::utils::log_info("🔧 Setting up WASM environment");
         }
+        
+        println!("BRUSH_DEBUG: Initializing application UI components");
         
         // Initialize the build timestamp
         let build_timestamp = format!("{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"));
@@ -1078,11 +1097,61 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Add debug message for first frame
-        static FIRST_FRAME: std::sync::Once = std::sync::Once::new();
-        FIRST_FRAME.call_once(|| {
-            #[cfg(target_family = "wasm")]
-            crate::utils::log_info("Brush application loaded and ready");
-        });
+        static mut FIRST_FRAME: bool = true;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static FRAME_COUNT: AtomicUsize = AtomicUsize::new(0);
+        
+        if unsafe { FIRST_FRAME } {
+            unsafe { FIRST_FRAME = false; }
+            let time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+            println!("BRUSH_DEBUG: First UI frame rendered at {}", time);
+            println!("BRUSH_DEBUG: Using {} mode", if ctx.style().visuals.dark_mode { "dark" } else { "light" });
+            println!("BRUSH_DEBUG: Screen dimensions: {:?}", ctx.screen_rect());
+        }
+        
+        // Log occasional frame updates to confirm ongoing rendering
+        let count = FRAME_COUNT.fetch_add(1, Ordering::SeqCst);
+        if count % 100 == 0 {
+            println!("BRUSH_DEBUG: Still rendering frames (count: {})", count);
+        }
+        
+        // Create a visual indicator that will be very obvious if the app is rendering
+        // This creates a pulsing red circle in the center of the screen
+        #[cfg(target_os = "macos")]
+        {
+            let time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs_f32();
+            
+            let pulse = (time.sin() * 0.5 + 0.5) as f32; // 0.0 to 1.0 pulsing
+            
+            // Draw a large pulsing circle in the center of the screen
+            let screen_rect = ctx.screen_rect();
+            let center = screen_rect.center();
+            let radius = 100.0 * (0.5 + pulse * 0.5);
+            let color = egui::Color32::from_rgb(
+                255, // Full red
+                (pulse * 255.0) as u8, // Pulsing green
+                0, // No blue
+            );
+            
+            // Paint directly to the screen
+            let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("debug_overlay")));
+            painter.circle_filled(center, radius, color);
+            
+            // Also add text
+            painter.text(
+                center, 
+                egui::Align2::CENTER_CENTER, 
+                "BRUSH APP RUNNING", 
+                egui::FontId::proportional(24.0), 
+                egui::Color32::BLACK
+            );
+            
+            // Force a repaint to keep the animation going
+            ctx.request_repaint();
+        }
         
         self.receive_messages();
 

@@ -50,9 +50,11 @@ impl FilesystemStorage {
             storage_type: StorageType::Local,
         })
     }
+}
 
-    /// Initialize the storage system
-    pub fn initialize(&mut self) -> Result<()> {
+// Implement the DatasetStorage trait for FilesystemStorage
+impl DatasetStorage for FilesystemStorage {
+    fn initialize(&mut self) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         {
             if !self.dataset_dir.exists() {
@@ -62,21 +64,19 @@ impl FilesystemStorage {
         Ok(())
     }
 
-    /// Save a dataset to the filesystem
-    pub fn save_dataset(&self, _name: &str, _data: &[u8]) -> Result<()> {
+    fn save_dataset(&mut self, name: &str, data: &[u8]) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         {
-            let dataset_path = self.dataset_dir.join(_name);
-            fs::write(dataset_path, _data)?;
+            let dataset_path = self.dataset_dir.join(name);
+            fs::write(dataset_path, data)?;
         }
         Ok(())
     }
 
-    /// Load a dataset from the filesystem
-    pub fn load_dataset(&self, _name: &str) -> Result<Vec<u8>> {
+    fn load_dataset(&self, name: &str) -> Result<Vec<u8>> {
         #[cfg(not(target_family = "wasm"))]
         {
-            let dataset_path = self.dataset_dir.join(_name);
+            let dataset_path = self.dataset_dir.join(name);
             let data = fs::read(dataset_path)?;
             return Ok(data);
         }
@@ -88,34 +88,10 @@ impl FilesystemStorage {
         }
     }
 
-    /// List all datasets in the storage
-    pub fn list_datasets(&self) -> Result<Vec<String>> {
+    fn delete_dataset(&mut self, name: &str) -> Result<()> {
         #[cfg(not(target_family = "wasm"))]
         {
-            let mut datasets = Vec::new();
-            if self.dataset_dir.exists() {
-                for entry in fs::read_dir(&self.dataset_dir)? {
-                    let entry = entry?;
-                    if let Some(name) = entry.file_name().to_str() {
-                        datasets.push(name.to_string());
-                    }
-                }
-            }
-            return Ok(datasets);
-        }
-        
-        #[cfg(target_family = "wasm")]
-        {
-            // Return empty list for WASM as filesystem operations are not supported
-            return Ok(Vec::new());
-        }
-    }
-
-    /// Delete a dataset from the filesystem
-    pub fn delete_dataset(&self, _name: &str) -> Result<()> {
-        #[cfg(not(target_family = "wasm"))]
-        {
-            let dataset_path = self.dataset_dir.join(_name);
+            let dataset_path = self.dataset_dir.join(name);
             if dataset_path.exists() {
                 fs::remove_file(dataset_path)?;
             }
@@ -138,5 +114,27 @@ impl FilesystemStorage {
         }
         
         Ok(total_size)
+    }
+    
+    fn list_datasets(&self) -> Result<Vec<String>> {
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let mut datasets = Vec::new();
+            if self.dataset_dir.exists() {
+                for entry in fs::read_dir(&self.dataset_dir)? {
+                    let entry = entry?;
+                    if let Some(name) = entry.file_name().to_str() {
+                        datasets.push(name.to_string());
+                    }
+                }
+            }
+            return Ok(datasets);
+        }
+        
+        #[cfg(target_family = "wasm")]
+        {
+            // Return empty list for WASM as filesystem operations are not supported
+            return Ok(Vec::new());
+        }
     }
 } 

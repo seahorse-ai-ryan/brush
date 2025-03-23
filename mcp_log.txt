@@ -1,0 +1,779 @@
+Starting Browser Tools Server...
+Requested port: 3025
+Found available port: 3025
+
+=== Browser Tools Server Started ===
+Aggregator listening on http://0.0.0.0:3025
+
+Available on the following network addresses:
+  - http://192.168.4.26:3025
+
+For local access use: http://localhost:3025
+Received current URL update request: {
+  "url": "chrome://newtab/",
+  "tabId": 882444419,
+  "timestamp": 1742411145086,
+  "source": "tab_activated"
+}
+Updated current tab ID: null -> 882444419
+Updated current URL via dedicated endpoint:  -> chrome://newtab/
+URL update details: source=tab_activated, tabId=882444419, timestamp=2025-03-19T19:05:45.086Z
+Received current URL update request: {
+  "url": "file:///Users/ryanhickman/code/brush/public/debug.html",
+  "tabId": 882444419,
+  "timestamp": 1742411146826,
+  "source": "tab_url_change"
+}
+Updated current tab ID: 882444419 -> 882444419
+Updated current URL via dedicated endpoint: chrome://newtab/ -> file:///Users/ryanhickman/code/brush/public/debug.html
+URL update details: source=tab_url_change, tabId=882444419, timestamp=2025-03-19T19:05:46.826Z
+Received current URL update request: {
+  "url": "file:///Users/ryanhickman/code/brush/public/debug.html",
+  "tabId": 882444419,
+  "timestamp": 1742411146862,
+  "source": "page_complete"
+}
+Updated current tab ID: 882444419 -> 882444419
+Updated current URL via dedicated endpoint: file:///Users/ryanhickman/code/brush/public/debug.html -> file:///Users/ryanhickman/code/brush/public/debug.html
+URL update details: source=page_complete, tabId=882444419, timestamp=2025-03-19T19:05:46.862Z
+Chrome extension connected via WebSocket
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742411146872,
+  "source": "initial_connection"
+}
+Updated current tab ID: 882444419 -> 882444235
+Updated current URL via dedicated endpoint: file:///Users/ryanhickman/code/brush/public/debug.html -> http://localhost:8080/?autoload=true
+URL update details: source=initial_connection, tabId=882444235, timestamp=2025-03-19T19:05:46.872Z
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742411159945,
+  "source": "tab_activated"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/?autoload=true -> http://localhost:8080/?autoload=true
+URL update details: source=tab_activated, tabId=882444235, timestamp=2025-03-19T19:05:59.945Z
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742411161242,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/?autoload=true',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742411161242
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 1
+}
+=== End Extension Log ===
+
+Received WebSocket message: {
+  type: 'page-navigated',
+  url: 'http://localhost:8080/?autoload=true',
+  tabId: 882444235,
+  timestamp: 1742411161250,
+  data: undefined
+}
+Page navigated to: http://localhost:8080/?autoload=true
+Updating tab ID from page navigation event: 882444235
+Unhandled message type: page-navigated
+Wiping all logs...
+All logs have been wiped
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742411161261,
+  "source": "page_complete"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/?autoload=true -> http://localhost:8080/?autoload=true
+URL update details: source=page_complete, tabId=882444235, timestamp=2025-03-19T19:06:01.261Z
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742411161262,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/brush-app-a55c4a81976f9d79.js',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742411161262
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 1
+}
+=== End Extension Log ===
+
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742411161270,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/favicon-f402c8741ce815ec.ico',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742411161270
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 2
+}
+=== End Extension Log ===
+
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742411161270,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/manifest.json',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742411161270
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 3
+}
+=== End Extension Log ===
+
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742411161275,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/icon-256.png',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742411161275
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 4
+}
+=== End Extension Log ===
+
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received current URL update request: {
+  "url": "file:///Users/ryanhickman/code/brush/public/debug.html",
+  "tabId": 882444419,
+  "timestamp": 1742411237875,
+  "source": "tab_activated"
+}
+Updated current tab ID: 882444235 -> 882444419
+Updated current URL via dedicated endpoint: http://localhost:8080/?autoload=true -> file:///Users/ryanhickman/code/brush/public/debug.html
+URL update details: source=tab_activated, tabId=882444419, timestamp=2025-03-19T19:07:17.875Z
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742411241212,
+  "source": "tab_activated"
+}
+Updated current tab ID: 882444419 -> 882444235
+Updated current URL via dedicated endpoint: file:///Users/ryanhickman/code/brush/public/debug.html -> http://localhost:8080/?autoload=true
+URL update details: source=tab_activated, tabId=882444235, timestamp=2025-03-19T19:07:21.212Z
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Chrome extension disconnected
+Chrome extension connected via WebSocket
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742417999828,
+  "source": "initial_connection"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/?autoload=true -> http://localhost:8080/?autoload=true
+URL update details: source=initial_connection, tabId=882444235, timestamp=2025-03-19T20:59:59.828Z
+Chrome extension disconnected
+Chrome extension connected via WebSocket
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742418015394,
+  "source": "initial_connection"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/?autoload=true -> http://localhost:8080/?autoload=true
+URL update details: source=initial_connection, tabId=882444235, timestamp=2025-03-19T21:00:15.394Z
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: {
+  type: 'page-navigated',
+  url: 'http://localhost:8080/?autoload=true',
+  tabId: 882444235,
+  timestamp: 1742421493566,
+  data: undefined
+}
+Page navigated to: http://localhost:8080/?autoload=true
+Updating tab ID from page navigation event: 882444235
+Unhandled message type: page-navigated
+Wiping all logs...
+All logs have been wiped
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742421493578,
+  "source": "page_complete"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/?autoload=true -> http://localhost:8080/?autoload=true
+URL update details: source=page_complete, tabId=882444235, timestamp=2025-03-19T21:58:13.578Z
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: {
+  type: 'page-navigated',
+  url: 'http://localhost:8080/?autoload=true',
+  tabId: 882444235,
+  timestamp: 1742421536993,
+  data: undefined
+}
+Page navigated to: http://localhost:8080/?autoload=true
+Updating tab ID from page navigation event: 882444235
+Unhandled message type: page-navigated
+Wiping all logs...
+All logs have been wiped
+Received current URL update request: {
+  "url": "http://localhost:8080/?autoload=true",
+  "tabId": 882444235,
+  "timestamp": 1742421537009,
+  "source": "page_complete"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/?autoload=true -> http://localhost:8080/?autoload=true
+URL update details: source=page_complete, tabId=882444235, timestamp=2025-03-19T21:58:57.009Z
+Received WebSocket message: {
+  type: 'page-navigated',
+  url: 'http://localhost:8080/',
+  tabId: 882444235,
+  timestamp: 1742421539317,
+  data: undefined
+}
+Page navigated to: http://localhost:8080/
+Updating tab ID from page navigation event: 882444235
+Unhandled message type: page-navigated
+Wiping all logs...
+All logs have been wiped
+Received current URL update request: {
+  "url": "http://localhost:8080/",
+  "tabId": 882444235,
+  "timestamp": 1742421539321,
+  "source": "tab_url_change"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/ -> http://localhost:8080/
+URL update details: source=tab_url_change, tabId=882444235, timestamp=2025-03-19T21:58:59.321Z
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742421539329,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/brush-app-49e3f890d5b7719a_bg.wasm',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742421539329
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 1
+}
+=== End Extension Log ===
+
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742421539330,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/brush-app-49e3f890d5b7719a.js',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742421539330
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 2
+}
+=== End Extension Log ===
+
+Received current URL update request: {
+  "url": "http://localhost:8080/",
+  "tabId": 882444235,
+  "timestamp": 1742421539348,
+  "source": "page_complete"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/ -> http://localhost:8080/
+URL update details: source=page_complete, tabId=882444235, timestamp=2025-03-19T21:58:59.348Z
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742421539352,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/manifest.json',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742421539352
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 3
+}
+=== End Extension Log ===
+
+
+=== Received Extension Log ===
+Request body: {
+  dataType: 'network-request',
+  timestamp: 1742421539354,
+  hasSettings: true
+}
+Updating settings: {
+  logLimit: 50,
+  queryLimit: 30000,
+  showRequestHeaders: true,
+  showResponseHeaders: true
+}
+Processing network-request log entry
+Adding network request: {
+  url: 'http://localhost:8080/icon-256.png',
+  method: 'GET',
+  status: 200,
+  timestamp: 1742421539354
+}
+Current log counts: {
+  consoleLogs: 0,
+  consoleErrors: 0,
+  networkErrors: 0,
+  networkSuccess: 4
+}
+=== End Extension Log ===
+
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: {
+  type: 'page-navigated',
+  url: 'http://localhost:8080/',
+  tabId: 882444235,
+  timestamp: 1742421543544,
+  data: undefined
+}
+Page navigated to: http://localhost:8080/
+Updating tab ID from page navigation event: 882444235
+Unhandled message type: page-navigated
+Wiping all logs...
+All logs have been wiped
+Received current URL update request: {
+  "url": "http://localhost:8080/",
+  "tabId": 882444235,
+  "timestamp": 1742421543556,
+  "source": "page_complete"
+}
+Updated current tab ID: 882444235 -> 882444235
+Updated current URL via dedicated endpoint: http://localhost:8080/ -> http://localhost:8080/
+URL update details: source=page_complete, tabId=882444235, timestamp=2025-03-19T21:59:03.556Z
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
+Received WebSocket message: { type: 'heartbeat', data: undefined }
+Unhandled message type: heartbeat
