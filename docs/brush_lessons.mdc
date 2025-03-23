@@ -1,0 +1,188 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# UI Development
+// ... existing code ...
+
+# File Handling
+// ... existing code ...
+
+# Performance Optimization
+// ... existing code ...
+
+# Cross-Platform Development
+## Web Platform
+// ... existing code ...
+
+## Node.js Integration
+1. Problem: Managing Node.js dependencies in Rust projects
+   - Symptoms: Inconsistent dependency versions, complex setup process
+   - Solution: Use package.json and setup script
+   ```json
+   // Good: Minimal package.json for dev tools
+   {
+     "name": "brush-dev-tools",
+     "version": "1.0.0",
+     "private": true,
+     "scripts": {
+       "start-mcp": "browser-tools-server"
+     },
+     "devDependencies": {
+       "@agentdeskai/browser-tools-server": "^0.1.0"
+     }
+   }
+   ```
+
+2. Problem: Inconsistent debugging environment
+   - Symptoms: Different behavior across developer machines
+   - Solution: Standardized setup script
+   ```bash
+   # Good: Setup script for consistent environment
+   #!/bin/bash
+   # setup-dev-tools.sh
+   
+   echo "Installing Node.js dependencies for development tools..."
+   npm install
+   echo "Setup complete! You can now run 'npm run start-mcp' to start the BrowserTools MCP server."
+   ```
+
+3. Problem: Mixing Rust and Node.js toolchains
+   - Symptoms: Confusion about which tools to use for what purpose
+   - Solution: Clear separation of concerns
+   ```markdown
+   # Good: Clear documentation of tool usage
+   ## Development Tools
+   
+   This project uses two separate toolchains:
+   
+   1. **Rust/Cargo**: For the core application
+      - Build: `cargo build`
+      - Run: `cargo run`
+      - Test: `cargo test`
+   
+   2. **Node.js/npm**: For web debugging tools only
+      - Setup: `./scripts/dev/setup-dev-tools.sh`
+      - Start MCP server: `./scripts/dev/start_mcp.sh`
+   ```
+
+# Graphics & Rendering
+// ... existing code ...
+
+# JavaScript Integration
+// ... existing code ...
+
+# Web Debugging
+1. Problem: Console log visibility
+   - Symptoms: Unable to see web console logs in development environment
+   - Solution: Use BrowserTools MCP server
+   ```rust
+   // Good: Structured logging for web
+   #[cfg(target_arch = "wasm32")]
+   fn log_error(msg: &str, err: &Error) {
+       console_error!("Error: {} - {:?}", msg, err);
+   }
+   ```
+
+2. Problem: Trunk server auto-reload issues
+   - Symptoms: Unexpected behavior and crashes on auto-reload
+   - Solution: Disable auto-reload and run inline for immediate error visibility
+   ```bash
+   # Good: Stable server configuration with instant feedback
+   trunk serve --no-autoreload --open=false
+   ```
+
+3. Problem: Port conflicts
+   - Symptoms: "Address already in use" errors
+   - Solution: Proper process management
+   ```bash
+   # Good: Clean process termination
+   pkill -f "trunk serve" || true
+   pkill -f "browser-tools-server" || true
+   ```
+
+4. Problem: Compilation error visibility
+   - Symptoms: Missing compilation errors in AI-assisted debugging sessions
+   - Solution: Run Trunk server inline in the conversation
+   ```bash
+   # Good: Run Trunk inline to see compilation errors in real-time
+   cd /Users/ryanhickman/code/brush && (pkill -f "trunk serve" || true) && trunk serve --no-autoreload --open=false
+   ```
+   Benefits:
+   - Immediate visibility of compilation errors
+   - No context switching between terminal windows
+   - AI can help debug compilation errors as they occur
+   - Maintains coding context in the conversation
+
+# Best Practices
+// ... existing code ...
+
+## Compile Time
+
+### Use specific type hints when returning impl Trait
+
+Using specific type hints when returning `impl Trait` can help the compiler infer types correctly and provide better error messages.
+
+### Running Trunk inline for better debugging
+
+When debugging web applications with WASM, run the Trunk server inline in the current terminal rather than in a background process. This provides several benefits:
+
+1. Immediate visibility of compilation errors directly in the conversation
+2. Easier correlation between code changes and their effects
+3. Maintains context in the debugging session
+4. Simplifies tracking of the build process
+
+Example command:
+```sh
+cd /path/to/project && trunk serve --no-autoreload
+```
+
+Use `trunk build` instead of `trunk serve` if you just want to verify compilation without starting a server.
+
+Running Trunk inline is especially useful during AI-assisted debugging sessions as it provides real-time feedback about compilation errors and allows for faster iteration.
+
+### Using example files with Trunk
+
+To make example files (like PLY models) available to your web application:
+
+1. Add a `data-trunk` directive in your `index.html` to copy the files to the web server:
+   ```html
+   <!-- Copy example files for testing -->
+   <link data-trunk rel="copy-file" href="../../examples/lego.ply" />
+   ```
+
+2. Access these files directly by name in your application:
+   ```rust
+   // In your application code
+   let example_url = "lego.ply"; // Files are copied to the web server root
+   ```
+
+3. For testing, use URL parameters to automatically load example files:
+   ```
+   http://localhost:8080/?test=true&autoload=true
+   ```
+
+This approach allows for consistent testing across development environments and makes it easy to include test files in the deployed application.
+
+## Runtime
+// ... existing code ...
+
+# Development Scripts
+
+## Browser Tools Setup
+
+# scripts/dev/setup-dev-tools.sh
+This script sets up the Node.js dependencies required for browser debugging tools.
+
+```bash
+# Run from the project root
+./scripts/dev/setup-dev-tools.sh
+```
+
+## Common Commands
+
+Key development commands:
+- Setup: `./scripts/dev/setup-dev-tools.sh`
+- Start MCP server: `./scripts/dev/start_mcp.sh`
+- Start Trunk server: `./scripts/dev/run-trunk.sh` 

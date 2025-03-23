@@ -1,0 +1,21 @@
+Starting Browser Tools Server...
+Requested port: 3025
+Found available port: 3025
+
+=== Browser Tools Server Started ===
+Aggregator listening on http://0.0.0.0:3025
+
+Available on the following network addresses:
+  - http://192.168.4.26:3025
+
+For local access use: http://localhost:3025
+
+Received SIGTERM signal
+
+Received SIGINT signal. Starting graceful shutdown...
+Shutting down WebSocket server...
+WebSocket server closed gracefully
+HTTP server closed successfully
+Wiping all logs...
+All logs have been wiped
+Shutdown completed successfully

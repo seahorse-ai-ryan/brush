@@ -8,16 +8,19 @@ use std::path::Path;
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-#[cfg(feature = "web-storage")]
-pub mod indexed_db;
-
+// Always include filesystem storage
 pub mod filesystem;
 
-#[cfg(all(target_arch = "wasm32", feature = "web-storage"))]
-pub use indexed_db as storage_impl;
+// Only include indexed_db when targeting WASM
+#[cfg(target_arch = "wasm32")]
+pub mod indexed_db;
+
+// Select the appropriate implementation as DefaultStorage
+#[cfg(target_arch = "wasm32")]
+pub use indexed_db::IndexedDbStorage as DefaultStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use filesystem as storage_impl;
+pub use filesystem::FilesystemStorage as DefaultStorage;
 
 /// Common trait for dataset storage implementations
 pub trait DatasetStorage {

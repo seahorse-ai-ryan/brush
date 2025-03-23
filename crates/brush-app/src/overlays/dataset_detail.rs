@@ -1653,6 +1653,24 @@ impl DatasetDetailOverlay {
             }
         }
     }
+
+    /// Mark a dataset as processed
+    pub(crate) fn update_dataset_processed(&mut self, dataset_path: &PathBuf) {
+        // Find the dataset in our list and mark it as processed
+        for dataset in &mut self.datasets {
+            if dataset.path == *dataset_path {
+                dataset.processed = true;
+                break;
+            }
+        }
+        
+        // Log the update
+        #[cfg(target_arch = "wasm32")]
+        crate::utils::log_info(&format!("✅ Dataset marked as processed: {:?}", dataset_path));
+        
+        #[cfg(not(target_arch = "wasm32"))]
+        log::info!("Dataset marked as processed: {:?}", dataset_path);
+    }
 }
 
 // Manual implementation of Clone for DatasetDetailOverlay to handle non-cloneable fields

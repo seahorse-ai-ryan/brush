@@ -1,0 +1,9 @@
+2025-03-20T22:08:34.084570Z  INFO 🚀 Starting trunk 0.21.9
+2025-03-20T22:08:34.086663Z  INFO 📦 starting build
+2025-03-20T22:08:36.233542Z  INFO applying new distribution
+2025-03-20T22:08:36.235567Z  INFO ✅ success
+2025-03-20T22:08:36.235617Z  INFO 📡 serving static assets at -> /
+2025-03-20T22:08:36.235660Z  INFO 📡 server listening at:
+2025-03-20T22:08:36.235669Z  INFO     🏠 http://127.0.0.1:8080/
+2025-03-20T22:08:36.235673Z  INFO     🏠 http://[::1]:8080/
+2025-03-20T22:08:36.235790Z  INFO     🏠 http://localhost.:8080/
