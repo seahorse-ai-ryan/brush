@@ -5,7 +5,7 @@ use brush_train::train::TrainBack;
 use brush_ui::burn_texture::BurnTexture;
 use burn::tensor::backend::AutodiffBackend;
 use core::f32;
-use egui::epaint::mutex::RwLock as EguiRwLock;
+use egui::{Area, epaint::mutex::RwLock as EguiRwLock};
 use std::sync::Arc;
 
 use brush_render::{
@@ -81,13 +81,9 @@ impl ScenePanel {
         &mut self,
         ui: &mut egui::Ui,
         context: &mut AppContext,
-        splats: &Splats<<TrainBack as AutodiffBackend>::InnerBackend>,
-    ) {
+        splats: Option<Splats<<TrainBack as AutodiffBackend>::InnerBackend>>,
+    ) -> egui::Rect {
         let size = brush_ui::size_for_splat_view(ui);
-
-        if size.x < 8.0 || size.y < 8.0 {
-            return;
-        }
 
         let mut size = size.floor();
 
@@ -134,30 +130,32 @@ impl ScenePanel {
             ui.ctx().request_repaint();
         }
 
-        // If this viewport is re-rendering.
-        if size.x > 0 && size.y > 0 && dirty {
-            let _span = trace_span!("Render splats").entered();
-            let (img, _) = splats.render(&context.camera, size, false);
-            self.backbuffer.update_texture(img);
+        if let Some(splats) = splats {
+            // If this viewport is re-rendering.
+            if size.x > 8 && size.y > 8 && dirty {
+                let _span = trace_span!("Render splats").entered();
+                let (img, _) = splats.render(&context.camera, size, false);
+                self.backbuffer.update_texture(img);
+            }
         }
 
-        if let Some(id) = self.backbuffer.id() {
-            ui.scope(|ui| {
-                let mut background = false;
-                if let Some(view) = context.dataset.train.views.first() {
-                    if view.image.color().has_alpha() && view.img_type == ViewImageType::Alpha {
-                        background = true;
-                        // if training views have alpha, show a background checker. Masked images
-                        // should still use a black background.
-                        brush_ui::draw_checkerboard(ui, rect, Color32::WHITE);
-                    }
+        ui.scope(|ui| {
+            let mut background = false;
+            if let Some(view) = context.dataset.train.views.first() {
+                if view.image.color().has_alpha() && view.img_type == ViewImageType::Alpha {
+                    background = true;
+                    // if training views have alpha, show a background checker. Masked images
+                    // should still use a black background.
+                    brush_ui::draw_checkerboard(ui, rect, Color32::WHITE);
                 }
+            }
 
-                // If a scene is opaque, it assumes a black background.
-                if !background {
-                    ui.painter().rect_filled(rect, 0.0, Color32::BLACK);
-                }
+            // If a scene is opaque, it assumes a black background.
+            if !background {
+                ui.painter().rect_filled(rect, 0.0, Color32::BLACK);
+            }
 
+            if let Some(id) = self.backbuffer.id() {
                 ui.painter().image(
                     id,
                     rect,
@@ -167,8 +165,10 @@ impl ScenePanel {
                     },
                     Color32::WHITE,
                 );
-            });
-        }
+            }
+        });
+
+        rect
     }
 }
 
@@ -282,7 +282,7 @@ For bigger training runs consider using the native app."#,
                     ui.add_space(2.0);
                 }
             });
-        } else if !self.view_splats.is_empty() {
+        } else {
             const FPS: f32 = 24.0;
 
             if !self.paused {
@@ -292,13 +292,29 @@ For bigger training runs consider using the native app."#,
                 let max_t = (self.view_splats.len() - 1) as f32 / FPS;
                 self.frame = self.frame.min(max_t);
             }
-
             let frame = (self.frame * FPS)
                 .rem_euclid(self.frame_count as f32)
                 .floor() as usize;
-            let splats = self.view_splats[frame].clone();
 
-            self.draw_splats(ui, context, &splats);
+            let splats = self.view_splats.get(frame).cloned();
+            let rect = self.draw_splats(ui, context, splats.clone());
+
+            if context.loading() {
+                let id = ui.auto_id_with("loading_bar");
+                Area::new(id)
+                    .order(egui::Order::Foreground)
+                    .fixed_pos(rect.min)
+                    .show(ui.ctx(), |ui| {
+                        egui::Frame::new()
+                            .fill(egui::Color32::from_rgba_premultiplied(20, 20, 20, 150))
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label(egui::RichText::new("Loading...").heading());
+                                    ui.spinner();
+                                });
+                            });
+                    });
+            }
 
             if self.view_splats.len() > 1 && self.view_splats.len() as u32 == self.frame_count {
                 let label = if self.paused {
@@ -313,13 +329,6 @@ For bigger training runs consider using the native app."#,
             }
 
             ui.horizontal(|ui| {
-                if context.loading() {
-                    ui.horizontal(|ui| {
-                        ui.label("Loading... Please wait.");
-                        ui.spinner();
-                    });
-                }
-
                 if context.training() {
                     ui.add_space(15.0);
 
@@ -348,36 +357,36 @@ For bigger training runs consider using the native app."#,
 
                     ui.add_space(15.0);
 
-                    if ui.button("⬆ Export").clicked() {
-                        let splats = splats.clone();
+                    if let Some(splats) = splats {
+                        if ui.button("⬆ Export").clicked() {
+                            let fut = async move {
+                                let file = rrfd::save_file("export.ply").await;
 
-                        let fut = async move {
-                            let file = rrfd::save_file("export.ply").await;
+                                // Not sure where/how to show this error if any.
+                                match file {
+                                    Err(e) => {
+                                        log::error!("Failed to save file: {e}");
+                                    }
+                                    Ok(file) => {
+                                        let data = splat_export::splat_to_ply(splats).await;
 
-                            // Not sure where/how to show this error if any.
-                            match file {
-                                Err(e) => {
-                                    log::error!("Failed to save file: {e}");
-                                }
-                                Ok(file) => {
-                                    let data = splat_export::splat_to_ply(splats).await;
+                                        let data = match data {
+                                            Ok(data) => data,
+                                            Err(e) => {
+                                                log::error!("Failed to serialize file: {e}");
+                                                return;
+                                            }
+                                        };
 
-                                    let data = match data {
-                                        Ok(data) => data,
-                                        Err(e) => {
-                                            log::error!("Failed to serialize file: {e}");
-                                            return;
+                                        if let Err(e) = file.write(&data).await {
+                                            log::error!("Failed to write file: {e}");
                                         }
-                                    };
-
-                                    if let Err(e) = file.write(&data).await {
-                                        log::error!("Failed to write file: {e}");
                                     }
                                 }
-                            }
-                        };
+                            };
 
-                        tokio_wasm::task::spawn(fut);
+                            tokio_wasm::task::spawn(fut);
+                        }
                     }
                 }
 

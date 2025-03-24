@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
-use brush_render_bwd::burn_glue::SplatForwardDiff;
 use brush_render::{
     camera::{Camera, focal_to_fov, fov_to_focal},
     gaussian_splats::Splats,
 };
+use brush_render_bwd::burn_glue::SplatForwardDiff;
 use brush_rerun::{BurnToImage, BurnToRerun};
 use burn::{
     backend::{Autodiff, Wgpu, wgpu::WgpuDevice},
