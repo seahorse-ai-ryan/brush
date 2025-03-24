@@ -1,7 +1,9 @@
 use std::f64::consts::SQRT_2;
 
 use anyhow::Result;
+use brush_dataset::scene::{SceneBatch, SceneView, ViewImageType};
 use brush_render::gaussian_splats::{Splats, inverse_sigmoid};
+use brush_render_bwd::burn_glue::SplatForwardDiff;
 
 use brush_render::sh::sh_coeffs_for_degree;
 use burn::backend::wgpu::{WgpuDevice, WgpuRuntime};
@@ -21,13 +23,16 @@ use burn_cubecl::cubecl::Runtime;
 use hashbrown::{HashMap, HashSet};
 use tracing::trace_span;
 
+// use crate::adam_scaled::{AdamScaled, AdamScaledConfig, AdamState};
+// use crate::multinomial::multinomial_sample;
+// use crate::stats::RefineRecord;
+use clap::Args;
+
 use crate::adam_scaled::{AdamScaled, AdamScaledConfig, AdamState};
-use crate::burn_glue::SplatForwardDiff;
 use crate::multinomial::multinomial_sample;
-use crate::scene::{SceneView, ViewImageType};
+use crate::quat_vec::quaternion_vec_multiply;
 use crate::ssim::Ssim;
 use crate::stats::RefineRecord;
-use clap::Args;
 
 const MIN_OPACITY: f32 = 0.9 / 255.0;
 
@@ -133,12 +138,6 @@ pub struct TrainConfig {
 
 pub type TrainBack = Autodiff<Wgpu>;
 
-#[derive(Clone, Debug)]
-pub struct SceneBatch<B: Backend> {
-    pub gt_image: Tensor<B, 3>,
-    pub gt_view: SceneView,
-}
-
 #[derive(Clone)]
 pub struct RefineStats {
     pub num_added: u32,
@@ -169,55 +168,8 @@ pub struct SplatTrainer {
     sched_mean: ExponentialLrScheduler,
     sched_scale: ExponentialLrScheduler,
     ssim: Ssim<TrainBack>,
-
     refine_record: Option<RefineRecord<<TrainBack as AutodiffBackend>::InnerBackend>>,
     optim: Option<OptimizerType>,
-}
-
-fn quaternion_vec_multiply<B: Backend>(
-    quaternions: Tensor<B, 2>,
-    vectors: Tensor<B, 2>,
-) -> Tensor<B, 2> {
-    let num_points = quaternions.dims()[0];
-
-    // Extract components
-    let qw = quaternions.clone().slice([0..num_points, 0..1]);
-    let qx = quaternions.clone().slice([0..num_points, 1..2]);
-    let qy = quaternions.clone().slice([0..num_points, 2..3]);
-    let qz = quaternions.slice([0..num_points, 3..4]);
-
-    let vx = vectors.clone().slice([0..num_points, 0..1]);
-    let vy = vectors.clone().slice([0..num_points, 1..2]);
-    let vz = vectors.slice([0..num_points, 2..3]);
-
-    // Common terms
-    let qw2 = qw.clone().powf_scalar(2.0);
-    let qx2 = qx.clone().powf_scalar(2.0);
-    let qy2 = qy.clone().powf_scalar(2.0);
-    let qz2 = qz.clone().powf_scalar(2.0);
-
-    // Cross products (multiplied by 2.0 later)
-    let xy = qx.clone() * qy.clone();
-    let xz = qx.clone() * qz.clone();
-    let yz = qy.clone() * qz.clone();
-    let wx = qw.clone() * qx;
-    let wy = qw.clone() * qy;
-    let wz = qw * qz;
-
-    // Final components with reused terms
-    let x = (qw2.clone() + qx2.clone() - qy2.clone() - qz2.clone()) * vx.clone()
-        + (xy.clone() * vy.clone() + xz.clone() * vz.clone() + wy.clone() * vz.clone()
-            - wz.clone() * vy.clone())
-            * 2.0;
-
-    let y = (qw2.clone() - qx2.clone() + qy2.clone() - qz2.clone()) * vy.clone()
-        + (xy * vx.clone() + yz.clone() * vz.clone() + wz * vx.clone() - wx.clone() * vz.clone())
-            * 2.0;
-
-    let z = (qw2 - qx2 - qy2 + qz2) * vz
-        + (xz * vx.clone() + yz * vy.clone() + wx * vy - wy * vx) * 2.0;
-
-    Tensor::cat(vec![x, y, z], 1)
 }
 
 pub fn inv_sigmoid<B: Backend>(x: Tensor<B, 1>) -> Tensor<B, 1> {
@@ -302,7 +254,6 @@ impl SplatTrainer {
 
         let total_err = if self.config.ssim_weight > 0.0 {
             let gt_rgb = batch.gt_image.clone().slice([0..img_h, 0..img_w, 0..3]);
-
             let ssim_err = -self.ssim.ssim(pred_rgb, gt_rgb);
             l1_rgb * (1.0 - self.config.ssim_weight) + ssim_err * self.config.ssim_weight
         } else {
@@ -330,7 +281,6 @@ impl SplatTrainer {
         let visible: Tensor<_, 1> = Tensor::from_primitive(TensorPrimitive::Float(visible));
 
         let loss = if opac_loss_weight > 0.0 {
-            // let visible_count = visible.clone().sum();
             // Invisible splats still have a tiny bit of loss. Otherwise,
             // they would never die off.
             let visible = visible.clone() + 1e-3;
@@ -747,7 +697,6 @@ async fn prune_points<B: AutodiffBackend>(
 
     let start_splats = splats.num_splats();
     let new_points = valid_inds.dims()[0] as u32;
-
     if new_points < start_splats {
         let valid_inds = valid_inds.squeeze(1);
         splats = map_splats_and_opt(
@@ -768,31 +717,4 @@ async fn prune_points<B: AutodiffBackend>(
     }
 
     (splats, refiner, start_splats - new_points)
-}
-
-#[cfg(test)]
-mod tests {
-    use burn::{
-        backend::{Wgpu, wgpu::WgpuDevice},
-        tensor::Tensor,
-    };
-    use glam::Quat;
-
-    use super::quaternion_vec_multiply;
-
-    #[test]
-    fn test_quat_multiply() {
-        let quat = Quat::from_euler(glam::EulerRot::XYZ, 0.2, 0.2, 0.3);
-        let vec = glam::vec3(0.5, 0.7, 0.1);
-        let result_ref = quat * vec;
-
-        let device = WgpuDevice::DefaultDevice;
-        let quaternions = Tensor::<Wgpu, 1>::from_floats([quat.w, quat.x, quat.y, quat.z], &device)
-            .reshape([1, 4]);
-        let vecs = Tensor::<Wgpu, 1>::from_floats([vec.x, vec.y, vec.z], &device).reshape([1, 3]);
-        let result = quaternion_vec_multiply(quaternions, vecs);
-        let result: Vec<f32> = result.into_data().to_vec().expect("Wrong type");
-        let result = glam::vec3(result[0], result[1], result[2]);
-        assert!((result_ref - result).length() < 1e-7);
-    }
 }

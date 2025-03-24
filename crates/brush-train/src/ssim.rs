@@ -97,7 +97,7 @@ mod tests {
         let img2 = create_test_img(0.53, 2.0);
 
         let ssim = Ssim::new(11, 3, &device);
-        let ssim_val = ssim.ssim(img1.clone(), img2.clone()).mean();
+        let ssim_val = ssim.ssim(img1, img2).mean();
 
         // You get 0.078679755 when using  a naive 2d conv.
         // The separable approach results in 0.078679785

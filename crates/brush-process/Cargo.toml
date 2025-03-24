@@ -29,7 +29,6 @@ log.workspace = true
 
 async-fn-stream.workspace = true
 
-tokio_with_wasm = { workspace = true, features = ["rt"] }
 tokio = { workspace = true, features = ["io-util", "rt"] }
 tokio-util.workspace = true
 tokio-stream.workspace = true

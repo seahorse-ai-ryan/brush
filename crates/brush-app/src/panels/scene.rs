@@ -1,6 +1,7 @@
-use brush_dataset::splat_export;
+use brush_dataset::{scene::ViewImageType, splat_export};
 use brush_process::process_loop::ProcessMessage;
-use brush_train::{scene::ViewImageType, train::TrainBack};
+
+use brush_train::train::TrainBack;
 use brush_ui::burn_texture::BurnTexture;
 use burn::tensor::backend::AutodiffBackend;
 use core::f32;

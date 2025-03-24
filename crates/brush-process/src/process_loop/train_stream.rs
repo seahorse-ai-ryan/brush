@@ -156,7 +156,7 @@ pub(crate) async fn train_stream(
                     if process_args.process_config.eval_save_to_disk {
                         log::info!("Saving eval image to disk.");
 
-                        let eval_render = brush_train::image::tensor_into_image(
+                        let eval_render = crate::process_loop::tensor_into_image(
                             sample.rendered.clone().into_data_async().await,
                         );
                         let rendered: image::DynamicImage = eval_render.to_rgb8().into();

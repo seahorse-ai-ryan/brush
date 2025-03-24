@@ -151,14 +151,6 @@ fn write_coeffs(base_id: ptr<function, i32>, val: vec3f) {
     *base_id += 3;
 }
 
-// fn sigmoid(x: f32) -> f32 {
-//     return 1.0 / (1.0 + exp(-x));
-// }
-
-// fn v_sigmoid(x: f32) -> f32 {
-//     return sigmoid(x) * (1.0 - sigmoid(x));
-// }
-
 @compute
 @workgroup_size(256, 1, 1)
 fn main(@builtin(global_invocation_id) gid: vec3u) {

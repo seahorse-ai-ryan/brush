@@ -1,7 +1,9 @@
-pub mod brush_vfs;
 mod formats;
 mod parsed_gaussian;
 mod quant;
+
+pub mod brush_vfs;
+pub mod scene;
 pub mod scene_loader;
 pub mod splat_export;
 pub mod splat_import;
@@ -11,8 +13,9 @@ pub use formats::clamp_img_to_max_size;
 pub use formats::load_dataset;
 
 use async_fn_stream::fn_stream;
-use brush_train::scene::{Scene, SceneView};
 use core::f32;
+use scene::Scene;
+use scene::SceneView;
 use std::future::Future;
 
 use clap::Args;
