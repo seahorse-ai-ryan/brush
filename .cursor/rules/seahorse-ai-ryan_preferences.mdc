@@ -1,0 +1,31 @@
+---
+description: Personal preferences for Ryan (seahorse-ai-ryan)
+globs: 
+alwaysApply: true
+---
+# RYAN'S PERSONAL PREFERENCES
+
+## ENVIRONMENT
+- MacBook Pro with macOS
+- Cursor IDE for development
+- Chrome browser for testing
+- Technical background but not extensive SWE experience
+
+## TOOL PREFERENCES
+- ALWAYS use BrowserTools MCP server with Brush (personal preference, not required for other developers)
+- RUN Trunk on port 8080 for Brush website
+- CONFIGURE MCP server on port 3025 to pass Chrome console messages to AI agent
+- PREFER Claude 3.7 Sonnet MAX for planning and documentation tasks
+- USE Claude 3.7 Sonnet (regular) for routine edits
+- SOMETIMES use Gemini for planning tasks
+
+## WORKFLOW PREFERENCES
+- DOCUMENT optional tools like BrowserTools MCP clearly so other developers know they're optional
+- FOCUS on cross-platform compatibility and WebGPU integration
+- KEEP documentation separate from implementation
+- MAINTAIN boundaries between technical docs (/docs/) and project docs (/project/)
+
+## IMPORTANT NOTES
+1. DO NOT PUSH THIS FILE UPSTREAM - This is specific to Ryan and not part of the main repo
+2. THESE ARE PERSONAL PREFERENCES, most project structure follows general best practices
+3. APPLY these preferences only where they differ from general best practices 

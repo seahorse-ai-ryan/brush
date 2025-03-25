@@ -1,0 +1,376 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# UI IMPLEMENTATION GUIDELINES
+
+## METADATA
+- **Purpose**: Define UI development patterns and best practices
+- **Priority**: 3 (Task-specific rule)
+- **Updated**: 2025-03-25
+- **Scope**: UI component development and visualization
+- **When to use**: When implementing or modifying UI components
+- **Last Lessons Review**: 2025-03-25
+
+## EGUI FRAMEWORK OVERVIEW
+
+Brush uses the EGUI immediate mode GUI framework for all UI components:
+
+1. UNDERSTAND the immediate mode paradigm:
+   - UI is reconstructed every frame
+   - State is stored separately from UI code
+   - UI code describes what should be shown, not how to show it
+
+2. FOLLOW EGUI's component model:
+   - Widgets are functions that take and return state
+   - Components manage their own internal state
+   - Use Context for global state and theming
+
+3. ADHERE to EGUI's rendering pattern:
+   - UI is defined in terms of logical components
+   - EGUI handles layout and rendering
+   - Custom rendering can be added via custom shapes
+
+SEE MORE: /docs/ui_framework.md
+
+## UI ARCHITECTURE
+
+The Brush UI follows this architectural pattern:
+
+1. ORGANIZE UI code into these layers:
+   - App: Main application state and layout
+   - Panels: Major UI sections (sidebar, main view, toolbars)
+   - Components: Reusable widgets (buttons, sliders, etc.)
+   - Visualizations: 3D and 2D data visualizations
+
+2. MANAGE state following this pattern:
+   - Use App struct for global application state
+   - Each panel has its own state struct
+   - Pass state down through function parameters
+   - Use callbacks for communicating upwards
+
+3. IMPLEMENT layout using EGUI's containers:
+   - SidePanel for toolbars and sidebars
+   - CentralPanel for main content area
+   - Window for floating dialogs
+   - TopBottomPanel for headers and footers
+
+ONE SOLUTION ONLY:
+```rust
+// UI component pattern
+pub struct ImagePanel {
+    selected_image: Option<usize>,
+    zoom_level: f32,
+}
+
+impl ImagePanel {
+    pub fn new() -> Self {
+        Self {
+            selected_image: None,
+            zoom_level: 1.0,
+        }
+    }
+    
+    pub fn show(&mut self, ui: &mut egui::Ui, images: &[Image]) -> Option<PanelAction> {
+        let mut action = None;
+        
+        ui.heading("Images");
+        
+        // Zoom control
+        ui.horizontal(|ui| {
+            ui.label("Zoom:");
+            ui.add(egui::Slider::new(&mut self.zoom_level, 0.1..=5.0));
+            
+            if ui.button("Reset").clicked() {
+                self.zoom_level = 1.0;
+            }
+        });
+        
+        // Image grid
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::Grid::new("image_grid").show(ui, |ui| {
+                for (i, image) in images.iter().enumerate() {
+                    let is_selected = self.selected_image == Some(i);
+                    
+                    let response = ui.selectable_label(
+                        is_selected, 
+                        &format!("Image {}", i)
+                    );
+                    
+                    if response.clicked() {
+                        self.selected_image = Some(i);
+                        action = Some(PanelAction::ImageSelected(i));
+                    }
+                    
+                    ui.end_row();
+                }
+            });
+        });
+        
+        action
+    }
+}
+```
+
+SEE MORE: /docs/ui_architecture.md
+
+## CROSS-PLATFORM UI CONSIDERATIONS
+
+When implementing UI components:
+
+1. ACCOUNT for platform differences:
+   - Touch interfaces vs mouse interfaces
+   - Screen size variations
+   - Performance differences
+   - Input method variations
+
+2. ADAPT UI for different platforms:
+   - Use responsive layout techniques
+   - Provide alternative interactions for touch vs mouse
+   - Scale UI elements appropriately
+   - Test on target platforms
+
+3. HANDLE platform-specific limitations:
+   - Mobile: Optimize for touch and smaller screens
+   - Web: Consider browser compatibility
+   - Desktop: Leverage additional screen space
+   - VR/AR: Consider spatial UI needs
+
+SEE MORE: /docs/cross_platform_ui.md
+
+## RESPONSIVE DESIGN
+
+Implement responsive UI components:
+
+1. USE relative sizing instead of fixed pixel values
+2. IMPLEMENT adaptive layouts that respond to available space
+3. PRIORITIZE content and hide secondary UI when space is limited
+4. MAINTAIN usability across device sizes
+5. TEST on both small and large screens
+
+ONE SOLUTION ONLY:
+```rust
+// Responsive layout pattern
+fn show_responsive_panel(&mut self, ui: &mut egui::Ui) {
+    // Get available width
+    let available_width = ui.available_width();
+    
+    // Determine layout mode based on available space
+    let layout_mode = if available_width < 600.0 {
+        LayoutMode::Compact
+    } else if available_width < 1200.0 {
+        LayoutMode::Standard
+    } else {
+        LayoutMode::Expanded
+    };
+    
+    match layout_mode {
+        LayoutMode::Compact => {
+            // Stacked vertical layout for small screens
+            ui.vertical(|ui| {
+                self.show_toolbar(ui);
+                self.show_content(ui);
+                
+                // Hide secondary elements in compact mode
+                if ui.button("Show More").clicked() {
+                    self.show_secondary_panel = true;
+                }
+                
+                if self.show_secondary_panel {
+                    self.show_secondary_content(ui);
+                }
+            });
+        },
+        LayoutMode::Standard => {
+            // Side-by-side layout for medium screens
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    self.show_toolbar(ui);
+                    self.show_content(ui);
+                });
+                
+                ui.separator();
+                self.show_secondary_content(ui);
+            });
+        },
+        LayoutMode::Expanded => {
+            // Full layout with all panels for large screens
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    self.show_toolbar(ui);
+                    self.show_content(ui);
+                });
+                
+                ui.separator();
+                ui.vertical(|ui| {
+                    self.show_secondary_content(ui);
+                    self.show_tertiary_content(ui);
+                });
+            });
+        }
+    }
+}
+```
+
+SEE MORE: /docs/responsive_ui.md
+
+## 3D VISUALIZATION
+
+For 3D visualization components:
+
+1. USE EGUI's painting API for custom 2D visualizations
+2. INTEGRATE WebGPU rendering for 3D visualization
+3. IMPLEMENT proper camera controls
+4. OPTIMIZE rendering for performance
+5. PROVIDE clear visual feedback for interactions
+
+ONE SOLUTION ONLY:
+```rust
+// 3D viewport pattern
+pub struct Viewport3D {
+    camera: Camera,
+    is_rotating: bool,
+    last_cursor_pos: Option<egui::Pos2>,
+}
+
+impl Viewport3D {
+    pub fn new() -> Self {
+        Self {
+            camera: Camera::default(),
+            is_rotating: false,
+            last_cursor_pos: None,
+        }
+    }
+    
+    pub fn show(&mut self, ui: &mut egui::Ui, scene: &Scene) -> ViewportResponse {
+        let mut response = ViewportResponse::None;
+        
+        // Reserve space for viewport
+        let (rect, response) = ui.allocate_exact_size(
+            ui.available_size(), 
+            egui::Sense::click_and_drag()
+        );
+        
+        // Handle mouse interactions
+        if response.clicked() {
+            let pos = response.interact_pointer_pos();
+            if let Some(pos) = pos {
+                response = ViewportResponse::Clicked(self.screen_to_world(pos));
+            }
+        }
+        
+        if response.dragged() {
+            if !self.is_rotating {
+                self.is_rotating = true;
+                self.last_cursor_pos = response.interact_pointer_pos();
+            } else if let Some(current_pos) = response.interact_pointer_pos() {
+                if let Some(last_pos) = self.last_cursor_pos {
+                    let delta = current_pos - last_pos;
+                    self.camera.rotate(delta.x * 0.01, delta.y * 0.01);
+                    self.last_cursor_pos = Some(current_pos);
+                }
+            }
+        } else {
+            self.is_rotating = false;
+            self.last_cursor_pos = None;
+        }
+        
+        // Render 3D scene using custom painting
+        ui.painter().rect_filled(
+            rect, 
+            0.0, 
+            egui::Color32::BLACK
+        );
+        
+        // Integration with WebGPU renderer would happen here
+        // This would involve creating a texture that WebGPU renders to
+        // and then displaying that texture in EGUI
+        
+        response
+    }
+    
+    fn screen_to_world(&self, screen_pos: egui::Pos2) -> Vec3 {
+        // Convert screen coordinates to world coordinates
+        // using camera projection
+        Vec3::default() // Placeholder
+    }
+}
+```
+
+SEE MORE: /docs/3d_visualization.md
+
+## ACCESSIBILITY CONSIDERATIONS
+
+Implement accessible UI components:
+
+1. ENSURE proper keyboard navigation
+2. PROVIDE alternative text for visual elements
+3. MAINTAIN sufficient color contrast
+4. SUPPORT screen readers where applicable
+5. FOLLOW web accessibility guidelines (WCAG) for web interfaces
+
+SEE MORE: /docs/accessibility.md
+
+## THEMING AND STYLING
+
+For consistent UI styling:
+
+1. USE EGUI's built-in theming system
+2. FOLLOW the established Brush visual style
+3. MAINTAIN consistent spacing and alignment
+4. IMPLEMENT dark and light mode support
+5. USE the defined color palette
+
+ONE SOLUTION ONLY:
+```rust
+// UI theming pattern
+pub fn configure_theme(ctx: &egui::Context) {
+    let mut style = (*ctx.style()).clone();
+    
+    // Set up color palette
+    let accent_color = egui::Color32::from_rgb(0, 120, 215);
+    let background_color = egui::Color32::from_rgb(240, 240, 240);
+    let text_color = egui::Color32::from_rgb(20, 20, 20);
+    
+    // Apply colors to existing theme
+    style.visuals.widgets.noninteractive.bg_fill = background_color;
+    style.visuals.widgets.noninteractive.fg_stroke.color = text_color;
+    style.visuals.widgets.inactive.bg_fill = background_color;
+    style.visuals.widgets.inactive.fg_stroke.color = text_color;
+    style.visuals.widgets.hovered.bg_fill = background_color.lighten(0.05);
+    style.visuals.widgets.hovered.fg_stroke.color = text_color;
+    style.visuals.widgets.active.bg_fill = accent_color;
+    style.visuals.widgets.active.fg_stroke.color = egui::Color32::WHITE;
+    
+    // Set spacing
+    style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+    style.spacing.window_margin = egui::style::Margin::same(12.0);
+    style.spacing.button_padding = egui::vec2(8.0, 4.0);
+    
+    // Apply the modified style
+    ctx.set_style(style);
+}
+```
+
+SEE MORE: /docs/ui_styling.md
+
+## LESSONS LEARNED INTEGRATION
+
+REVIEW these key lessons from previous UI development:
+
+1. Use windows for movable panels, panels for docked UI
+2. Maintain a clear hierarchy of UI components
+3. Test interaction across different screen sizes
+4. Follow existing style conventions for consistency
+
+For a comprehensive list of UI implementation patterns:
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#ui-implementation-patterns`
+
+FOLLOW these established cross-platform considerations:
+1. Use relative sizing rather than fixed pixel values
+2. Implement different controls for touch vs mouse interaction
+3. Test layout on small screens first
+4. Consider device capabilities when enabling features
+
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#cross-platform-considerations` 

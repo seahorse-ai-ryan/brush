@@ -1,0 +1,115 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# SEAHORSE-AI-RYAN'S PERSONAL PREFERENCES
+
+## METADATA
+- **Purpose**: Define Ryan's (seahorse-ai-ryan) personal preferences for development assistance
+- **Priority**: 2 (Domain rule)
+- **Updated**: 2025-03-25
+- **Scope**: All interactions with Ryan
+- **When to use**: When communicating directly with Ryan
+- **IMPORTANT**: DO NOT PUSH THIS FILE UPSTREAM - This file contains personal preferences specific to Ryan and should not be included in the main repository
+
+## COMMUNICATION STYLE
+
+When communicating with Ryan:
+
+1. BE concise and direct
+2. EMPHASIZE clarity over verbosity
+3. PRESENT options with tradeoffs when multiple approaches exist
+4. CITE specific documentation or code examples when relevant
+5. USE technical language appropriate for an experienced developer
+6. INCLUDE reasoning behind suggestions, not just the solution
+7. PREFER bullet points over long paragraphs when listing options
+
+## CODE STYLE PREFERENCES
+
+Follow Ryan's stylistic preferences:
+
+1. PRIORITIZE readability over clever optimizations
+2. USE clear, descriptive variable and function names
+3. PREFER explicit typing over type inference in public interfaces
+4. ORGANIZE imports alphabetically
+5. FOLLOW Rust idioms while maintaining clarity
+6. SEPARATE logic into small, focused functions
+7. INCLUDE doc comments for public APIs
+8. USE trailing commas in multi-line data structures
+9. ALIGN related code for visual clarity
+
+## SOLUTION PRESENTATION
+
+When proposing solutions to Ryan:
+
+1. START with a high-level summary of the approach
+2. PRESENT the simplest solution that works first
+3. MENTION alternative approaches if they have significant advantages
+4. INCLUDE code examples for non-trivial suggestions
+5. HIGHLIGHT any performance or compatibility considerations
+6. EXPLAIN tradeoffs explicitly
+7. PROVIDE context for why one approach is recommended over others
+
+## DEBUGGING ASSISTANCE
+
+For debugging help with Ryan:
+
+1. ASSUME Ryan has already tried the obvious solutions
+2. FOCUS on systematic investigation rather than guesswork
+3. PRIORITIZE identifying root causes over quick fixes
+4. ASK clarifying questions when information is insufficient
+5. SUGGEST specific diagnostic steps when appropriate
+6. ADMIT uncertainty rather than giving misleading guidance
+7. EMPHASIZE logging and instrumentation for diagnosis
+
+## LEARNING PREFERENCES
+
+When explaining concepts to Ryan:
+
+1. USE analogies to related programming concepts
+2. PREFER concrete examples over abstract explanations
+3. LINK to official documentation for further reading
+4. HIGHLIGHT mental models that aid understanding
+5. EXPLAIN how, but also why
+6. FOCUS on practical applications over theoretical details
+7. ASSUME advanced knowledge of Rust and GPU programming
+
+## WORKFLOW PREFERENCES
+
+Respect Ryan's workflow preferences:
+
+1. PREFER small, incremental changes over large rewrites
+2. SUGGEST test cases for new functionality
+3. HIGHLIGHT potential issues early in development
+4. FOCUS on one task at a time
+5. MAINTAIN existing code organization patterns
+6. CONSIDER cross-platform implications from the start
+7. PREFER early feedback cycles during implementation
+8. ALLOW for exploratory coding when tackling complex problems
+
+## PROJECT MANAGEMENT
+
+For Ryan's project organization:
+
+1. FOLLOW the established folder structure
+2. CREATE detailed documentation for new features
+3. SUGGEST updates to existing documentation when appropriate
+4. KEEP track of TODOs and follow-up tasks
+5. RESPECT the priority of current focus areas
+6. USE the project/ directory for planning documents
+7. MAINTAIN cross-references between related documentation
+
+## LESSONS LEARNED INTEGRATION
+
+RESPECT these key learned preferences:
+
+1. Never submit PRs automatically
+2. Always ask for confirmation before major changes
+3. Keep explanations concise and focused
+4. Provide context for technical decisions
+5. Acknowledge limits of understanding when uncertain
+6. Suggest specific test cases that verify behavior
+
+For more specific personal workflow preferences:
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#github-workflow-lessons` 

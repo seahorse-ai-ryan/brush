@@ -1,0 +1,345 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# BRUSH TECHNICAL PATTERNS
+
+## METADATA
+- **Purpose**: Document established technical patterns for Rust, WASM, and ML frameworks
+- **Priority**: 2 (Domain rule)
+- **Updated**: 2025-03-25
+- **Scope**: Technical implementation details across all components
+- **When to use**: When implementing or modifying technical features
+- **Last Lessons Review**: 2025-03-25
+
+## RUST PATTERNS
+
+When writing Rust code for Brush:
+
+1. USE modern Rust idioms from the 2021 edition
+2. PREFER ownership-based resource management over manual cleanup
+3. LEVERAGE the type system to encode invariants
+4. IMPLEMENT the `Error` trait for custom error types
+5. USE associated types in traits for improved type safety
+6. APPLY Result-based error handling rather than panics
+7. FAVOR immutable data structures when possible
+
+ONE SOLUTION ONLY:
+```rust
+// Error handling pattern
+#[derive(Debug, thiserror::Error)]
+pub enum BrushError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    
+    #[error("Configuration error: {0}")]
+    Config(String),
+    
+    #[error("GPU error: {0}")]
+    Gpu(String),
+    
+    #[error("Unsupported operation on this platform")]
+    UnsupportedPlatform,
+}
+
+// Usage pattern
+pub fn process_data(path: &Path) -> Result<ProcessedData, BrushError> {
+    let data = std::fs::read(path)?; // IO Error auto-converted via From trait
+    
+    if data.is_empty() {
+        return Err(BrushError::Config("Empty data file".into()));
+    }
+    
+    // Processing logic
+    Ok(ProcessedData::new(data))
+}
+```
+
+SEE MORE: /docs/rust_patterns.md
+
+## WASM INTEGRATION
+
+For WebAssembly compatibility:
+
+1. AVOID direct DOM manipulation in core code
+2. USE the wasm-bindgen ecosystem for JS interop
+3. MINIMIZE data copying across the WASM boundary
+4. IMPLEMENT platform-specific abstractions for browser APIs
+5. HANDLE browser-specific limitations explicitly
+
+ONE SOLUTION ONLY:
+```rust
+// WASM-specific module with feature flag
+#[cfg(target_arch = "wasm32")]
+pub mod wasm {
+    use wasm_bindgen::prelude::*;
+    
+    #[wasm_bindgen]
+    pub fn initialize() {
+        // Set panic hook for better error messages
+        console_error_panic_hook::set_once();
+        
+        // Initialize logging
+        wasm_logger::init(wasm_logger::Config::default());
+        
+        log::info!("WASM module initialized");
+    }
+    
+    #[wasm_bindgen]
+    pub fn process_data(data: &[u8]) -> Result<JsValue, JsValue> {
+        // Process data and return result to JS
+        match crate::core::process_data_internal(data) {
+            Ok(result) => Ok(serde_wasm_bindgen::to_value(&result)?),
+            Err(e) => Err(JsValue::from_str(&e.to_string())),
+        }
+    }
+}
+```
+
+SEE MORE: /docs/wasm_integration.md
+
+## BURN ML FRAMEWORK
+
+When using the Burn ML framework:
+
+1. FOLLOW the Burn tensor API conventions
+2. USE autodiff for gradient-based operations
+3. LEVERAGE Burn's device abstraction for cross-platform compatibility
+4. IMPLEMENT custom operations through the Burn operator API
+5. OPTIMIZE memory usage with appropriate tensor shapes and types
+
+ONE SOLUTION ONLY:
+```rust
+// Burn ML pattern
+use burn::{
+    module::Module,
+    tensor::{backend::Backend, Tensor},
+};
+
+// Define a simple module
+#[derive(Module, Debug)]
+pub struct FeatureExtractor<B: Backend> {
+    conv1: Conv2d<B>,
+    conv2: Conv2d<B>,
+    pool: MaxPool2d,
+}
+
+impl<B: Backend> FeatureExtractor<B> {
+    pub fn new(config: &Config) -> Self {
+        let device = &config.device;
+        
+        Self {
+            conv1: Conv2d::new(
+                3, 16, 
+                Conv2dConfig::new(3, 1, 1, 1),
+                device,
+            ),
+            conv2: Conv2d::new(
+                16, 32,
+                Conv2dConfig::new(3, 1, 1, 1),
+                device,
+            ),
+            pool: MaxPool2d::new(MaxPool2dConfig::new(2, 2)),
+        }
+    }
+    
+    pub fn forward(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
+        let x = self.conv1.forward(input);
+        let x = x.relu();
+        let x = self.pool.forward(x);
+        let x = self.conv2.forward(x);
+        let x = x.relu();
+        let x = self.pool.forward(x);
+        x
+    }
+}
+```
+
+SEE MORE: /docs/burn_ml_patterns.md
+
+## WEBGPU USAGE
+
+When working with WebGPU:
+
+1. USE Burn's WebGPU backend when possible
+2. UNDERSTAND compute vs rendering pipelines
+3. FOLLOW the data-oriented design for shader inputs
+4. MINIMIZE CPU-GPU data transfers
+5. IMPLEMENT fallbacks for unsupported WebGPU features
+6. HANDLE device capability differences explicitly
+
+ONE SOLUTION ONLY:
+```rust
+// WebGPU pattern through Burn
+use burn::backend::wgpu::{WgpuBackend, WgpuDevice};
+
+type Backend = WgpuBackend<f32>;
+
+pub async fn initialize_webgpu() -> Result<WgpuDevice, BrushError> {
+    // Create device with appropriate features
+    let device = WgpuDevice::builder()
+        .with_features(wgpu::Features::SHADER_F16)
+        .with_limits(wgpu::Limits::default())
+        .build()
+        .await
+        .map_err(|e| BrushError::Gpu(e.to_string()))?;
+    
+    Ok(device)
+}
+
+pub fn create_processing_pipeline<B: Backend>(
+    device: &B::Device,
+    config: &ProcessingConfig,
+) -> ProcessingPipeline<B> {
+    // Create model with appropriate tensors
+    let model = ProcessingModel::new(ModelConfig {
+        device: device.clone(),
+        dimensions: config.dimensions,
+        // Other configuration...
+    });
+    
+    ProcessingPipeline::new(model, device)
+}
+```
+
+SEE MORE: /docs/webgpu_patterns.md
+
+## LOGGING AND DIAGNOSTICS
+
+For effective logging:
+
+1. USE appropriate log levels (error, warn, info, debug, trace)
+2. INCLUDE context in log messages
+3. IMPLEMENT structured logging for machine-parseable output
+4. CONFIGURE different logging backends for different platforms
+5. ADD tracing points for performance-critical sections
+
+ONE SOLUTION ONLY:
+```rust
+// Logging pattern
+pub fn initialize_logging() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        wasm_logger::init(wasm_logger::Config::default());
+        log::info!("WASM logging initialized");
+    }
+    
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        env_logger::init();
+        log::info!("Native logging initialized");
+    }
+}
+
+// Usage
+pub fn process_image(image: &Image) -> Result<(), BrushError> {
+    log::debug!("Processing image: {}x{}", image.width, image.height);
+    
+    if image.is_empty() {
+        log::warn!("Empty image provided");
+        return Ok(());
+    }
+    
+    match perform_operation(image) {
+        Ok(result) => {
+            log::info!("Operation completed successfully: {:?}", result);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Operation failed: {}", e);
+            Err(e.into())
+        }
+    }
+}
+```
+
+SEE MORE: /docs/logging_tracing.md
+
+## ASYNC PATTERNS
+
+For asynchronous code:
+
+1. USE Tokio for native platforms and wasm-bindgen-futures for WASM
+2. IMPLEMENT cancellation through drop semantics
+3. PROPAGATE context in async tasks
+4. AVOID blocking the main thread, especially in WebAssembly
+5. HANDLE backpressure explicitly
+
+ONE SOLUTION ONLY:
+```rust
+// Async pattern with platform abstraction
+#[cfg(target_arch = "wasm32")]
+pub async fn load_resource(url: &str) -> Result<Vec<u8>, BrushError> {
+    use wasm_bindgen::{JsCast, prelude::*};
+    use wasm_bindgen_futures::JsFuture;
+    use web_sys::{Request, RequestInit, RequestMode, Response};
+    
+    let mut opts = RequestInit::new();
+    opts.method("GET");
+    opts.mode(RequestMode::Cors);
+    
+    let request = Request::new_with_str_and_init(url, &opts)
+        .map_err(|e| BrushError::Config(format!("Request error: {:?}", e)))?;
+    
+    let window = web_sys::window().unwrap();
+    let resp_value = JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| BrushError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other, 
+            format!("Fetch error: {:?}", e)
+        )))?;
+    
+    let resp: Response = resp_value.dyn_into().unwrap();
+    let data = JsFuture::from(resp.array_buffer().unwrap())
+        .await
+        .map_err(|e| BrushError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other, 
+            format!("Buffer error: {:?}", e)
+        )))?;
+        
+    // Convert JS ArrayBuffer to Rust Vec<u8>
+    let array = js_sys::Uint8Array::new(&data);
+    let mut result = vec![0; array.length() as usize];
+    array.copy_to(&mut result);
+    
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn load_resource(url: &str) -> Result<Vec<u8>, BrushError> {
+    use tokio::fs::File;
+    use tokio::io::AsyncReadExt;
+    
+    // For simplicity, treat URLs as local paths in native version
+    let path = std::path::Path::new(url);
+    
+    let mut file = File::open(path).await?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).await?;
+    
+    Ok(buffer)
+}
+```
+
+SEE MORE: /docs/async_patterns.md
+
+## LESSONS LEARNED INTEGRATION
+
+REVIEW these key lessons from previous development experiences:
+
+1. First check Cargo.toml for dependency version mismatches when encountering compilation errors
+2. Verify the Rust toolchain version matches the project requirements (1.82+)
+3. Look for platform-specific dependencies that might be missing
+4. Check GPU driver compatibility, especially for WebGPU features
+
+For a comprehensive list of environment setup issues:
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#environment-setup-issues`
+
+FOLLOW these established technical patterns:
+1. Use the main branch as the source of truth
+2. Run with the --release flag for performance testing
+3. Use cargo run --features=tracy for performance profiling
+4. Set up the Rerun viewer for visualization during training
+
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#development-environment` 

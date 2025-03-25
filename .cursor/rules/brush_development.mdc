@@ -1,0 +1,192 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# BRUSH PROJECT DEVELOPMENT GUIDELINES
+
+## METADATA
+- **Purpose**: Define Brush project structure and architecture patterns
+- **Priority**: 2 (Domain rule)
+- **Updated**: 2025-03-25
+- **Scope**: Core project architecture and development patterns
+- **When to use**: When working on core functionality or architecture
+- **Last Lessons Review**: 2025-03-25
+
+## PROJECT ARCHITECTURE
+
+The Brush project follows a modular architecture with clear separation of concerns:
+
+1. ORGANIZE code according to these key areas:
+   - Core reconstruction algorithms
+   - UI components and visualizations
+   - Data processing and I/O
+   - Platform-specific abstractions
+
+2. FOLLOW these architectural principles:
+   - Use modular crates with focused responsibilities
+   - Implement platform abstractions for cross-platform support
+   - Keep computational code separate from UI code
+   - Use data-oriented design for performance-critical paths
+
+3. MAINTAIN clear boundaries between:
+   - Frontend (EGUI-based UI)
+   - Backend (Reconstruction algorithms)
+   - Platform-specific code (isolated in dedicated modules)
+
+SEE MORE: /docs/architecture.md
+
+## CODE ORGANIZATION
+
+The codebase is structured as follows:
+
+```
+/src               - Core source code
+  /ui              - UI components and visualization
+  /reconstruction  - Core reconstruction algorithms
+  /io              - Data input/output handling
+  /platform        - Platform-specific abstractions
+/examples          - Example applications
+/benches           - Performance benchmarks
+/tests             - Integration tests
+```
+
+When adding new code:
+
+1. PLACE code in the appropriate module based on its function
+2. CREATE new modules only when existing ones don't fit conceptually
+3. FOLLOW existing naming and organization patterns
+4. AVOID deep nesting of modules (prefer flat organization)
+
+SEE MORE: /docs/codebase_organization.md
+
+## CODING STANDARDS
+
+Follow these Brush-specific coding standards:
+
+1. USE Rust 2021 edition features and patterns
+2. FOLLOW Burn framework conventions for ML/GPU operations
+3. APPLY these naming conventions:
+   - `snake_case` for functions, variables, modules
+   - `CamelCase` for types, traits, enums
+   - `SCREAMING_CASE` for constants
+4. ORGANIZE imports with standard library first, then external crates, then local modules
+5. DOCUMENT all public APIs with rustdoc comments
+6. INCLUDE examples in documentation for non-obvious APIs
+
+SEE MORE: /docs/coding_standards.md
+
+## API DESIGN PATTERNS
+
+When designing APIs for Brush components:
+
+1. FAVOR builder patterns for complex object construction
+2. USE trait abstractions for cross-platform functionality
+3. PROVIDE clear error handling with descriptive error types
+4. IMPLEMENT sensible defaults for common use cases
+5. DESIGN APIs to be hard to misuse (compiler enforced constraints)
+6. MAINTAIN backward compatibility when modifying existing APIs
+
+ONE SOLUTION ONLY:
+```rust
+// Example API pattern for reconstruction configuration
+pub struct ReconstructionConfig {
+    resolution: Resolution,
+    quality: Quality,
+    // ... other configuration options
+}
+
+impl ReconstructionConfig {
+    // Builder pattern
+    pub fn new() -> Self {
+        Self::default() // Start with sensible defaults
+    }
+    
+    pub fn with_resolution(mut self, resolution: Resolution) -> Self {
+        self.resolution = resolution;
+        self
+    }
+    
+    pub fn with_quality(mut self, quality: Quality) -> Self {
+        self.quality = quality;
+        self
+    }
+    
+    // Finalization method for validation
+    pub fn build(self) -> Result<ValidatedConfig, ConfigError> {
+        // Validate configuration
+        // Return error if invalid
+        Ok(ValidatedConfig::from(self))
+    }
+}
+```
+
+SEE MORE: /docs/api_design.md
+
+## CROSS-PLATFORM DEVELOPMENT
+
+When working on cross-platform features:
+
+1. IMPLEMENT platform abstractions using Rust's feature flags
+2. TEST on multiple platforms early in development
+3. ISOLATE platform-specific code in dedicated modules
+4. USE conditional compilation sparingly and with clear documentation
+5. PREFER runtime configuration over compile-time when practical
+
+ONE SOLUTION ONLY:
+```rust
+// Platform abstraction pattern
+#[cfg(target_arch = "wasm32")]
+mod web_platform {
+    // Web-specific implementation
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+mod native_platform {
+    // Native implementation
+}
+
+// Public unified API that delegates to the appropriate implementation
+pub fn initialize_platform() {
+    #[cfg(target_arch = "wasm32")]
+    web_platform::initialize();
+    
+    #[cfg(not(target_arch = "wasm32"))]
+    native_platform::initialize();
+}
+```
+
+SEE MORE: /docs/cross_platform_framework.md
+
+## PERFORMANCE CONSIDERATIONS
+
+For performance-critical code:
+
+1. PROFILE before optimizing
+2. FOCUS on data locality and cache efficiency
+3. MINIMIZE allocations in hot paths
+4. USE Burn's optimized GPU operations when available
+5. IMPLEMENT progressive computation for real-time feedback
+6. CONSIDER both CPU and GPU performance characteristics
+
+SEE MORE: /docs/performance_optimization.md
+
+## LESSONS LEARNED INTEGRATION
+
+REVIEW these key lessons from previous development experiences:
+
+1. Interface abstractions effectively separate platform-specific code
+2. The GPU operations should be abstracted through the Burn ML framework
+3. UI code follows EGUI immediate mode pattern for consistency
+4. The rendering pipeline follows a data-oriented design for performance
+
+For a comprehensive list of architectural patterns:
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#architectural-patterns`
+
+FOLLOW these established development patterns:
+1. Use the Burn framework's thread pool for CPU parallelism
+2. Apply shared ownership patterns for mutable state
+3. Implement view frustum culling to optimize rendering
+4. Profile different parts of the pipeline to identify bottlenecks
+
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#performance-optimization-insights` 

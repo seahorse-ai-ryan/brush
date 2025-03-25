@@ -1,0 +1,179 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# BRUSH PROJECT DEBUGGING WORKFLOW
+
+## METADATA
+- **Purpose**: Define structured approach to debugging
+- **Priority**: 2 (Domain rule)
+- **Updated**: 2025-03-25
+- **Scope**: All debugging and troubleshooting tasks
+- **When to use**: When addressing bugs, errors, or unexpected behavior
+- **Last Lessons Review**: 2025-03-25
+
+## DEBUGGING PROCESS OVERVIEW
+
+Follow this structured approach for all debugging:
+
+1. OBSERVE: Collect error information methodically
+2. THEORIZE: Identify ONE most likely cause
+3. TEST: Make ONE targeted change to test theory
+4. EVALUATE: Analyze results and iterate (max 3 times)
+5. ESCALATE: If not resolved, summarize findings and ask for help
+
+## MCP SERVER FOR WEB DEBUGGING
+
+ONE SOLUTION ONLY:
+```
+To debug web applications with MCP server:
+
+1. START Trunk and the MCP server:
+   # Start Trunk to serve the Brush website
+   trunk serve
+   
+   # In a separate terminal, start the MCP server
+   npx @agentdeskai/browser-tools-mcp@latest
+
+2. OPEN Chrome to:
+   # For the Brush application UI
+   http://localhost:8080
+   
+   # The MCP server runs on port 3025 by default
+
+3. USE the MCP server:
+   - MCP server output is automatically available in AI agent context windows
+   - Browser console logs, network requests, and errors are captured
+   - No manual log retrieval or parsing is needed
+   - The AI agent can directly analyze logs from the context window
+
+4. DIAGNOSE:
+   - JavaScript errors will show stack traces
+   - Rust panics will show in compiled WASM
+   - WebGPU errors appear as validation failures
+```
+
+SEE MORE: /docs/debugging_profiling.md#web-debugging
+
+## ERROR ANALYSIS
+
+When analyzing errors:
+
+1. CATEGORIZE the error first:
+   - Compilation error
+   - Runtime panic
+   - WebGPU validation error
+   - Type mismatch
+   - Missing feature/API
+   - Cross-platform incompatibility
+
+2. CITE the exact error message using code formatting
+
+3. IDENTIFY context:
+   - What operation was being performed
+   - Which platforms/devices are affected
+   - Associated code files
+   - Recent changes that might affect this area
+
+## STEP-BY-STEP DEBUGGING APPROACH
+
+### 1. Information Gathering
+
+- CAPTURE the exact error message
+- IDENTIFY the file and function where error occurs
+- EXAMINE relevant code with 'read_file' tool
+- CHECK if error is platform-specific
+- REVIEW recent changes in affected area
+
+### 2. Hypothesis Formation
+
+- FORM a single clear hypothesis of the most likely cause
+- EXPLAIN your reasoning concisely
+- LINK to relevant documentation or similar past issues
+- RANK alternative hypotheses if multiple are plausible
+
+### 3. Targeted Testing
+
+- PROPOSE exactly ONE minimal change to test your hypothesis
+- EXPLAIN how this change addresses the root cause
+- PREDICT expected outcome if hypothesis is correct
+- IMPLEMENT change using the edit_file tool
+- WAIT for confirmation of success or failure
+
+### 4. Evaluation and Iteration
+
+- ANALYZE whether the change resolved the issue
+- If SUCCESSFUL:
+  - EXPLAIN why the fix worked
+  - PROPOSE tests to prevent regression
+  - SUGGEST documentation updates if needed
+
+- If UNSUCCESSFUL:
+  - REVISE your hypothesis based on new information
+  - PROPOSE a different targeted change
+  - TRACK the attempt count
+  - STOP after 3 unsuccessful attempts
+
+### 5. Escalation (After 3 Attempts)
+
+- SUMMARIZE all debug attempts in a table format
+- LIST theories tested and results
+- PROVIDE all relevant error messages
+- PROPOSE next steps for developer investigation
+- ASK specific questions to guide further troubleshooting
+
+## TOOLS USAGE FOR DEBUGGING
+
+### Recommended Tools
+
+- **Source Code Inspection**: `read_file`, `grep_search`, `codebase_search`
+- **Code Modification**: `edit_file` (for minimal targeted changes only)
+- **Command Execution**: `run_terminal_cmd` (for building, testing, and running)
+- **Logging**: MCP server for web, native logging for desktop
+
+### Prohibited During Debugging
+
+- Making broad, sweeping changes
+- Modifying more than one file at a time without explicit approval
+- Restructuring code architecture to fix simple bugs
+- Adding significant new functionality to work around issues
+
+## WARNINGS AND LIMITATIONS
+
+1. STOP after three unsuccessful debugging attempts
+2. LIMIT changes to minimal fixes for the specific issue
+3. NEVER introduce new features while debugging existing ones
+4. SEEK permission before modifying more than 5 lines of code
+5. AVOID changing function signatures during debugging
+
+## CROSS-PLATFORM CONSIDERATIONS
+
+- DETERMINE if issue exists on all platforms or is platform-specific
+- CONSIDER API differences between:
+  - WebGPU and DirectX/Vulkan/Metal
+  - Desktop and mobile device capabilities
+  - Browser-specific implementations
+- CHECK for #[cfg(..)] platform conditionals in the code
+
+SEE MORE: /docs/cross_platform_framework.md 
+
+## LESSONS LEARNED INTEGRATION
+
+REVIEW these key lessons from previous debugging experiences:
+
+1. For GPU-related errors, first check buffer sizes and memory limits
+2. WebGPU errors often relate to feature support or shader compatibility
+3. When encountering "cannot borrow as mutable" errors, look for shared ownership patterns
+4. Cross-platform issues typically involve API abstraction gaps
+
+For a comprehensive list of common error patterns and solutions:
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#common-error-fixes`
+
+FOLLOW these established debugging patterns:
+1. Start with minimal test cases to isolate issues
+2. Check the most recent code changes first
+3. Verify environment configuration before deep debugging
+4. Preserve error context in your analysis
+
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#testing-guidelines` 

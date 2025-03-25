@@ -1,0 +1,454 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# TESTING STANDARDS
+
+## METADATA
+- **Purpose**: Define testing practices and standards
+- **Priority**: 3 (Task-specific rule)
+- **Updated**: 2025-03-25
+- **Scope**: All testing-related activities
+- **When to use**: When writing tests or defining test strategies
+- **Last Lessons Review**: 2025-03-25
+
+## TESTING PHILOSOPHY
+
+The Brush project follows these testing principles:
+
+1. PRIORITIZE test coverage for:
+   - Core reconstruction algorithms
+   - Platform abstractions
+   - Public APIs
+   - Error handling paths
+   - Performance-critical sections
+
+2. BALANCE testing types:
+   - Unit tests for individual functions
+   - Integration tests for component interactions
+   - End-to-end tests for complete workflows
+   - Performance tests for critical paths
+   - Visual regression tests for UI
+
+3. FOLLOW test-driven development when appropriate:
+   - Write tests before implementation for complex algorithms
+   - Use tests to define expected behavior
+   - Refactor with confidence based on test coverage
+
+SEE MORE: /docs/testing_approach.md
+
+## TEST STRUCTURE
+
+When writing tests:
+
+1. ORGANIZE tests following this structure:
+   - Place unit tests in the same file as the code (using `#[cfg(test)]`)
+   - Use the `tests/` directory for integration tests
+   - Group tests logically by functionality
+   - Name tests descriptively
+
+2. FOLLOW the Arrange-Act-Assert pattern:
+   - ARRANGE: Set up test data and conditions
+   - ACT: Execute the code being tested
+   - ASSERT: Verify the results match expectations
+
+3. WRITE self-contained tests:
+   - Tests should not depend on other tests
+   - Each test should clean up after itself
+   - Use setup and teardown helpers for common code
+   - Avoid global state where possible
+
+ONE SOLUTION ONLY:
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    // Helper function for common setup
+    fn create_test_data() -> TestData {
+        // Create and return test data
+        TestData::new(/* parameters */)
+    }
+    
+    #[test]
+    fn test_process_simple_case() {
+        // Arrange
+        let data = create_test_data();
+        let processor = Processor::new();
+        
+        // Act
+        let result = processor.process(&data);
+        
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().value, 42);
+    }
+    
+    #[test]
+    fn test_process_error_handling() {
+        // Arrange
+        let invalid_data = TestData::new_invalid();
+        let processor = Processor::new();
+        
+        // Act
+        let result = processor.process(&invalid_data);
+        
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Invalid data");
+    }
+}
+```
+
+SEE MORE: /docs/test_structure.md
+
+## TESTING TOOLS
+
+Use these testing tools for different scenarios:
+
+1. USE Rust's built-in testing framework for unit tests:
+   - `#[test]` attribute for test functions
+   - `assert!`, `assert_eq!`, `assert_ne!` macros
+   - `#[should_panic]` for tests that should fail
+   - `cargo test` to run tests
+
+2. USE specialized testing tools when appropriate:
+   - Proptest for property-based testing
+   - Criterion for benchmarking
+   - Mockall for mocking dependencies
+   - Insta for snapshot testing
+
+3. IMPLEMENT custom testing utilities when needed:
+   - Test harnesses for complex setups
+   - Comparison helpers for domain-specific types
+   - Test data generators
+   - Visual comparison tools
+
+ONE SOLUTION ONLY:
+```rust
+// Property-based testing example
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+    
+    proptest! {
+        #[test]
+        fn test_reconstruction_preserves_dimensions(
+            width in 10u32..100,
+            height in 10u32..100,
+            depth in 10u32..100
+        ) {
+            // Arrange
+            let volume = create_test_volume(width, height, depth);
+            let reconstructor = Reconstructor::new();
+            
+            // Act
+            let result = reconstructor.process(&volume)?;
+            
+            // Assert
+            prop_assert_eq!(result.width, width);
+            prop_assert_eq!(result.height, height);
+            prop_assert_eq!(result.depth, depth);
+        }
+    }
+}
+
+// Benchmark example
+#[cfg(test)]
+mod benchmarks {
+    use super::*;
+    use criterion::{black_box, criterion_group, criterion_main, Criterion};
+    
+    fn bench_reconstruction(c: &mut Criterion) {
+        let data = create_benchmark_data();
+        let reconstructor = Reconstructor::new();
+        
+        c.bench_function("reconstruct_volume", |b| {
+            b.iter(|| reconstructor.process(black_box(&data)))
+        });
+    }
+    
+    criterion_group!(benches, bench_reconstruction);
+    criterion_main!(benches);
+}
+```
+
+SEE MORE: /docs/testing_tools.md
+
+## MOCK TESTING
+
+For testing components with dependencies:
+
+1. PREFER real implementations where feasible:
+   - Use actual implementations for simple dependencies
+   - Create lightweight in-memory versions where appropriate
+   - Only mock complex or external dependencies
+
+2. IMPLEMENT mocks correctly:
+   - Mock at interface boundaries (traits)
+   - Only mock what you need to control
+   - Make mocks behave realistically
+   - Document mock behavior
+
+3. STRUCTURE tests with mocks:
+   - Set up mock expectations clearly
+   - Verify interactions with mocks
+   - Don't over-specify expectations
+   - Focus on behavior, not implementation details
+
+ONE SOLUTION ONLY:
+```rust
+// Mock testing example
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mockall::predicate::*;
+    use mockall::*;
+    
+    // Create a mock for the DataProvider trait
+    mock! {
+        DataProvider {}
+        
+        trait DataProvider {
+            fn get_data(&self, id: &str) -> Result<Data, Error>;
+            fn save_data(&self, data: &Data) -> Result<(), Error>;
+        }
+    }
+    
+    #[test]
+    fn test_processor_saves_transformed_data() {
+        // Arrange
+        let mut mock_provider = MockDataProvider::new();
+        
+        // Set up expectations
+        let input_data = Data::new("test_content");
+        let expected_output = Data::new("TRANSFORMED_test_content");
+        
+        mock_provider
+            .expect_get_data()
+            .with(eq("test_id"))
+            .times(1)
+            .returning(move |_| Ok(input_data.clone()));
+            
+        mock_provider
+            .expect_save_data()
+            .with(eq(expected_output.clone()))
+            .times(1)
+            .returning(|_| Ok(()));
+        
+        let processor = Processor::new(Box::new(mock_provider));
+        
+        // Act
+        let result = processor.process_and_save("test_id");
+        
+        // Assert
+        assert!(result.is_ok());
+    }
+}
+```
+
+SEE MORE: /docs/mock_testing.md
+
+## CROSS-PLATFORM TESTING
+
+For testing across multiple platforms:
+
+1. DESIGN tests that run on all platforms:
+   - Use platform-agnostic APIs where possible
+   - Implement platform-specific test variations when needed
+   - Use conditional compilation for platform-specific tests
+   - Test on all target platforms regularly
+
+2. TEST platform-specific features:
+   - Create dedicated tests for each platform
+   - Verify platform abstraction correctness
+   - Check for inconsistencies between platforms
+   - Test platform detection logic
+
+3. AUTOMATE cross-platform testing:
+   - Configure CI to test on all platforms
+   - Use matrix builds to cover platform combinations
+   - Report platform-specific test results clearly
+   - Prioritize fixing cross-platform issues
+
+ONE SOLUTION ONLY:
+```rust
+// Cross-platform testing pattern
+#[cfg(test)]
+mod platform_tests {
+    use super::*;
+    
+    // Common test that should work on all platforms
+    #[test]
+    fn test_core_algorithm_all_platforms() {
+        let input = create_test_input();
+        let result = process_data(&input);
+        assert_eq!(result.value, 42);
+    }
+    
+    // Platform-specific tests
+    #[cfg(target_arch = "wasm32")]
+    mod web_tests {
+        use super::*;
+        
+        #[test]
+        fn test_web_specific_feature() {
+            let result = initialize_web_renderer();
+            assert!(result.is_ok());
+        }
+    }
+    
+    #[cfg(not(target_arch = "wasm32"))]
+    mod native_tests {
+        use super::*;
+        
+        #[test]
+        fn test_native_specific_feature() {
+            let result = initialize_native_renderer();
+            assert!(result.is_ok());
+        }
+    }
+}
+```
+
+SEE MORE: /docs/cross_platform_testing.md
+
+## GPU TESTING
+
+For testing GPU functionality:
+
+1. IMPLEMENT appropriate GPU test types:
+   - Shader unit tests
+   - Buffer management tests
+   - Pipeline validation tests
+   - Visual output verification
+
+2. HANDLE GPU testing challenges:
+   - Create mock GPU devices for basic tests
+   - Implement headless testing where possible
+   - Verify results within expected tolerances (not exact)
+   - Skip GPU tests when appropriate hardware is unavailable
+
+3. TEST GPU performance:
+   - Benchmark critical GPU operations
+   - Test with various data sizes
+   - Verify memory usage
+   - Check for performance regressions
+
+ONE SOLUTION ONLY:
+```rust
+// GPU testing pattern
+#[cfg(test)]
+mod gpu_tests {
+    use super::*;
+    use burn::backend::Wgpu;
+    
+    // Helper to create a test device
+    fn create_test_device() -> Option<WgpuDevice> {
+        // Try to create device, return None if no GPU available
+        WgpuDevice::builder()
+            .build()
+            .await
+            .ok()
+    }
+    
+    #[test]
+    fn test_compute_shader() {
+        // Skip test if no GPU is available
+        let device = match create_test_device() {
+            Some(d) => d,
+            None => return,
+        };
+        
+        // Create test data
+        let input_tensor = Tensor::<Wgpu, 2>::from_data(
+            [[1.0, 2.0], [3.0, 4.0]], 
+            &device
+        );
+        
+        // Run operation
+        let model = TestModel::new(&device);
+        let output = model.forward(input_tensor);
+        
+        // Verify results (allow for floating point imprecision)
+        let cpu_output = output.to_data();
+        assert_approx_eq!(cpu_output[[0, 0]], 2.0, epsilon = 1e-5);
+        assert_approx_eq!(cpu_output[[0, 1]], 4.0, epsilon = 1e-5);
+        assert_approx_eq!(cpu_output[[1, 0]], 6.0, epsilon = 1e-5);
+        assert_approx_eq!(cpu_output[[1, 1]], 8.0, epsilon = 1e-5);
+    }
+}
+```
+
+SEE MORE: /docs/gpu_testing.md
+
+## TEST COVERAGE
+
+For maintaining test coverage:
+
+1. PRIORITIZE coverage for:
+   - Core algorithms
+   - Error handling paths
+   - Edge cases
+   - Public APIs
+   - Recently changed code
+
+2. TRACK coverage systematically:
+   - Use tools like cargo-tarpaulin for coverage reports
+   - Review coverage in CI pipelines
+   - Address coverage gaps in critical areas
+   - Don't pursue 100% coverage blindly
+
+3. IMPROVE coverage strategically:
+   - Focus on high-impact code first
+   - Add tests during bug fixes
+   - Use property-based testing for complex logic
+   - Document intentional coverage gaps
+
+SEE MORE: /docs/test_coverage.md
+
+## VISUAL TESTING
+
+For testing UI and visual components:
+
+1. IMPLEMENT visual regression testing:
+   - Capture screenshots of UI components
+   - Compare against baseline images
+   - Highlight visual differences
+   - Update baselines when intended changes occur
+
+2. TEST interactive components:
+   - Verify UI event handling
+   - Test component state transitions
+   - Check accessibility features
+   - Validate responsive behavior
+
+3. AUTOMATE visual testing:
+   - Integrate visual tests in CI pipeline
+   - Generate visual diffs for review
+   - Provide clear failure reports
+   - Handle platform-specific rendering differences
+
+SEE MORE: /docs/visual_testing.md
+
+## LESSONS LEARNED INTEGRATION
+
+REVIEW these key lessons from previous testing experiences:
+
+1. Follow the Arrange-Act-Assert pattern
+2. Create isolated test cases that don't depend on each other
+3. Use the test helpers in the codebase for common setup
+4. For GPU tests, create mock devices when possible
+
+For a comprehensive list of testing guidelines:
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#test-case-design`
+
+FOLLOW these established regression testing patterns:
+1. Run the full test suite before submitting changes
+2. Test on multiple platforms when making cross-platform changes
+3. Verify rendering output with visual tests or assertion helpers
+4. Check performance metrics don't degrade
+
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#regression-testing` 

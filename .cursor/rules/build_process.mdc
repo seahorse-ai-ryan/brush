@@ -1,0 +1,325 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# BUILD PROCESS GUIDELINES
+
+## METADATA
+- **Purpose**: Define build and deployment processes
+- **Priority**: 3 (Task-specific rule)
+- **Updated**: 2025-03-25
+- **Scope**: Build configurations, deployment, and platform-specific builds
+- **When to use**: When working on build systems or deploying to platforms
+- **Last Lessons Review**: 2025-03-25
+
+## TRUNK FOR WEB BUILDS
+
+Brush uses Trunk for WebAssembly builds:
+
+1. UNDERSTAND Trunk's role:
+   - Asset bundling
+   - WASM compilation
+   - CSS/JS processing
+   - Development server
+   - Production builds
+
+2. USE the correct Trunk commands:
+   - `trunk serve` for development
+   - `trunk build` for production
+   - `trunk watch` for real-time rebuilds
+
+3. CONFIGURE Trunk properly:
+   - Use Trunk.toml for project configuration
+   - Set target directory for outputs
+   - Configure WASM optimization level
+
+ONE SOLUTION ONLY:
+```
+# Start the development server
+trunk serve
+
+# Build for production
+trunk build --release
+
+# Run with specific features
+trunk serve --features=profiling
+```
+
+SEE MORE: /docs/trunk_configuration.md
+
+## WEBGPU CONFIGURATION
+
+For WebGPU builds:
+
+1. ENSURE compatibility with web standards:
+   - Use proper feature detection
+   - Implement fallbacks for unsupported features
+   - Follow the WebGPU specification
+
+2. CONFIGURE WebGPU features:
+   - Set appropriate feature flags
+   - Request required GPU capabilities
+   - Handle device loss gracefully
+
+3. OPTIMIZE for web deployment:
+   - Minimize shader compilation time
+   - Reduce initial loading time
+   - Implement progressive loading
+
+ONE SOLUTION ONLY:
+```rust
+// WebGPU configuration pattern
+pub async fn setup_webgpu() -> Result<(), BrushError> {
+    // Check if WebGPU is supported
+    #[cfg(target_arch = "wasm32")]
+    {
+        if !wasm_bindgen_futures::JsFuture::from(
+            web_sys::window()
+                .unwrap()
+                .navigator()
+                .gpu()
+                .request_adapter(&web_sys::GpuRequestAdapterOptions::new())
+        ).await.is_ok() {
+            return Err(BrushError::UnsupportedPlatform);
+        }
+    }
+    
+    // Create device with appropriate features
+    let device = WgpuDevice::builder()
+        .with_features(wgpu::Features::SHADER_F16)
+        .with_limits(wgpu::Limits::default())
+        .build()
+        .await
+        .map_err(|e| BrushError::Gpu(e.to_string()))?;
+    
+    Ok(())
+}
+```
+
+SEE MORE: /docs/webgpu_configuration.md
+
+## CROSS-PLATFORM BUILD MATRIX
+
+The Brush build system targets multiple platforms:
+
+1. UNDERSTAND the platform matrix:
+   - Web (via WebAssembly)
+   - Windows (native)
+   - macOS (native)
+   - Linux (native)
+   - iOS (future)
+   - Android (future)
+
+2. MAINTAIN consistency across platforms:
+   - Use conditional compilation sparingly
+   - Isolate platform-specific code
+   - Share core algorithms across all platforms
+   - Test on all target platforms
+
+3. HANDLE platform-specific requirements:
+   - Package formats (executable, WASM, APK, etc.)
+   - Resource bundling
+   - Permissions and security models
+   - Input methods
+
+SEE MORE: /docs/platform_matrix.md
+
+## CARGO CONFIGURATION
+
+For Rust builds:
+
+1. USE Cargo correctly:
+   - `cargo build` for development
+   - `cargo build --release` for production
+   - `cargo test` for testing
+   - `cargo bench` for benchmarking
+
+2. CONFIGURE features appropriately:
+   - Define platform-specific features
+   - Group related functionality
+   - Provide sensible defaults
+   - Document feature flags
+
+3. OPTIMIZE build performance:
+   - Use incremental compilation
+   - Configure LTO for releases
+   - Use split debug information
+   - Configure parallel compilation
+
+ONE SOLUTION ONLY:
+```toml
+# Example Cargo.toml features section
+[features]
+default = ["native-backend"]
+wasm = ["web-sys", "wasm-bindgen", "js-sys", "getrandom/js"]
+native-backend = ["tokio", "tokio-stream", "image"]
+tracy = ["dep:tracy-client", "burn/trace"]
+profiling = ["tracy"]
+
+# Example building with features
+# cargo build --features=profiling,native-backend
+```
+
+SEE MORE: /docs/cargo_configuration.md
+
+## CI/CD PIPELINE
+
+For continuous integration and deployment:
+
+1. FOLLOW the GitHub Actions workflow:
+   - Build on all target platforms
+   - Run tests automatically
+   - Deploy to staging environments
+   - Release with proper versioning
+
+2. MAINTAIN CI configuration:
+   - Keep build matrices up to date
+   - Configure caching for faster builds
+   - Set appropriate timeouts
+   - Report build status
+
+3. AUTOMATE releases:
+   - Create GitHub releases
+   - Upload build artifacts
+   - Generate changelogs
+   - Deploy to hosting services
+
+ONE SOLUTION ONLY:
+```yaml
+# Example GitHub Action workflow
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Build
+      run: cargo build --verbose
+      
+    - name: Run tests
+      run: cargo test --verbose
+      
+  web-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        target: wasm32-unknown-unknown
+        override: true
+    
+    - name: Install Trunk
+      run: cargo install trunk
+      
+    - name: Build Web
+      run: trunk build --release
+```
+
+SEE MORE: /docs/ci_cd_pipeline.md
+
+## ASSET BUNDLING
+
+For managing project assets:
+
+1. ORGANIZE assets correctly:
+   - Place in appropriate directories
+   - Use consistent naming
+   - Convert to web-friendly formats
+   - Optimize for size and loading time
+
+2. BUNDLE assets efficiently:
+   - Configure Trunk for web assets
+   - Use appropriate resource embedding for native
+   - Implement asset loading abstractions
+   - Support platform-specific asset formats
+
+3. HANDLE asset versioning:
+   - Track asset versions
+   - Support incremental updates
+   - Cache assets appropriately
+   - Preload critical assets
+
+SEE MORE: /docs/asset_management.md
+
+## ENVIRONMENT CONFIGURATION
+
+For configuring build environments:
+
+1. MANAGE environment variables:
+   - Set appropriate compilation flags
+   - Configure platform-specific settings
+   - Handle development vs production differences
+   - Document required environment variables
+
+2. CONFIGURE toolchains:
+   - Use rustup for Rust version management
+   - Install required dependencies
+   - Set up development environment
+   - Document toolchain requirements
+
+3. HANDLE dependencies:
+   - Keep dependencies up to date
+   - Audit for security issues
+   - Minimize dependency bloat
+   - Document third-party licenses
+
+ONE SOLUTION ONLY:
+```bash
+# Example environment setup for development
+export RUSTFLAGS="-C target-cpu=native"
+export WASM_BINDGEN_WEAKREF=1
+
+# Installing development tools
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli
+cargo install trunk
+
+# Running with environment variables
+RUST_LOG=debug trunk serve
+```
+
+SEE MORE: /docs/environment_setup.md
+
+## LESSONS LEARNED INTEGRATION
+
+REVIEW these key lessons from previous build experiences:
+
+1. Always verify the Rust toolchain version matches the project requirements (1.82+)
+2. Look for platform-specific dependencies that might be missing
+3. Check GPU driver compatibility, especially for WebGPU features
+4. Run with the --release flag for performance testing
+
+For a comprehensive list of environment setup issues:
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#environment-setup-issues`
+
+FOLLOW these established development environment patterns:
+1. Use the main branch as the source of truth
+2. Use cargo run --features=tracy for performance profiling
+3. Set up the Rerun viewer for visualization during training
+4. Remember the maximum number of tool calls in Cursor chat sessions
+
+SEE MORE: `.cursor/rules/ai_lessons_learned.md#development-environment` 
