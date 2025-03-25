@@ -97,6 +97,7 @@ impl BrushVfs {
         {
             if dir.is_file() {
                 let file = tokio::fs::File::open(dir).await?;
+
                 if dir.extension().is_some_and(|e| e == "zip") {
                     Ok(Self::from_zip_reader(file).await?)
                 } else {

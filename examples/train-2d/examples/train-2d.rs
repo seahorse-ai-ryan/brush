@@ -3,16 +3,13 @@
 
 use std::sync::Arc;
 
+use brush_dataset::scene::{SceneBatch, SceneView, ViewImageType, view_to_sample};
 use brush_render::{
     bounding_box::BoundingBox,
     camera::{Camera, focal_to_fov, fov_to_focal},
     gaussian_splats::{RandomSplatsConfig, Splats},
 };
-use brush_train::{
-    image::view_to_sample,
-    scene::{SceneView, ViewImageType},
-    train::{SceneBatch, SplatTrainer, TrainBack, TrainConfig},
-};
+use brush_train::train::{SplatTrainer, TrainBack, TrainConfig};
 use brush_ui::burn_texture::BurnTexture;
 use burn::{
     backend::wgpu::WgpuDevice, module::AutodiffModule, prelude::Backend,

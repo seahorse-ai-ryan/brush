@@ -3,6 +3,7 @@ use brush_render::{
     camera::{Camera, focal_to_fov, fov_to_focal},
     gaussian_splats::Splats,
 };
+use brush_render_bwd::burn_glue::SplatForwardDiff;
 use brush_rerun::{BurnToImage, BurnToRerun};
 use burn::{
     backend::{Autodiff, Wgpu, wgpu::WgpuDevice},
@@ -12,10 +13,7 @@ use burn::{
 use safetensors::SafeTensors;
 use std::{fs::File, io::Read};
 
-use crate::{
-    burn_glue::SplatForwardDiff,
-    tests::safetensor_utils::{safetensor_to_burn, splats_from_safetensors},
-};
+use crate::tests::safetensor_utils::{safetensor_to_burn, splats_from_safetensors};
 
 type DiffBack = Autodiff<Wgpu>;
 

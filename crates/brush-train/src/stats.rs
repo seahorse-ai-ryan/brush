@@ -1,3 +1,4 @@
+use crate::stats_kernel::stats_gather_kernel;
 use brush_kernel::create_dispatch_buffer;
 use brush_render::BBase;
 use burn::prelude::*;
@@ -8,8 +9,6 @@ use burn_fusion::Fusion;
 use burn_fusion::client::FusionClient;
 use glam::UVec2;
 use tracing::trace_span;
-
-use crate::stats_kernel::stats_gather_kernel;
 
 type Fused<BT> = Fusion<BBase<BT>>;
 

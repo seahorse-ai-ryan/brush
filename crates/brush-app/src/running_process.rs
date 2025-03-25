@@ -37,10 +37,15 @@ pub fn start_process(
             // Mark egui as needing a repaint.
             ctx.request_repaint();
 
+            let is_train_step = matches!(msg, Ok(ProcessMessage::TrainStep { .. }));
             sender.send(msg).await.ok();
 
-            // Pause if needed.
-            if matches!(train_receiver.try_recv(), Ok(ControlMessage::Paused(true))) {
+            // Check if training is paused. Don't care about other messages as pausing loading
+            // doesn't make much sense.
+            if is_train_step
+                && matches!(train_receiver.try_recv(), Ok(ControlMessage::Paused(true)))
+            {
+                // Pause if needed.
                 while !matches!(
                     train_receiver.recv().await,
                     Some(ControlMessage::Paused(false))

@@ -1,11 +1,10 @@
-use brush_train::image::view_to_sample;
-use brush_train::scene::Scene;
-use brush_train::train::SceneBatch;
 use burn::prelude::Backend;
 use rand::{SeedableRng, seq::SliceRandom};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
 use tokio_with_wasm::alias as tokio_wasm;
+
+use crate::scene::{Scene, SceneBatch, view_to_sample};
 
 pub struct SceneLoader<B: Backend> {
     receiver: Receiver<SceneBatch<B>>,

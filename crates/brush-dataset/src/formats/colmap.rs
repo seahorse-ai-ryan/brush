@@ -9,6 +9,7 @@ use crate::{
     Dataset, LoadDataseConfig,
     brush_vfs::BrushVfs,
     formats::{clamp_img_to_max_size, find_mask_path, load_image},
+    scene::SceneView,
     splat_import::SplatMessage,
     stream_fut_parallel,
 };
@@ -19,7 +20,6 @@ use brush_render::{
     gaussian_splats::Splats,
     sh::rgb_to_sh,
 };
-use brush_train::scene::SceneView;
 use burn::prelude::Backend;
 use glam::Vec3;
 use std::collections::HashMap;

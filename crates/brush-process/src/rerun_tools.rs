@@ -3,12 +3,11 @@
 use std::sync::Arc;
 
 use brush_dataset::clamp_img_to_max_size;
+use brush_dataset::scene::Scene;
 use brush_render::gaussian_splats::Splats;
 use brush_render::shaders::project_visible::SH_C0;
 use brush_train::eval::EvalSample;
-use brush_train::image::view_to_sample;
-use brush_train::{image::tensor_into_image, scene::Scene, train::RefineStats};
-use brush_train::{ssim::Ssim, train::TrainStepStats};
+use brush_train::train::{RefineStats, TrainStepStats};
 use burn::prelude::Backend;
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{ElementConversion, activation::sigmoid};
@@ -18,6 +17,8 @@ use anyhow::Result;
 #[cfg(not(target_family = "wasm"))]
 use brush_rerun::BurnToRerun;
 use burn_cubecl::cubecl::MemoryUsage;
+
+use crate::process_loop::tensor_into_image;
 
 pub struct VisualizeTools {
     #[cfg(not(target_family = "wasm"))]

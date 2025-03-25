@@ -1,9 +1,9 @@
 use crate::{
     Dataset, LoadDataseConfig, WasmNotSend,
     brush_vfs::BrushVfs,
+    scene::ViewImageType,
     splat_import::{SplatMessage, load_splat_from_ply},
 };
-use brush_train::scene::ViewImageType;
 use burn::prelude::Backend;
 use image::DynamicImage;
 use path_clean::PathClean;

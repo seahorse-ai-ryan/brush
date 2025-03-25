@@ -1,11 +1,10 @@
+use brush_dataset::scene::{Scene, SceneView, view_to_sample};
 use brush_render::gaussian_splats::Splats;
 use brush_render::{RenderAux, SplatForward};
 use burn::prelude::Backend;
 use burn::tensor::Tensor;
 use rand::seq::IteratorRandom;
 
-use crate::image::view_to_sample;
-use crate::scene::{Scene, SceneView};
 use crate::ssim::Ssim;
 
 pub struct EvalSample<B: Backend> {

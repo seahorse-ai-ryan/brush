@@ -8,6 +8,9 @@ license.workspace = true
 [dependencies]
 brush-render.path = "../brush-render"
 brush-kernel.path = "../brush-kernel"
+brush-dataset.path = "../brush-dataset"
+brush-render-bwd.path = "../brush-render-bwd"
+
 assert_approx_eq.workspace = true
 
 anyhow.workspace = true
@@ -21,17 +24,11 @@ hashbrown.workspace = true
 burn.workspace = true
 burn-cubecl.workspace = true
 burn-fusion.workspace = true
-burn-ir.workspace = true
 
-naga_oil.workspace = true
 wgpu.workspace = true
 bytemuck.workspace = true
 
 clap.workspace = true
-
-[build-dependencies]
-brush-wgsl.path = "../brush-wgsl"
-miette.workspace = true
 
 [dev-dependencies]
 divan = "0.1.17"

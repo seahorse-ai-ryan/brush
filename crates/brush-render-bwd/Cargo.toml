@@ -1,35 +1,24 @@
 [package]
-name = "brush-render"
+name = "brush-render-bwd"
 edition.workspace = true
 version.workspace = true
 readme.workspace = true
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-brush-prefix-sum.path = "../brush-prefix-sum"
-assert_approx_eq.workspace = true
+brush-render.path = "../brush-render"
 brush-kernel.path = "../brush-kernel"
-brush-sort.path = "../brush-sort"
 
 burn.workspace = true
-burn-wgpu.workspace = true
 burn-cubecl.workspace = true
 burn-fusion.workspace = true
 burn-ir.workspace = true
 
-bytemuck.workspace = true
-glam.workspace = true
-
-tracing.workspace = true
-rand.workspace = true
-ball-tree.workspace = true
-
 naga_oil.workspace = true
 wgpu.workspace = true
-
-[features]
-debug_validation = []
+bytemuck.workspace = true
+glam.workspace = true
+tracing.workspace = true
 
 [build-dependencies]
 brush-wgsl.path = "../brush-wgsl"

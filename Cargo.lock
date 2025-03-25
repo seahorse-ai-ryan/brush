@@ -901,7 +901,6 @@ dependencies = [
  "anyhow",
  "async-fn-stream",
  "brush-render",
- "brush-train",
  "burn",
  "clap",
  "colmap-reader",
@@ -971,7 +970,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "tokio_with_wasm",
  "web-time",
 ]
 
@@ -995,7 +993,25 @@ dependencies = [
  "miette",
  "naga_oil",
  "rand 0.9.0",
- "serde",
+ "tracing",
+ "wgpu",
+]
+
+[[package]]
+name = "brush-render-bwd"
+version = "0.2.0"
+dependencies = [
+ "brush-kernel",
+ "brush-render",
+ "brush-wgsl",
+ "burn",
+ "burn-cubecl",
+ "burn-fusion",
+ "burn-ir",
+ "bytemuck",
+ "glam",
+ "miette",
+ "naga_oil",
  "tracing",
  "wgpu",
 ]
@@ -1031,14 +1047,14 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_approx_eq",
+ "brush-dataset",
  "brush-kernel",
  "brush-render",
+ "brush-render-bwd",
  "brush-rerun",
- "brush-wgsl",
  "burn",
  "burn-cubecl",
  "burn-fusion",
- "burn-ir",
  "bytemuck",
  "clap",
  "divan",
@@ -1046,8 +1062,6 @@ dependencies = [
  "hashbrown 0.15.2",
  "image",
  "log",
- "miette",
- "naga_oil",
  "rand 0.9.0",
  "rerun",
  "safetensors 0.5.3",
@@ -2924,6 +2938,7 @@ dependencies = [
 name = "examples"
 version = "0.2.0"
 dependencies = [
+ "brush-dataset",
  "brush-render",
  "brush-train",
  "brush-ui",
@@ -2934,7 +2949,6 @@ dependencies = [
  "image",
  "rand 0.9.0",
  "tokio",
- "wgpu",
 ]
 
 [[package]]

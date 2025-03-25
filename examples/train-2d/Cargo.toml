@@ -7,8 +7,8 @@ license.workspace = true
 
 [dependencies]
 burn.workspace = true
-wgpu.workspace = true
 brush-train.path = "../../crates/brush-train"
+brush-dataset.path = "../../crates/brush-dataset"
 brush-render.path = "../../crates/brush-render"
 brush-ui.path = "../../crates/brush-ui"
 

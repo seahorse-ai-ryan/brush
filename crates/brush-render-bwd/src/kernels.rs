@@ -19,7 +19,6 @@ pub struct SplatGrads<B: Backend> {
     pub v_scales: FloatTensor<B>,
     pub v_coeffs: FloatTensor<B>,
     pub v_raw_opac: FloatTensor<B>,
-
     pub v_refine_weight: FloatTensor<B>,
 }
 

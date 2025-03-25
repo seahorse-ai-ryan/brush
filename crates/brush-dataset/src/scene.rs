@@ -1,4 +1,8 @@
 use brush_render::{bounding_box::BoundingBox, camera::Camera};
+use burn::{
+    prelude::Backend,
+    tensor::{Tensor, TensorData},
+};
 use glam::{Affine3A, Vec3, vec3};
 use std::sync::Arc;
 
@@ -7,12 +11,6 @@ pub enum ViewType {
     Train,
     Eval,
     Test,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ViewImageType {
-    Alpha,
-    Masked,
 }
 
 #[derive(Debug, Clone)]
@@ -100,4 +98,42 @@ impl Scene {
             Some(smallest.0.hypot(smallest.1))
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ViewImageType {
+    Alpha,
+    Masked,
+}
+
+// Converts an image to a train sample. The tensor will be a floating point image with a [0, 1] image.
+//
+// This assume the input image has un-premultiplied alpha, whereas the output has pre-multiplied alpha.
+pub fn view_to_sample<B: Backend>(view: &SceneView, device: &B::Device) -> Tensor<B, 3> {
+    let image = &view.image;
+    let (w, h) = (image.width(), image.height());
+
+    let tensor_data = if image.color().has_alpha() {
+        // Assume image has un-multiplied alpha and convert it to pre-multiplied.
+        let mut rgba = image.to_rgba32f();
+        if view.img_type == ViewImageType::Alpha {
+            for pixel in rgba.pixels_mut() {
+                let a = pixel[3];
+                pixel[0] *= a;
+                pixel[1] *= a;
+                pixel[2] *= a;
+            }
+        }
+        TensorData::new(rgba.into_vec(), [h as usize, w as usize, 4])
+    } else {
+        TensorData::new(image.to_rgb32f().into_vec(), [h as usize, w as usize, 3])
+    };
+
+    Tensor::from_data(tensor_data, device)
+}
+
+#[derive(Clone, Debug)]
+pub struct SceneBatch<B: Backend> {
+    pub gt_image: Tensor<B, 3>,
+    pub gt_view: SceneView,
 }

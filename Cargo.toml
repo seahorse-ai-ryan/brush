@@ -127,7 +127,6 @@ hashbrown = "0.15"
 wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
 naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
 
-
 [profile.dev]
 opt-level = 1
 debug = true

@@ -125,7 +125,6 @@ pub fn build_modules(paths: &[&str], includes: &[&str], output_path: &str) -> Re
         "#![allow(clippy::all)]",
         "#![allow(clippy::derive_partial_eq_without_eq)]", // Not sure why this isn't part of clippy::all
     ]);
-
     code.add_lines(&[
         "#[rustfmt::skip]",
         "fn create_composer() -> naga_oil::compose::Composer {",
@@ -133,10 +132,8 @@ pub fn build_modules(paths: &[&str], includes: &[&str], output_path: &str) -> Re
             wgpu::naga::valid::Capabilities::all()
         );",
     ]);
-
     let mut composer = Composer::default().with_capabilities(Capabilities::all());
     let mut modules = HashMap::new();
-
     for include in includes {
         let helper_source = &std::fs::read_to_string(include)?;
         let include_name = make_valid_rust_import(include);
