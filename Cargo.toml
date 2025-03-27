@@ -107,16 +107,16 @@ zip = { version = "2.2.1", default-features = false, features = ["deflate"] }
 urlencoding = "2.1"
 hashbrown = "0.15"
 
-# [patch."https://github.com/tracel-ai/burn"]
 # # Uncomment this to use local burn.
+# [patch."https://github.com/tracel-ai/burn"]
 # burn = { path = "../burn/crates/burn" }
 # burn-cubecl = { path = "../burn/crates/burn-cubecl" }
 # burn-wgpu = { path = "../burn/crates/burn-wgpu" }
 # burn-fusion = { path = "../burn/crates/burn-fusion" }
 # burn-ir = { path = "../burn/crates/burn-ir" }
 
+# # Uncomment this to use local cubcl.
 # [patch."https://github.com/tracel-ai/cubecl"]
-# # Uncomment this to use local burn.
 # cubecl = { path = "../cubecl/crates/cubecl" }
 # cubecl-common = { path = "../cubecl/crates/cubecl-common" }
 # cubecl-std = { path = "../cubecl/crates/cubecl-std" }
