@@ -4,7 +4,6 @@ use crate::{
     splat_import::{SplatMessage, load_splat_from_ply},
 };
 use burn::prelude::Backend;
-use image::DynamicImage;
 use path_clean::PathClean;
 use std::{
     path::{Path, PathBuf},
@@ -92,11 +91,4 @@ fn find_mask_path(vfs: &BrushVfs, path: &Path) -> Option<PathBuf> {
         file_parent == parent && stem == masked_name
             || file_parent == masks_dir && stem == file_stem
     })
-}
-
-pub fn clamp_img_to_max_size(image: DynamicImage, max_size: u32) -> DynamicImage {
-    if image.width() <= max_size && image.height() <= max_size {
-        return image;
-    }
-    image.resize(max_size, max_size, image::imageops::FilterType::Lanczos3)
 }

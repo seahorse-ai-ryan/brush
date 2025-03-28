@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use brush_dataset::clamp_img_to_max_size;
 use brush_dataset::scene::Scene;
 use brush_render::gaussian_splats::Splats;
 use brush_render::shaders::project_visible::SH_C0;

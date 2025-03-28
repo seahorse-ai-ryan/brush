@@ -9,7 +9,7 @@ use image::{ColorType, DynamicImage, ImageDecoder, ImageReader};
 use std::{path::PathBuf, sync::Arc};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::{brush_vfs::BrushVfs, clamp_img_to_max_size};
+use crate::brush_vfs::BrushVfs;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ViewType {
@@ -79,12 +79,26 @@ impl LoadImage {
         self.color.has_alpha() || self.is_masked()
     }
 
+    pub fn dimensions(&self) -> glam::UVec2 {
+        if self.size.x <= self.max_resolution && self.size.y <= self.max_resolution {
+            self.size
+        } else {
+            // Take from image crate, just to be sure logic here matches exactly.
+            let wratio = f64::from(self.max_resolution) / f64::from(self.size.x);
+            let hratio = f64::from(self.max_resolution) / f64::from(self.size.y);
+            let ratio = f64::min(wratio, hratio);
+            let nw = u64::max((f64::from(self.size.x) * ratio).round() as u64, 1);
+            let nh = u64::max((f64::from(self.size.y) * ratio).round() as u64, 1);
+            glam::uvec2(nw as u32, nh as u32)
+        }
+    }
+
     pub fn width(&self) -> u32 {
-        self.size.x
+        self.dimensions().x
     }
 
     pub fn height(&self) -> u32 {
-        self.size.y
+        self.dimensions().y
     }
 
     pub async fn load(&self) -> Result<DynamicImage> {
@@ -121,9 +135,14 @@ impl LoadImage {
             }
             img = masked_img.into();
         }
-
-        let img = clamp_img_to_max_size(img, self.max_resolution);
-        Ok(img)
+        if img.width() <= self.max_resolution && img.height() <= self.max_resolution {
+            return Ok(img);
+        }
+        Ok(img.resize(
+            self.max_resolution,
+            self.max_resolution,
+            image::imageops::FilterType::Triangle,
+        ))
     }
 
     pub fn is_masked(&self) -> bool {

@@ -11,7 +11,6 @@ pub mod splat_import;
 use burn::config::Config;
 use clap::Args;
 use core::f32;
-pub use formats::clamp_img_to_max_size;
 pub use formats::load_dataset;
 use glam::{Mat3, Mat4, Vec3};
 use scene::Scene;
