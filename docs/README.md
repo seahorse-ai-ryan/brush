@@ -16,7 +16,8 @@ This directory (`/docs/`) contains the technical documentation for the Brush pro
 * [Development Workflow](development_workflow.md): Guidelines for contributing to the project, including Git workflow, code review, and branching strategies.
 * [Debugging and Profiling](debugging_profiling.md): Techniques and tools for debugging and profiling Brush.
 * [Testing](testing.md): Information about the testing strategy, different types of tests, and how to run them.
-* [Code from AI Agents](code_from_ai_agents.md): Best practices for using AI agents in development and setting expectations for "vibe coding" contributions.
+
+> **Note:** Information about AI-assisted development is available in the [project directory](/project/ai_assisted_development.md).
 
 ## Modules and Features
 

@@ -19,6 +19,13 @@ alwaysApply: true
 - USE Claude 3.7 Sonnet (regular) for routine edits
 - SOMETIMES use Gemini for planning tasks
 
+## FILE OPERATIONS
+- ALWAYS request explicit approval before deleting any file
+- DELETE only one file at a time, waiting for confirmation before proceeding
+- CONFIRM file paths carefully before suggesting deletion
+- PREFER showing warning message about file deletion consequences
+- NEVER bundle file deletion with other operations
+
 ## WORKFLOW PREFERENCES
 - DOCUMENT optional tools like BrowserTools MCP clearly so other developers know they're optional
 - FOCUS on cross-platform compatibility and WebGPU integration

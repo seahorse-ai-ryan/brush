@@ -1,53 +1,48 @@
 # Brush - AI-Enhanced Revitalization Project
 
-This is a fork of the [Brush](https://github.com/ArthurBrussee/brush) project, an amazing cross-platform 3D reconstruction framework. This fork is an experimental effort by Ryan Hickman to contribute new ideas and explore enhancements. The primary goals are to:
-
-1. Enhance Brush with AI-assisted development
-2. Create a more modular, maintainable, and user-friendly application
-3. Demonstrate Brush's potential as a foundation for cloud-hosted digital twin solutions
+This is a fork of the [Brush](https://github.com/ArthurBrussee/brush) project, an amazing cross-platform 3D reconstruction framework. This fork is an experimental effort by Ryan Hickman to contribute new ideas and explore enhancements.
 
 ## Vision
 
-This project aims to demonstrate Brush's potential as a foundation for cloud-hosted digital twin solutions. Realizing this vision involves refactoring the open-source project to empower third-party developers to build new applications leveraging the core technology. 
+Brush demonstrates how advanced 3D reconstruction can work directly in a standard web browser on machines without high-end NVIDIA GPUs, while also taking full advantage of hardware acceleration when available. This cross-platform flexibility makes it uniquely positioned for widespread adoption as a digital twin platform.
 
-A key assumption is that reconstruction algorithms are constantly evolving, so this project focuses on creating a modular pipeline that can readily integrate the latest solutions. This may involve reprocessing older datasets to ensure compatibility with the newest client rendering techniques.
+This project aims to demonstrate Brush's potential as a foundation for cloud-hosted digital twin solutions. Realizing this vision involves refactoring the open-source project to empower third-party developers to build new applications leveraging the core technology.
 
-## Key Features
+To enable Brush as a foundation for digital twin applications, this project focuses on enhancing modularity throughout the codebase. This allows for third-party applications to build on top of Brush's core capabilities or remain compatible with it as the project evolves.
 
-A core requirement for cloud-based digital twins is the ability to handle multiple scans of the same physical object or space. This necessitates:
+## Key Core Enhancement Features
 
-* Aligning multiple datasets
-* Storing data in a time-series database
-* Enabling queries based on location and time
-* Implementing a hybrid processing approach between cloud-based GPUs/TPUs and client-side rendering
+The core enhancements focus on improving the foundation of Brush:
 
-## Project Roadmap
+1. **Modular Architecture** - Separating UI from core logic to enable multiple applications to use the same backend
+2. **Enhanced UI Experience** - Modernizing the interface with movable panels while maintaining the focus on 3D content
+3. **Flexible Storage Options** - Implementing robust local storage for desktop and web platforms with a consistent API
+4. **Extensible Reconstruction Pipeline** - Creating a modular pipeline that can easily integrate new reconstruction algorithms
+5. **Cross-Platform Testing Framework** - Establishing comprehensive testing across all supported platforms
 
-The project will be approached in the following phases, initially focusing on the core of Brush and then expanding to a new cloud-first application:
+## Key Enterprise Digital Twin Features
 
-1. **Documentation of Existing System**: Document the existing Brush system for human and AI agents to understand.
-2. **Robust Dev Environment**: Create a more robust development environment for automated testing.
-3. **Modularity from UI**: Decouple the UI from the core logic.
-4. **Panels and Windows UI Enhancements**: Modernize the UI to focus on the 3D content and support movable windows.
-5. **Add Local Datasets**: Implement small-scale local dataset management.
-6. **Modular Reconstruction Pipeline**: Implement and demonstrate a modular reconstruction pipeline backend.
-7. **Utilize semantic parsing**: Incorporate solutions from public papers on semantic segmentation & labeling
+The enterprise digital twin features build on the enhanced core:
 
-The project will then create a new cloud-first app with enterprise features:
+1. **Multi-scan Management** - Aligning and organizing multiple scans of the same physical object or space
+2. **Time-Series Database Integration** - Storing reconstruction data with temporal metadata for change tracking
+3. **Spatial-Temporal Queries** - Enabling searches based on location, time, and semantic properties
+4. **Cloud Processing Capabilities** - Implementing hybrid processing between cloud GPUs/TPUs and client rendering
+5. **Seamless Authentication** - Supporting SSO authentication (initially with Google Accounts)
 
-8. **Demonstrate Another UI App Using the Same Backends**: Create a separate UI application to demonstrate backend modularity.
-9. **Add user authentication**: Implement modular SSO authentication (starting with Google Accounts)
-10. **Add Cloud Datasets**: Implement modular scalable cloud dataset management (GCP initially).
-11. **Ad-hoc time and space queries**: Utilize a timeseries database with geo features to query by time and space
-12. **Configurable Workflow UI**: Enhanced user experience tool for crafting customizable workflows.
+## Documentation
 
-Each phase will have its own detailed documentation, outlining specific tasks, timelines, and deliverables.
+The project documentation is organized into two main sections:
 
-## Product Requirements
+- [**Existing Implementation**](/docs/) - Documentation of the current implementation details
+- [**Project Planning**](/project/) - Roadmaps and future-oriented documentation
 
-For detailed product requirements, see:
-- [Brush Core Enhancements PRD](./docs/brush_core_enhancements_prd.md)
-- [Brush Enterprise Digital Twin PRD](./docs/brush_enterprise_digital_twin_prd.md)
+Key project documents:
+- [Brush Development Roadmap](/project/brush_development_roadmap.md) - High-level roadmap of planned development phases
+- [AI-Assisted Development Approach](/project/ai_assisted_development.md) - Information about the experimental AI-assisted development approach
+- [Developer Context](/project/developer_context.md) - Background on developer and AI tools used
+
+This project is an experimental exploration not only of enhancing Brush but also of using AI-assisted development techniques to contribute to complex codebases.
 
 ## Contribution & Community
 

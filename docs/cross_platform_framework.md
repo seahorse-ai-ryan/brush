@@ -8,7 +8,7 @@ Brush is designed to run on a wide range of platforms, including:
 
 - **Desktop**: Windows, macOS, Linux
 - **Web**: Modern browsers via WebAssembly
-- **Mobile**: Android and iOS
+- **Mobile**: Web-based mobile support, with basic Android integration
 
 This cross-platform capability is achieved through a carefully designed architecture that separates platform-specific code from core functionality.
 
@@ -34,12 +34,12 @@ This cross-platform capability is achieved through a carefully designed architec
 └───────────────────────────────────┬───────────────────────────────────────────┘
                                     │
                                     ▼
-┌────────────────┬────────────────┬────────────────┬────────────────┬────────────────┐
-│                │                │                │                │                │
-│   Windows      │     macOS      │     Linux      │   WebAssembly  │     Mobile     │
-│   Backend      │    Backend     │    Backend     │    Backend     │    Backend     │
-│                │                │                │                │                │
-└────────────────┴────────────────┴────────────────┴────────────────┴────────────────┘
+┌────────────────┬────────────────┬────────────────┬────────────────┐
+│                │                │                │                │
+│   Windows      │     macOS      │     Linux      │   WebAssembly  │
+│   Backend      │    Backend     │    Backend     │    Backend     │
+│                │                │                │                │
+└────────────────┴────────────────┴────────────────┴────────────────┘
 ```
 
 ### Key Components 🧩
@@ -60,10 +60,8 @@ This cross-platform capability is achieved through a carefully designed architec
 ### Platform Bridge Technologies
 
 - **WebAssembly/WASM**: For web platform support
-- **cargo-apk**: For Android packaging
 - **Trunk**: For web builds
-- **Android NDK**: For Android native code
-- **iOS SDK**: For iOS support
+- **Android NDK**: For basic Android integration
 
 ## Cross-Platform Strategy 🔄
 
@@ -147,7 +145,7 @@ The codebase uses several abstraction layers to handle platform differences:
 - Compiles to WebAssembly (WASM)
 - Uses WebGPU via browser implementation
 - Asset loading adapted for web environment
-- Uses browser's IndexedDB for persistent storage
+- Uses browser's standard APIs for file handling
 - Handles browser-specific input mechanisms
 
 ```rust
@@ -165,15 +163,21 @@ fn initialize_web_environment() {
 }
 ```
 
-### Mobile Platforms
+### Mobile Support
 
-#### Android
+Current mobile support is primarily provided through the web application:
 
-- Uses Vulkan through wgpu
-- Activity lifecycle management
-- Touch input handling
-- Android-specific storage access
-- APK packaging and resources management
+- Responsive design for mobile browsers
+- Touch input support
+- Progressive Web App (PWA) capabilities
+
+#### Android Integration
+
+Brush includes basic Android integration:
+
+- Minimal wrapper around the core functionality
+- Android project files for building native app
+- Simple Android activity implementation
 
 ```rust
 // Android-specific app entry point
@@ -187,13 +191,6 @@ pub extern "C" fn android_main(app: android_app) {
     run_app(app);
 }
 ```
-
-#### iOS
-
-- Uses Metal through wgpu
-- iOS application lifecycle management
-- Touch input and gesture recognition
-- iOS-specific storage and permissions
 
 ## Shared GPU Pipeline 🎮
 
@@ -306,13 +303,13 @@ pub fn load_asset(path: &str) -> Result<Vec<u8>, Error> {
 ```rust
 // Platform-specific performance optimizations
 #[cfg(target_os = "windows")]
-const WORKGROUP_SIZE: u32 = this_workgroup_size_best_for_windows;
+const WORKGROUP_SIZE: u32 = 64;
 
 #[cfg(target_os = "macos")]
-const WORKGROUP_SIZE: u32 = this_workgroup_size_best_for_metal;
+const WORKGROUP_SIZE: u32 = 32;
 
 #[cfg(target_arch = "wasm32")]
-const WORKGROUP_SIZE: u32 = this_workgroup_size_best_for_web;
+const WORKGROUP_SIZE: u32 = 16;
 ```
 
 ### Memory Management
@@ -392,14 +389,11 @@ trunk build --release
 ### Android Build Process
 
 ```bash
-# Install Cargo APK
-cargo install cargo-apk
-
-# Build APK
+# Basic Android build
 cd crates/brush-android
-cargo apk build --release
+cargo build --target=aarch64-linux-android
 
-# The resulting APK will be in target/release/apk/
+# Note: Full APK generation requires additional setup
 ```
 
 ## Common Challenges and Solutions 🤔
@@ -419,7 +413,6 @@ pub trait FileSystem {
 // Platform-specific implementations
 struct DesktopFileSystem;
 struct WebFileSystem;
-struct MobileFileSystem;
 ```
 
 ### Challenge: Input Handling
@@ -473,21 +466,15 @@ fn create_render_pipeline(device: &wgpu::Device) -> wgpu::RenderPipeline {
 }
 ```
 
-## Future Platform Support 🚀
+## Related Documentation 🔗
 
-Brush's architecture is designed to easily extend to new platforms:
-
-1. **WebGPU Native**: As WebGPU becomes available natively on more platforms
-2. **Game Consoles**: Potential support for game consoles with WebGPU-compatible APIs
-3. **VR/AR Platforms**: Integration with virtual and augmented reality frameworks
-
-## Next Steps 🔍
-
-- Explore platform-specific guides:
-  - [Windows](platform_windows.md)
+- Current platform guides:
   - [macOS](platform_macos.md)
-  - [Linux](platform_linux.md)
   - [Web](platform_web.md)
   - [Android](platform_android.md)
-  - [iOS](platform_ios.md)
-- Learn about [Performance Optimization](performance_optimization.md) techniques 
+
+- Planned platform features:
+  - [iOS Platform Roadmap](/project/ios_platform_roadmap.md)
+  - [Android Platform Roadmap](/project/android_platform_roadmap.md)
+  - [Web Platform Roadmap](/project/web_platform_roadmap.md)
+  - [macOS Platform Roadmap](/project/macos_platform_roadmap.md) 

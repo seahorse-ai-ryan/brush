@@ -86,9 +86,20 @@ Use descriptive commit messages following this format:
 
 Where:
 - `<type>` is one of: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
-- `<subject>` is a short description of the change
+- `<subject>` is a short description of the change (50 chars or less)
 - `<body>` provides detailed explanation (optional)
 - `<footer>` references issues or breaking changes (optional)
+
+For command line commits with descriptions, use multiple `-m` flags:
+
+```bash
+git commit -m "<type>: <subject>" -m "<body>
+
+- Additional details
+- More information"
+```
+
+The first `-m` creates the title, and subsequent `-m` flags add description paragraphs.
 
 Example:
 ```
@@ -223,7 +234,7 @@ When using AI agents for development:
 2. Review all generated code thoroughly
 3. Test the code independently
 4. Document any AI-assisted sections
-5. Follow guidelines in [AI Agents](./ai_agents_vibe_coding.md)
+5. Follow guidelines in [AI-Assisted Development](/project/ai_assisted_development.md)
 
 ## Release Process 📦
 
@@ -248,4 +259,4 @@ Stay connected with the Brush community:
 
 - Learn about [Debugging and Profiling](debugging_profiling.md)
 - Explore the [Testing](testing.md) strategy
-- Understand how to use [AI Agents](ai_agents_vibe_coding.md) in development 
+- Understand how to use [AI-Assisted Development](/project/ai_assisted_development.md) in development 

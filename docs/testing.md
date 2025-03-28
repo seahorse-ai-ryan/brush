@@ -396,4 +396,4 @@ fn test_web_specific() {
 
 - Learn about the [Training Module](training_module.md)
 - Explore the [Rendering Module](rendering_module.md)
-- Understand how to use [AI Agents](ai_agents_vibe_coding.md) in development 
+- Understand how to use [AI-Assisted Development](/project/ai_assisted_development.md) in development 

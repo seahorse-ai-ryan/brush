@@ -41,24 +41,62 @@ SEE MORE: /docs/architecture.md
 The codebase is structured as follows:
 
 ```
-/src               - Core source code
-  /ui              - UI components and visualization
-  /reconstruction  - Core reconstruction algorithms
-  /io              - Data input/output handling
-  /platform        - Platform-specific abstractions
-/examples          - Example applications
-/benches           - Performance benchmarks
-/tests             - Integration tests
+/crates
+  /brush-app           - Main application UI and control flow
+  /brush-dataset       - Dataset handling and scene representation
+  /brush-process       - Processing loop and training management
+  /brush-render        - Forward rendering operations
+  /brush-render-bwd    - Backward (gradient) rendering operations
+  /brush-train         - Training algorithms and optimization
+  /brush-wgsl          - WGSL shader utilities
+/examples              - Example applications
+/benches               - Performance benchmarks
+/tests                 - Integration tests
 ```
+
+The codebase follows these organizational principles:
+1. SEPARATE forward and backward rendering operations
+2. ISOLATE dataset handling from training logic
+3. KEEP UI components separate from computational code
+4. DIVIDE functionality into purpose-specific crates
 
 When adding new code:
 
-1. PLACE code in the appropriate module based on its function
+1. PLACE code in the appropriate crate based on its function
 2. CREATE new modules only when existing ones don't fit conceptually
 3. FOLLOW existing naming and organization patterns
 4. AVOID deep nesting of modules (prefer flat organization)
 
 SEE MORE: /docs/codebase_organization.md
+
+## COMMIT STANDARDS
+
+When creating commits, follow these guidelines:
+
+1. USE conventional commit format:
+   - `feat:` for new features
+   - `fix:` for bug fixes
+   - `docs:` for documentation changes
+   - `style:` for formatting changes
+   - `refactor:` for code restructuring
+   - `perf:` for performance improvements
+   - `test:` for test additions/changes
+   - `chore:` for maintenance tasks
+
+2. INCLUDE detailed descriptions using multiple `-m` flags:
+   ```bash
+   git commit -m "<type>: <subject>" -m "<detailed description>
+   
+   - Additional details
+   - More information"
+   ```
+
+3. KEEP the first line (subject) under 50 characters
+4. ADD a blank line between subject and description
+5. WRITE the subject line in imperative mood ("Add feature" not "Added feature")
+6. REFERENCE related issues in the footer
+
+SEE MORE: /docs/development_workflow.md#commit-message-format
 
 ## CODING STANDARDS
 
