@@ -42,72 +42,15 @@ Brush offers a range of features for both training and viewing 3D Gaussian Splat
 *   **Command-Line Interface (CLI):** Perform training and other operations via the `brush-cli` crate, optionally launching the UI alongside (`--with-viewer`) for debugging.
 *   **Rerun Integration:** Visualize additional training data and metrics using the [Rerun](https://rerun.io/) visualization tool (requires separate installation).
 
-## 1.4. High-Level Architecture Diagram
+## 1.4. High-Level Architecture
 
-*(TODO: Refine this diagram to accurately represent dependencies and data flow. Consider replacing with a more detailed image if needed.)*
+*(A diagram showing the relationship between key crates like `brush-app`, `brush-process`, `brush-train`, `brush-render`, and `brush-dataset` can be found in the [Architecture Deep Dive](../technical-deep-dive/architecture.md#313-data-flow). This diagram provides a visual overview but may be simplified.)*
 
-```mermaid
-graph LR;
-    subgraph User Interface
-        UI[brush-ui (EGUI)]
-    end
-    subgraph Application Core
-        App[brush-app]
-    end
-    subgraph Reconstruction
-        Train[brush-train (Burn)]
-        Process[brush-process]
-        Dataset[brush-dataset]
-        Colmap[colmap-reader]
-    end
-    subgraph Rendering
-        RenderFwd[brush-render]
-        RenderBwd[brush-render-bwd]
-        Kernel[brush-kernel (WGPU/WGSL)]
-        Sort[brush-sort]
-        PrefixSum[brush-prefix-sum]
-    end
-    subgraph Command Line
-        CLI[brush-cli]
-    end
-    subgraph Visualization
-        Rerun[brush-rerun]
-    end
-    subgraph Platform Specific
-        Android[brush-android]
-    end
+---
 
-    User --> App
-    App --> UI
-    App --> Train
-    App --> RenderFwd
-    App --> Process
-    App --> Dataset
-    App --> CLI
+## Where to Go Next?
 
-    CLI --> Train
-    CLI --> RenderFwd
-    CLI --> Process
-    CLI --> Dataset
-
-    Train --> Process
-    Train --> Dataset
-    Train --> RenderFwd
-    Train --> RenderBwd
-    Train --> Kernel
-    Train --> Sort
-    Train --> PrefixSum
-    Train --> Rerun
-
-    Process --> Dataset
-    Dataset --> Colmap
-
-    RenderFwd --> Kernel
-    RenderFwd --> Sort
-    RenderFwd --> PrefixSum
-    RenderBwd --> Kernel
-
-    App --> Android
-```
-
-*(Note: This diagram shows potential high-level interactions between crates. Arrows indicate likely dependencies or data flow directions.)* 
+*   Ready to try Brush? Head to the **[User Guide](getting-started/user-guide.md)**.
+*   Want to build the code? See the **[Developer Guide](getting-started/developer-guide.md)**.
+*   Curious about the components? Dive into the **[Architecture Overview](technical-deep-dive/architecture.md)**.
+*   New to the core concepts? Check the **[Glossary](supporting-materials/glossary.md)**. 

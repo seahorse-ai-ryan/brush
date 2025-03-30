@@ -47,4 +47,12 @@ WGSL is the WebGPU Shading Language, used to write shaders that run on the GPU.
 *   Custom GPU logic for tasks like Gaussian rasterization, sorting, and prefix sums are likely implemented using WGSL shaders within `brush-kernel` or `brush-wgsl`.
 *   [wgpu-rs Repository](https://github.com/gfx-rs/wgpu)
 *   [wgpu Official Website](https://wgpu.rs/)
-*   [WGSL Specification](https://www.w3.org/TR/WGSL/) 
+*   [WGSL Specification](https://www.w3.org/TR/WGSL/)
+
+---
+
+## Where to Go Next?
+
+*   See how these technologies fit into the project: **[Architecture Overview](architecture.md)**.
+*   Understand the core algorithms built with these tools: **[Reconstruction Pipeline](reconstruction-pipeline.md)** and **[Gaussian Splat Rendering](gaussian-splatting.md)**.
+*   Get started building the project: **[Developer Guide](../getting-started/developer-guide.md)**. 

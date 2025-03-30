@@ -37,10 +37,27 @@ The forward rendering pass (`brush-render`) generates an image from a set of Gau
 
 ## 3.3.3. Training/Optimization Pass (Backward Pass)
 
-For training, the rendering pipeline needs to be differentiable. The backward pass (`brush-render-bwd`) calculates the gradients of the loss (difference between rendered and ground truth image) with respect to the Gaussian parameters.
+The forward rendering pass calculates the final image color based on the Gaussian parameters. To *train* these parameters, we need to compute how changes in each parameter affect the final rendered image and, consequently, the loss function (typically comparing the rendered image to a ground truth image). This is achieved through a **backward pass**, also known as backpropagation.
 
-*   This involves propagating gradients back through the blending, rasterization, and projection steps.
-*   Custom backward kernels are required for the GPU operations.
-*   The [Burn](core-technologies.md#343-burn) framework manages the automatic differentiation process, coordinating the forward and backward passes and parameter updates.
+Brush implements this using Burn's automatic differentiation framework, integrated via the `brush-render-bwd` crate:
 
-*(TODO: Add more specific implementation details based on code analysis of `brush-render-bwd` and its interaction with Burn and `brush-kernel`.)* 
+1.  **Custom Backward Step:** `brush-render-bwd` defines a custom backward operation (`RenderBackwards`) for the forward `render_splats` function. This tells Burn how to calculate gradients for the Gaussian parameters when gradients flow back from the loss function.
+2.  **Forward Pass State Saving:** When the differentiable version of `render_splats` (from `SplatForwardDiff`) is called during training (likely by `SplatTrainer`), it performs the normal forward rendering. Crucially, if any input Gaussian parameters require gradients, it saves necessary intermediate results (like projected splats, tile information, visibility data, and the input parameters themselves) into a `GaussianBackwardState` struct. This state is registered with Burn's computation graph.
+3.  **Gradient Backpropagation:** When the overall loss is calculated (e.g., L1 + SSIM loss between rendered and ground truth image) and `loss.backward()` is called in `SplatTrainer`:
+    *   Burn propagates gradients back through the computation graph.
+    *   When the gradient reaches the output of the `render_splats` operation, Burn invokes the custom `RenderBackwards::backward` method.
+4.  **Backward Kernel Execution:** The `RenderBackwards::backward` method takes the saved `GaussianBackwardState` and the incoming gradient (representing how the loss changes with respect to each pixel's color) and calls the core backward logic (`render_backward` function, likely executing custom WGSL kernels defined in `brush-render-bwd/src/kernels.rs` and `shaders.rs`).
+5.  **Parameter Gradient Calculation:** These backward kernels compute the gradients of the loss function with respect to each of the input Gaussian parameters (position, scale, rotation, opacity, SH coefficients).
+6.  **Gradient Registration:** The computed parameter gradients (`SplatGrads`) are registered back into Burn's gradient tracking system.
+7.  **Optimizer Step:** Finally, the optimizer (e.g., Adam, managed by `SplatTrainer`) uses these registered gradients to update the Gaussian parameter tensors, completing one training step.
+
+In essence, `brush-render-bwd` provides the specific mathematical operations (implemented as GPU kernels) needed to reverse the rendering process for gradient calculation, plugging seamlessly into Burn's automatic differentiation machinery.
+
+---
+
+## Where to Go Next?
+
+*   See how these rendering passes are used in training: **[Reconstruction Pipeline](reconstruction-pipeline.md)**.
+*   Explore the GPU programming model: **[WGPU/WGSL in Core Technologies](core-technologies.md#345-wgpu--wgsl)**.
+*   Look at the rendering code: **[API Reference](../api-reference.md)** (focus on `brush-render`, `brush-render-bwd`, `brush-kernel`).
+*   See the overall structure: **[Architecture Overview](architecture.md)**. 

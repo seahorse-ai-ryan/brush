@@ -18,13 +18,13 @@ The process generally involves:
 
 ## 3.2.2. Algorithm(s)
 
-Brush implements the **3D Gaussian Splatting** algorithm, as introduced in the paper:
+The core reconstruction algorithm implemented in Brush is **3D Gaussian Splatting optimization**. The process starts with an initial set of Gaussians (either randomly generated within the scene bounds or loaded from an initial point cloud like `input.ply` often found in COLMAP datasets) and directly optimizes their parameters (position, rotation, scale, color, opacity, spherical harmonics) to minimize the difference between rendered views and the input training images.
 
-*   **[3D Gaussian Splatting for Real-Time Radiance Field Rendering](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/)** by Kerbl et al. (SIGGRAPH 2023)
+Based on the current codebase analysis (primarily `brush-process`, `brush-train`), there is no evidence of alternative reconstruction pipelines like traditional Structure-from-Motion (SfM) + Multi-View Stereo (MVS) or Neural Radiance Fields (NeRF) being implemented. The focus is solely on the optimization of the Gaussian representation.
 
-*(TODO: Verify if Brush implements specific variations or additions to the original algorithm based on code analysis of `brush-train`.)*
+**References:**
 
-The implementation relies heavily on a differentiable rendering pipeline (covered in the [Gaussian Splat Rendering](gaussian-splatting.md) section) and optimization driven by the [Burn](core-technologies.md#343-burn) framework.
+*   **Original Paper:** [3D Gaussian Splatting for Real-Time Radiance Field Rendering](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/)
 
 ## 3.2.3. Implementation Details
 
@@ -42,7 +42,24 @@ The core reconstruction logic resides primarily within the `brush-train` crate.
     *   `brush-train`: Orchestrates the optimization loop.
     *   `brush-render` / `brush-render-bwd`: Provide the differentiable rendering mechanism.
     *   `brush-kernel` / `brush-sort` / etc.: Provide GPU-accelerated primitives used by the renderer and potentially the optimizer.
-*   **Data Structures:** *(TODO: Identify and describe key Rust structs representing Gaussians, datasets, camera parameters within `brush-dataset` and `brush-train`.)*
+*   **Data Structures:**
+    *   **Core Crates:** The main logic resides in:
+        *   `brush-process`: Orchestrates the loading and training stream (`train_stream.rs`).
+        *   `brush-dataset`: Handles loading datasets (`load_dataset`), providing training batches (`SceneLoader`), and defining scene structures.
+        *   `brush-train`: Contains the `SplatTrainer` responsible for the optimization loop (`step`, `refine_if_needed`) and evaluation (`eval_stats`).
+        *   `brush-render`: Defines the `Splats` data structure and provides the forward rendering pass used in training loss calculation.
+        *   `brush-render-bwd`: Provides the backward rendering pass for gradient computation.
+    *   **Burn Framework:** [Burn](core-technologies.md#343-burn) is used for:
+        *   Defining and managing tensors holding Gaussian parameters on the target backend (WGPU).
+        *   Automatic differentiation to compute gradients during the backward pass.
+        *   Providing optimizers (e.g., Adam) to update Gaussian parameters.
+    *   **Key Data Structures:**
+        *   `brush_render::gaussian_splats::Splats<B: Backend>`: Stores the parameters for all Gaussians (position, scale, rotation, opacity, color/SH) as Burn Tensors.
+        *   `brush_dataset::Dataset`: Top-level structure holding training and evaluation `Scene` data.
+        *   `brush_dataset::scene::Scene`: Contains a collection of `SceneView`s and scene metadata (bounds, up-vector).
+        *   `brush_dataset::scene::SceneView`: Represents a single camera view with its `Camera` parameters and associated ground truth image data.
+        *   `brush_render::camera::Camera`: Holds camera intrinsics and extrinsics.
+        *   `brush_train::train::TrainBatch`: (Likely structure) Holds the data (views, images) for a single training step/batch.
 
 ## 3.2.4. Configuration
 
@@ -72,4 +89,13 @@ The training process can be configured through various command-line options when
 *   **Dataset:**
     *   `--max-frames <N>`, `--max-resolution <R>`, `--subsample-frames <N>`: Control dataset size/resolution.
 
-*(Note: Default values are listed in the `--help` output. These parameters can significantly impact training time and final quality.)* 
+*(Note: Default values are listed in the `--help` output. These parameters can significantly impact training time and final quality.)*
+
+---
+
+## Where to Go Next?
+
+*   Understand how the scene is rendered: **[Gaussian Splat Rendering](gaussian-splatting.md)**.
+*   See the high-level project structure: **[Architecture Overview](architecture.md)**.
+*   Learn about the ML framework used: **[Burn in Core Technologies](core-technologies.md#343-burn)**.
+*   Try running it: **[User Guide](../getting-started/user-guide.md)**. 

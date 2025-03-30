@@ -22,13 +22,14 @@ To build and contribute to Brush, you'll need the following:
     cargo install rerun-cli
     ```
 *   **System Dependencies:**
-    *   **Linux:** Building the native desktop application requires development libraries for the windowing system. The specific packages depend on your distribution, but typically include:
-        *   **For Wayland:** `libwayland-dev`, `libxkbcommon-dev` (Debian/Ubuntu) or `wayland-devel`, `libxkbcommon-devel` (Fedora).
-        *   **For X11:** `libx11-dev`, `libxcb-render0-dev`, `libxcb-shape0-dev`, `libxcb-xfixes0-dev` (Debian/Ubuntu) or `libX11-devel`, `libxcb-devel` (Fedora).
-        *   You might need additional fontconfig libraries (`libfontconfig1-dev` or `fontconfig-devel`).
-    *   **macOS:** Standard Xcode command-line tools.
-    *   **Windows:** Standard MSVC build tools (usually installed with Visual Studio).
-    *   **(Android):** Requires Android SDK and NDK (see `crates/brush-android/README.md`).
+    > [!NOTE]
+    > Building the native desktop application requires development libraries for the windowing system and potentially fonts. The specific packages depend on your distribution:
+    > *   **Linux (Wayland):** `libwayland-dev`, `libxkbcommon-dev` (Debian/Ubuntu) or `wayland-devel`, `libxkbcommon-devel` (Fedora).
+    > *   **Linux (X11):** `libx11-dev`, `libxcb-render0-dev`, `libxcb-shape0-dev`, `libxcb-xfixes0-dev` (Debian/Ubuntu) or `libX11-devel`, `libxcb-devel` (Fedora).
+    > *   **Linux (Common):** You might need fontconfig libraries (`libfontconfig1-dev` or `fontconfig-devel`).
+    > *   **macOS:** Standard Xcode command-line tools should suffice.
+    > *   **Windows:** Standard MSVC build tools (usually installed with Visual Studio) are required.
+*   **(Android):** Requires Android SDK and NDK (see `crates/brush-android/README.md`).
 *   **IDE Setup:** A code editor with Rust support is recommended.
     *   [Visual Studio Code](https://code.visualstudio.com/) with the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) extension is a popular choice.
 
@@ -46,6 +47,12 @@ Once the environment is set up, you can build Brush from the root directory of t
     *   Development build and local server: `trunk serve`
     *   Optimized release build: `trunk build --release`
     *   To serve the release build locally: `trunk serve --release`
+
+    > [!WARNING]
+    > Building and running the WebAssembly version relies on experimental WebGPU features. Ensure you are using a compatible browser (like recent Chrome versions) and check the browser console for errors. Performance and features (especially training) may differ significantly from the native desktop version.
+    
+    ![Brush Web UI Experimental Note](../media/Brush_web_Scene_panel_nothing_loaded_yet.png)
+    *The web UI explicitly notes its experimental status.*
 *   **Command-Line Interface (CLI only):**
     *   Build the CLI executable: `cargo build --release -p brush-cli`
     *   The executable will be located at `target/release/brush`.
@@ -61,13 +68,17 @@ To experiment with Brush's capabilities using sample data, the recommended appro
 
 ## 2.2.4. Running Tests & Coverage
 
-*(Note: This section describes how to run tests. Determining the exact scope and limitations of test coverage requires deeper code analysis or code coverage tooling.)*
+The project includes a suite of unit tests primarily focused on core algorithms and GPU kernels.
 
-*   **Run the full test suite:** To execute all tests across the workspace, run the following command from the root directory:
+*   **Run the test suite:** To execute all tests across the workspace, run the following command from the root directory:
     ```bash
     cargo test --workspace
     ```
-*   **Specific Setup:** Based on the dependencies, most tests should run without special setup, assuming the general development environment is configured correctly. Some integration tests, if present, might have specific requirements not immediately apparent.
+*   **Test Coverage Scope:**
+    *   Tests primarily cover functionalities within `brush-prefix-sum`, `brush-sort`, `brush-render`, and `brush-train`.
+    *   Coverage for application-level logic (`brush-app`, `brush-cli`), UI (`brush-ui`), and dataset loading (`brush-dataset`) appears limited based on the test output.
+    *   There are currently no integration tests exercising the full application flow.
+*   **Special Setup:** Tests generally run without special setup, assuming the development environment (including GPU drivers) is correctly configured.
 
 ## 2.2.5. Contribution Guidelines
 

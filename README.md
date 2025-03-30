@@ -1,7 +1,8 @@
 # Brush - 3D reconstruction for all
 
-[![Docs](https://img.shields.io/badge/Documentation-View%20Here-blue)](docs/index.md) <!-- Placeholder - Adjust if docs are hosted elsewhere -->
+[![Docs](https://img.shields.io/badge/Documentation-View%20Here-blue)](docs/index.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) <!-- Assuming Apache 2.0 based on Google Research -->
+[![Discord](https://dcbadge.limes.pink/api/server/TbxJST2BbC?style=flat)](https://discord.gg/TbxJST2BbC)
 
 ## Overview
 
@@ -13,18 +14,19 @@ Brush is an open-source 3D reconstruction engine using Gaussian splatting, built
 *   **Flexible:** Support various input dataset formats.
 *   **Fast:** Optimized rendering and training pipeline using modern GPU techniques.
 
-This project originated from Google Research and is currently maintained as a fork with ongoing development. While functional and capable, it serves as a foundation and may not yet implement all the latest extensions to the Gaussian splatting technique.
+> [!NOTE]
+> This project originated from Google Research and is currently maintained as a fork with ongoing development. While functional and capable, it serves as a foundation and may not yet implement all the latest extensions to the Gaussian splatting technique.
 
-![Brush Live Training Teaser](docs/media/teaser_compressed.png)
+<video src="https://github.com/user-attachments/assets/b7f55b9c-8632-49f9-b34b-d5de52a7a8b0" controls width="100%"></video>
 *Live training view showing the interactive UI, scene reconstruction, and dataset visualization.* 
 
-![Brush Web Viewer and Trainer](docs/media/combined_compressed.png)
+<video src="https://github.com/user-attachments/assets/4c70f892-cfd2-419f-8098-b0e20dba23c7" controls width="100%"></video>
 *Left: Web viewer rendering a pre-trained scene. Right: Web UI training a new scene.* 
 
-![Brush Running on Android](docs/media/brush_android_compressed.png)
+<video src="https://github.com/user-attachments/assets/d6751cb3-ff58-45a4-8321-77d3b0a7b051" controls width="100%"></video>
 *Brush training live on an Android device (Pixel 7).* 
 
-![Rerun Visualization](docs/media/rerun_dash_compressed.png)
+<video src="https://github.com/user-attachments/assets/f679fec0-935d-4dd2-87e1-c301db9cdc2c" controls width="100%"></video>
 *Rerun viewer showing detailed training visualization (losses, splat counts, 3D view) for the LEGO dataset.*
 
 ➡️ **Learn More:** [**Introduction & Project Overview**](docs/introduction.md)
@@ -63,6 +65,9 @@ This project originated from Google Research and is currently maintained as a fo
     *   With Rerun: `cargo run --bin brush_app --release --features=rerun`
 
 ➡️ **Detailed Guides:** [**Installation**](docs/getting_started/user_guide.md#211-installation) | [**Building for Web/Android**](docs/getting_started/developer_guide.md#222-building-the-project) | [**Basic Workflows**](docs/getting_started/user_guide.md#212-basic-workflows-step-by-step)
+
+> [!WARNING]
+> The public web demo is experimental. As of early 2025, it requires Chrome 131+ due to WebGPU and subgroup requirements. Firefox/Safari support may vary. See the User Guide for details.
 
 ## Example Data
 

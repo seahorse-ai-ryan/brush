@@ -21,7 +21,8 @@ This page contains performance benchmark results for Brush, comparing it against
 | **Minutes (4070 ti)** |
 | brush | 35 | 35 | 28 | 18 | 19 | 18 | 18 | 24.43 |
 
-*Numbers taken from [here](https://docs.gsplat.studio/main/tests/eval.html). Note that Brush by default regularizes opacity slightly.*
+> [!NOTE]
+> *Numbers taken from [here](https://docs.gsplat.studio/main/tests/eval.html). Note that Brush by default regularizes opacity slightly.*
 
 ## Performance Notes
 
@@ -31,15 +32,16 @@ This page contains performance benchmark results for Brush, comparing it against
 
 ## Profiling
 
-For detailed performance analysis, you can profile Brush using `tracy`.
-
-1.  Build and run with the `tracy` feature enabled:
-    ```bash
-    cargo run --bin brush-desktop --release --features=tracy
-    ```
-2.  Connect the [Tracy profiler](https://github.com/wolfpld/tracy) UI to the running application.
-
-The application UI will have options related to GPU synchronization when the `tracy` feature is enabled, which can help in obtaining more accurate GPU timings.
+> [!TIP]
+> For detailed performance analysis, you can profile Brush using `tracy`.
+>
+> 1.  Build and run with the `tracy` feature enabled:
+>     ```bash
+>     cargo run --bin brush_app --release --features=tracy
+>     ```
+> 2.  Connect the [Tracy profiler](https://github.com/wolfpld/tracy) UI to the running application.
+>
+> The application UI will have options related to GPU synchronization when the `tracy` feature is enabled, which can help in obtaining more accurate GPU timings.
 
 ---
 

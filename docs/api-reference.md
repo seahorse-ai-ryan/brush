@@ -25,4 +25,12 @@ While the generated `rustdoc` is the definitive source, some key crates and modu
 *   **`brush_dataset`:** Data loading and representation structures.
 *   **`brush_cli`:** Argument parsing and command handling for the CLI.
 
-Navigating the `rustdoc` generated in section 4.1 is the best way to explore the specific functions, structs, traits, and modules available within these and other crates. 
+Navigating the `rustdoc` generated in section 4.1 is the best way to explore the specific functions, structs, traits, and modules available within these and other crates.
+
+---
+
+## Where to Go Next?
+
+*   See how the crates fit together: **[Architecture Overview](technical-deep-dive/architecture.md)**.
+*   Understand the context for the code: **[Reconstruction Pipeline](technical-deep-dive/reconstruction-pipeline.md)** and **[Gaussian Splat Rendering](technical-deep-dive/gaussian-splatting.md)**.
+*   Learn how to build the project and generate this documentation: **[Developer Guide](getting-started/developer-guide.md)**. 

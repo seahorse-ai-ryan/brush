@@ -30,21 +30,93 @@ Brush is composed of several specialized crates, each handling a specific part o
 *   **`brush-wgsl`**: May specifically hold WGSL shader code used by `brush-kernel` or `wgpu`.
 *   **`brush-sort`**: Implements GPU-accelerated sorting algorithms, crucial for the Gaussian Splatting rendering order.
 *   **`brush-prefix-sum`**: Provides GPU-accelerated prefix sum (scan) operations, often used in parallel algorithms like sorting or stream compaction.
-*   **`brush-cli`**: Provides the command-line interface for Brush.
+*   **`brush-cli`**: Provides the command-line interface executable (`brush`).
 *   **`brush-rerun`**: Handles integration with the [Rerun](https://rerun.io/) visualization tool.
 *   **`colmap-reader`**: A utility crate specifically for parsing the COLMAP data format.
 *   **`brush-android`**: Contains code specific to building and running Brush on the Android platform.
-*   **`sync-span`**: *(TODO: Investigate purpose - potentially related to asynchronous operations or tracing.)*
-*   **`rrfd`**: *(TODO: Investigate purpose)*
+*   **`sync-span`:** A small utility crate integrating with the `tracing` ecosystem. It provides a `tracing` layer (`SyncLayer`) that can automatically synchronize a Burn backend (e.g., wait for GPU operations to complete via `Backend::sync`) when specific, designated tracing spans are closed. This is likely used for debugging or performance analysis to ensure operations within certain spans finish before proceeding.
+*   **`rrfd`:** Provides a cross-platform abstraction layer for native file dialog operations (picking files, picking directories, saving files). It uses the `rfd` crate for desktop/web platforms and custom Android JNI calls for Android, allowing UI code to request file operations without platform-specific logic.
 
 ## 3.1.3. Data Flow
 
-*(TODO: This section requires detailed analysis. Describe the typical flow of data for key operations:)*
+*   **Input:** User provides data via UI (file load, URL, preset) or CLI arguments (path, URL).
+*   **Loading:** `brush-app` or `brush-cli` uses `brush-process` which leverages `brush-dataset` (and `brush_vfs`) to parse COLMAP/Nerfstudio formats, load images, and potentially initial splats.
+*   **Training Loop (in `brush-process`):**
+    *   Iteratively selects training image views (`SceneView`) from `brush-dataset`.
+    *   Uses `brush-train` (which uses `brush-render`, `brush-sort`, `brush-prefix-sum`) to perform forward/backward passes, updating Gaussian parameters (position, SH, opacity, scale, rotation).
+    *   Handles densification and pruning.
+    *   Optionally logs data to Rerun via `brush-rerun`.
+*   **Rendering (in `brush-viewer` / `brush-app`):**
+    *   Takes current Gaussians from `brush-train` or loaded `.ply`.
+    *   Uses `brush-render` (and associated kernels) to render the splats to the Scene panel via `wgpu`.
+    *   UI (`egui`) interacts with `brush-app` context to display stats, handle controls, etc.
+*   **Export:** User triggers export via UI or CLI; `brush-process` uses `brush-dataset::splat_export` to write the current splats to a `.ply` file.
 
-*   ***Loading:*** *How does image/pose data from `colmap-reader` or other formats get processed by `brush-process` and stored in `brush-dataset` structures?*
-*   ***Training:*** *How does `brush-train` access data from `brush-dataset`, interact with rendering (`brush-render`, `brush-render-bwd`), utilize GPU kernels (`brush-kernel`, `brush-sort`, etc.), and update Gaussian parameters?*
-*   ***Viewing:*** *How does `brush-app`/`brush-ui` trigger rendering via `brush-render` using loaded splat data?*
-*   *Consider adding a sequence diagram or data flow diagram.* 
+```mermaid
+graph TD
+    subgraph User_Input ["User Input"]
+        UI(UI - egui via brush-app)
+        CLI(CLI - brush-cli / brush-app args)
+    end
+
+    subgraph Processing ["Processing Core (brush-process)"]
+        direction LR
+        Trainer[Training Loop]
+        DatasetLoader[Dataset Loading]
+        Exporter[PLY Exporter]
+    end
+
+    subgraph Libraries ["Core Libraries"]
+        direction TB
+        TrainLib[brush-train]
+        RenderLib[brush-render]
+        DatasetLib[brush-dataset]
+        UILib[brush-ui]
+        RerunLib[brush-rerun]
+    end
+
+    subgraph KernelLibs ["GPU Kernels"]
+        direction TB
+        SortLib[brush-sort]
+        PrefixSumLib[brush-prefix-sum]
+        WGSLLib[brush-wgsl]
+    end
+
+    subgraph External ["External Frameworks"]
+        Burn[Burn Framework]
+        WGPU[WGPU]
+        EGUI[EGUI/Eframe]
+        RerunSDK[Rerun SDK]
+    end
+
+    User_Input --> Processing
+    Processing --> Libraries
+    DatasetLoader --> DatasetLib
+    Trainer --> TrainLib
+    Exporter --> DatasetLib
+
+    UI --> UILib
+    UILib --> EGUI
+
+    TrainLib --> RenderLib
+    TrainLib --> RerunLib
+    RenderLib --> SortLib
+    RenderLib --> PrefixSumLib
+    RenderLib --> WGSLLib
+    RenderLib --> Burn
+    TrainLib --> Burn
+
+    RerunLib --> RerunSDK
+    %% For Camera/Splat types
+    DatasetLib --> RenderLib
+
+    Burn --> WGPU
+    WGSLLib --> WGPU
+    SortLib --> WGPU
+    PrefixSumLib --> WGPU
+```
+
+*(Note: This diagram simplifies interactions. For example, `brush-app` orchestrates many calls between these components.)*
 
 ## 3.1.4. Cross-Platform Strategy
 
@@ -57,4 +129,13 @@ Brush achieves its wide platform support (Desktop, Web, Android) primarily throu
 *   **WASM Tooling (`wasm-bindgen`, `Trunk`):**
     *   `wasm-bindgen` facilitates communication between the compiled Rust code (WASM) and JavaScript in the browser.
     *   `Trunk` simplifies the process of building the Rust code to WASM, managing JavaScript interop, and bundling assets for web deployment.
-*   **Platform-Specific Crates:** For functionality unique to a platform (like Android integration), a dedicated crate (`brush-android`) is used, containing platform-specific code and APIs. 
+*   **Platform-Specific Crates:** For functionality unique to a platform (like Android integration), a dedicated crate (`brush-android`) is used, containing platform-specific code and APIs.
+
+---
+
+## Where to Go Next?
+
+*   Learn how reconstruction works: **[Reconstruction Pipeline](reconstruction-pipeline.md)**.
+*   Understand the rendering process: **[Gaussian Splat Rendering](gaussian-splatting.md)**.
+*   See how the tech stack fits together: **[Core Technologies Guide](core-technologies.md)**.
+*   Explore the code: **[API Reference](../api-reference.md)**. 
