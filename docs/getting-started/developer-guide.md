@@ -21,7 +21,14 @@ To build and contribute to Brush, you'll need the following:
     ```bash
     cargo install rerun-cli
     ```
-*   **System Dependencies:** *(TODO: Investigate if specific system libraries are needed, e.g., for Linux windowing (Wayland/X11) or other native functionalities based on `eframe` features enabled in `Cargo.toml`.)*
+*   **System Dependencies:**
+    *   **Linux:** Building the native desktop application requires development libraries for the windowing system. The specific packages depend on your distribution, but typically include:
+        *   **For Wayland:** `libwayland-dev`, `libxkbcommon-dev` (Debian/Ubuntu) or `wayland-devel`, `libxkbcommon-devel` (Fedora).
+        *   **For X11:** `libx11-dev`, `libxcb-render0-dev`, `libxcb-shape0-dev`, `libxcb-xfixes0-dev` (Debian/Ubuntu) or `libX11-devel`, `libxcb-devel` (Fedora).
+        *   You might need additional fontconfig libraries (`libfontconfig1-dev` or `fontconfig-devel`).
+    *   **macOS:** Standard Xcode command-line tools.
+    *   **Windows:** Standard MSVC build tools (usually installed with Visual Studio).
+    *   **(Android):** Requires Android SDK and NDK (see `crates/brush-android/README.md`).
 *   **IDE Setup:** A code editor with Rust support is recommended.
     *   [Visual Studio Code](https://code.visualstudio.com/) with the [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) extension is a popular choice.
 
@@ -30,11 +37,11 @@ To build and contribute to Brush, you'll need the following:
 Once the environment is set up, you can build Brush from the root directory of the repository:
 
 *   **Desktop (Native Application):**
-    *   Development build: `cargo build`
-    *   Optimized release build: `cargo build --release`
-    *   To build and run directly:
-        *   Development: `cargo run`
-        *   Release: `cargo run --release`
+    *   Development build: `cargo build` (Builds all targets, including `brush_app`)
+    *   Optimized release build: `cargo build --release` (Builds all targets, including `brush_app`)
+    *   To build and run the desktop app directly:
+        *   Development: `cargo run --bin brush_app`
+        *   Release: `cargo run --bin brush_app --release`
 *   **WebAssembly (WASM):**
     *   Development build and local server: `trunk serve`
     *   Optimized release build: `trunk build --release`
@@ -45,27 +52,36 @@ Once the environment is set up, you can build Brush from the root directory of t
 
 ## 2.2.3. Running Examples
 
-*(TODO: Explain how to find and run bundled examples in `examples/`. Check `examples/Cargo.toml` or individual example folders for instructions.)*
+The `examples/` directory in the repository currently does not contain standard runnable examples that can be executed with `cargo run --example <example_name>`.
+
+To experiment with Brush's capabilities using sample data, the recommended approach is to use the main application:
+
+1.  **Via the UI:** Run `cargo run --bin brush_app --release` and navigate to the "Presets" tab. This tab often provides links to download sample datasets suitable for testing.
+2.  **Via the CLI:** Download a sample dataset (e.g., from the original 3D Gaussian Splatting sources or other repositories) and use the `brush_app` CLI to load and process it, as described in the **[User Guide](user-guide.md#212-basic-workflows-step-by-step)**.
 
 ## 2.2.4. Running Tests & Coverage
 
-*(TODO: Explain how to run tests and describe test coverage. Check if specific tests require special setup.)*
+*(Note: This section describes how to run tests. Determining the exact scope and limitations of test coverage requires deeper code analysis or code coverage tooling.)*
 
-*   Run the full test suite for the workspace:
+*   **Run the full test suite:** To execute all tests across the workspace, run the following command from the root directory:
     ```bash
     cargo test --workspace
-    # Or potentially: cargo test --all
     ```
-*   Coverage: *(Describe scope and limitations, e.g., focuses on kernel implementations, utility functions, etc.)*
+*   **Specific Setup:** Based on the dependencies, most tests should run without special setup, assuming the general development environment is configured correctly. Some integration tests, if present, might have specific requirements not immediately apparent.
 
 ## 2.2.5. Contribution Guidelines
 
-*(TODO: Create `CONTRIBUTING.md` if it doesn't exist, summarizing code style, PR process, etc. Mention linters from `Cargo.toml`.)*
+Please refer to the [`CONTRIBUTING.md`](../../CONTRIBUTING.md) file in the root of the repository for details on:
 
-Please refer to the `CONTRIBUTING.md` file (if available) in the root of the repository for details on:
-
-*   Code style (Linters like `clippy` are configured in `Cargo.toml`)
+*   Code style (including `rustfmt` and `clippy` usage based on linters configured in `Cargo.toml`)
 *   Branching strategy
 *   Pull Request process
 *   Reporting issues
-*   Code of Conduct 
+
+---
+
+## Where to Go Next?
+
+*   Understand the project structure: **[Architecture Overview](../technical-deep-dive/architecture.md)**.
+*   Learn about the core algorithms: **[Reconstruction Pipeline](../technical-deep-dive/reconstruction-pipeline.md)** and **[Gaussian Splat Rendering](../technical-deep-dive/gaussian-splatting.md)**.
+*   Explore the code APIs: **[API Reference](../api-reference.md)**. 
