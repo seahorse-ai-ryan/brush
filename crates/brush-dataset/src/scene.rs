@@ -36,7 +36,10 @@ where
     let mut buffer = Vec::with_capacity(4096);
     let mut temp_buf = [0u8; 4096];
 
-    let n = reader.read(&mut temp_buf).await?;
+    let n = reader
+        .read(&mut temp_buf)
+        .await
+        .context("Failed to read from buffer")?;
     buffer.extend_from_slice(&temp_buf[..n]);
 
     // Now get a normal cursor.
@@ -62,8 +65,13 @@ impl LoadImage {
         mask_path: Option<PathBuf>,
         max_resolution: u32,
     ) -> Result<Self> {
-        let reader = &mut vfs.reader_at_path(&path).await?;
-        let data = get_image_data(reader).await?;
+        let reader = &mut vfs
+            .reader_at_path(&path)
+            .await
+            .with_context(|| format!("Failed to get reader {}", path.display()))?;
+        let data = get_image_data(reader)
+            .await
+            .context("Failed to get image data.")?;
 
         Ok(Self {
             vfs,
