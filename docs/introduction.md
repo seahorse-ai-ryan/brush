@@ -23,6 +23,15 @@ Brush supports several input data formats:
 *   ZIP archives containing datasets (required for web training).
 *   ZIP archives or specialized `.ply` files containing sequences of splats for animation viewing.
 
+## 1.1a. Why Brush?
+
+Machine learning for real-time rendering holds immense potential, but most standard ML tools present challenges:
+*   **Real-time Interactivity:** Traditional frameworks aren't always optimized for the demands of interactive rendering.
+*   **Complex Graphics Tasks:** Integrating ML with complex graphics tasks like real-time rendering or handling dynamic scenes can be difficult with standard ML tools.
+*   **Deployment:** Shipping applications with large dependencies like PyTorch/Jax/CUDA is cumbersome.
+
+Often, this necessitates separate applications for training and inference. Brush, written in Rust using `wgpu` and `burn`, aims to overcome these hurdles. It produces simpler, dependency-free binaries, runs on a wide array of devices (including web and mobile), requires minimal setup, and integrates training and viewing.
+
 ## 1.2. Target Audience
 
 Brush is designed for:
@@ -53,4 +62,5 @@ Brush offers a range of features for both training and viewing 3D Gaussian Splat
 *   Ready to try Brush? Head to the **[User Guide](getting-started/user-guide.md)**.
 *   Want to build the code? See the **[Developer Guide](getting-started/developer-guide.md)**.
 *   Curious about the components? Dive into the **[Architecture Overview](technical-deep-dive/architecture.md)**.
-*   New to the core concepts? Check the **[Glossary](supporting-materials/glossary.md)**. 
+*   New to the core concepts? Check the **[Glossary](supporting-materials/glossary.md)**.
+*   See the full documentation structure: **[Documentation Index](README.md)**. 

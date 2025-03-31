@@ -26,7 +26,7 @@ This page contains performance benchmark results for Brush, comparing it against
 
 ## Performance Notes
 
-*   Rendering performance is generally expected to be competitive or faster than `gsplat`. 
+*   Rendering performance is generally expected to be competitive or faster than `gsplat`.
 *   End-to-end training speeds are expected to be similar to `gsplat`.
 *   You can run benchmarks of some specific kernels using `cargo bench`.
 

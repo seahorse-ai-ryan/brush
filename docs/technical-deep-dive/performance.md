@@ -28,8 +28,6 @@ Brush integrates with the [Tracy Profiler](https://github.com/wolfpld/tracy) for
 *   Analyze CPU usage, particularly during data loading or preprocessing (`brush-process`, `brush-dataset`).
 *   The `sync-span` crate mentioned in the architecture might be used to automatically insert synchronization points for more accurate measurement of specific code sections.
 
-![Example Tracy Profile](../media/tracy_profiler_example.png) *Note: Example image - replace with actual Brush profile if available.*
-
 ## 3.x.2 Common Bottlenecks
 
 Based on typical Gaussian Splatting implementations, potential performance bottlenecks include:
@@ -48,4 +46,13 @@ The efficiency of the radix sort implementation is critical.
 *   **CPU:** While less critical than the GPU for rendering/training loops, a faster CPU can improve data loading times and overall application responsiveness.
 *   **Storage:** Faster storage (SSD) improves dataset loading times.
 
-Refer to the **[Benchmarks](benchmarks.md)** page for quantitative performance results on specific hardware. 
+Refer to the **[Benchmarks](benchmarks.md)** page for quantitative performance results on specific hardware.
+
+---
+
+➡️ **Where to Go Next?**
+
+*   See quantitative results: **[Benchmarks](../benchmarks.md)**.
+*   Understand the rendering steps: **[Rendering Pipeline](rendering-pipeline.md)**.
+*   Explore the overall structure: **[Architecture Overview](architecture.md)**.
+*   Learn about the core libraries used: **[Core Technologies Guide](core-technologies.md)**. 

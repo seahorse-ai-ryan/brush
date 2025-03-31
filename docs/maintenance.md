@@ -1,16 +1,17 @@
 # 7. Documentation Maintenance
 
-This document outlines how the Brush project documentation is maintained to ensure its accuracy and relevance.
+This document outlines how the Brush project documentation can be maintained to ensure its accuracy and relevance over time.
 
-## Process
+## Process for Keeping Docs Up-to-Date
 
-*   **Pull Requests (PRs):** Documentation updates relevant to code changes (e.g., new features, API modifications, CLI argument changes) should ideally be included in the same Pull Request as the code.
-*   **Periodic Reviews:** The documentation should be reviewed periodically by core contributors to ensure accuracy, completeness, and clarity.
-*   **Reporting Issues:** Users can report documentation issues (errors, omissions, unclear sections) via the project's GitHub issue tracker, tagging them appropriately (e.g., with a `documentation` label).
+*   **Contributions with Code:** Contributors are encouraged to include relevant documentation updates (e.g., for new features, API changes, CLI arguments) within the same Pull Request as their code changes.
+*   **Community Review:** Ideally, the documentation benefits from periodic reviews by contributors to ensure accuracy, completeness, and clarity.
+*   **Reporting Issues:** Specific documentation problems (errors, omissions, unclear sections) can be reported via the project's GitHub issue tracker, ideally using a `documentation` label.
+*   **Discussion:** For broader discussions about documentation structure, priorities, or needed improvements, please use the project's [Discord channel](https://discord.gg/TbxJST2BbC) (linked in the main README).
 
-## AI Assistance
+## AI Assistance & Verification
 
-AI tools (like Gemini 2.5 Pro) may be used as assistants to help draft, update, or summarize documentation content. However:
+A significant portion of this initial documentation set was drafted with AI assistance (primarily Gemini 2.5 Pro within Cursor). While helpful for generating a baseline, this highlights the critical need for ongoing human review and maintenance.
 
-*   **Verification is Required:** All AI-generated content **must** be thoroughly reviewed, verified for technical accuracy against the current codebase, and edited for clarity by human contributors before being merged.
-*   **Focus on Current State:** Documentation should strictly reflect the current, released state of the project, not speculative or future features (as per the [Plan](scratchpad/documentation_plan.md)). 
+*   **Verification is Required:** All AI-generated or AI-assisted content **must** be thoroughly reviewed, verified for technical accuracy against the current codebase, and edited for clarity by human contributors before being merged or accepted.
+*   **Focus on Current State:** Documentation should strictly reflect the current, released state of the project, not speculative or future features.

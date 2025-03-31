@@ -33,7 +33,7 @@ The modular nature of Brush allows its crates to be used as libraries in other R
 **Using Brush Crates:**
 
 1.  Add the desired Brush crates (e.g., `brush-render`, `brush-dataset`) as dependencies in your `Cargo.toml`. You might point to the Git repository directly or a published version if available.
-2.  Interact with the public APIs exposed by these crates.
+2.  Interact with the public APIs exposed by these crates. Refer to the **[API Reference](../api-reference.md)** for guidance on generating and navigating the detailed `rustdoc`.
 3.  Note that you will need to manage the setup of `wgpu` and potentially `egui` or `Burn` in your own application if using those components directly.
 
 ## 3.y.3 Automation, Scripting, and Services
@@ -56,4 +56,13 @@ The command-line interface (`brush_cli` or `brush_app` used via CLI arguments) p
 
 *   Run `brush_app --help` (or `brush --help` if using the dedicated CLI build) to see all available commands and options.
 *   Key commands likely involve specifying input dataset paths (`--dataset`), output file paths (`--output`), training parameters (`--total-steps`, learning rates, etc.), and actions like training (`--train`) or exporting (`--save-final`).
-*   Ensure the environment where the script runs has access to the necessary hardware (GPU) and dependencies. 
+*   Ensure the environment where the script runs has access to the necessary hardware (GPU) and dependencies.
+
+---
+
+## Where to Go Next?
+
+*   Dive into the code structure: **[Architecture Overview](architecture.md)**.
+*   See the detailed API structure: **[API Reference](../api-reference.md)**.
+*   Find contribution rules: **[`CONTRIBUTING.md`](../../CONTRIBUTING.md)**.
+*   Ready to set up your dev environment? **[Developer Guide](../getting-started/developer-guide.md)**. 

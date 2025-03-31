@@ -4,36 +4,31 @@ This section explains the Gaussian Splatting rendering technique used in Brush, 
 
 ## 3.3.1. Conceptual Overview
 
-3D Gaussian Splatting is a rasterization-based rendering technique. Instead of triangles, it renders a scene composed of potentially millions of 3D Gaussians. Each Gaussian has properties like:
+3D Gaussian Splatting, introduced in the original [INRIA paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/), is a rasterization-based technique that renders scenes composed of potentially millions of 3D Gaussians. Each Gaussian has properties like position, shape (covariance represented by scale and rotation), color (using Spherical Harmonics), and opacity.
 
-*   **Position (xyz):** Center of the Gaussian.
-*   **Covariance (3x3 matrix):** Defines the shape and orientation (ellipsoid). Often represented by scale and rotation (quaternion).
-*   **Color (RGB):** Stored typically as Spherical Harmonics (SH) coefficients to represent view-dependent color.
-*   **Opacity (alpha):** Controls transparency.
+The general rendering pipeline involves:
 
-The rendering process involves:
+1.  **Projection:** Transforming the 3D Gaussians into 2D representations ("splats") on the image plane based on the camera view.
+2.  **Sorting:** Ordering the projected 2D splats by depth (typically front-to-back) to ensure correct alpha blending for occlusion.
+3.  **Rasterization:** Iterating through screen pixels (often organized into tiles) and accumulating color and opacity contributions from all overlapping sorted splats.
 
-1.  **Projection:** Projecting the 3D Gaussians onto the 2D image plane.
-2.  **Sorting:** Sorting the projected Gaussians based on depth (typically front-to-back) to handle occlusion correctly during blending.
-3.  **Rasterization/Splatting:** For each pixel, accumulate the color and opacity contribution from overlapping sorted 2D Gaussians ("splats").
-
-This method allows for high-quality, real-time rendering of complex scenes learned from images.
-
-Reference: [3D Gaussian Splatting for Real-Time Radiance Field Rendering](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/)
+Brush implements this pipeline leveraging the GPU via custom compute shaders written in **WGSL** (managed by `brush-wgsl` and `brush-kernel`). It utilizes the **Burn** framework to orchestrate GPU operations and relies on dedicated crates like **`brush-sort`** for efficient GPU-based radix sorting of the projected splats. This contrasts with implementations like [gsplat](https://github.com/nerfstudio-project/gsplat) which typically use custom CUDA kernels. Brush's use of WGSL aims for broader cross-platform compatibility (including WebGPU).
 
 ## 3.3.2. Rendering Pipeline (Forward Pass)
 
 The forward rendering pass (`brush-render`) generates an image from a set of Gaussians and a camera view. It leverages GPU acceleration heavily.
 
-*   **Input:** Camera parameters, Set of 3D Gaussians.
-*   **GPU Kernels (`brush-kernel`, `brush-wgsl`):** Custom compute shaders executed on the GPU likely handle:
-    *   Projecting 3D Gaussians to 2D.
-    *   Calculating view-dependent color from SH coefficients.
-    *   Rasterizing the 2D splats onto a pixel grid.
-*   **Sorting (`brush-sort`):** A GPU-based radix sort is used to efficiently sort the projected Gaussians by depth.
-*   **Prefix Sums (`brush-prefix-sum`):** May be used as part of the sorting algorithm or other parallel primitives within the rendering pipeline.
-*   **Blending:** Alpha compositing is performed (likely on the GPU) by iterating through the sorted Gaussians front-to-back for each pixel.
-*   **UI Interaction (`brush-ui`/EGUI):** The final rendered image is displayed within the EGUI interface. User interactions (camera movement) update the camera parameters, triggering re-rendering.
+*   **Input:** Camera parameters, Set of 3D Gaussians (`Splats` struct).
+*   **GPU Kernels (`brush-kernel`, `brush-wgsl`):** Custom WGSL compute shaders execute the core rendering steps:
+    *   `project_forward`/`project_visible`: Project 3D Gaussians to 2D, calculate view-dependent color, and determine potentially visible splats.
+    *   `map_gaussian_to_intersects`: Identify which screen tiles each projected splat overlaps.
+    *   `rasterize`: Accumulate color and opacity from sorted splats for each pixel within its tile.
+*   **Sorting (`brush-sort`):** A GPU-based radix sort efficiently orders the projected Gaussians by depth before rasterization.
+*   **Prefix Sums (`brush-prefix-sum`):** Provides GPU-accelerated scan operations used as a key component within the `brush-sort` radix sort algorithm.
+*   **Blending:** Alpha compositing occurs within the `rasterize` kernel as it iterates through the sorted Gaussians front-to-back for each pixel.
+*   **UI Display (`brush-ui`, `brush-app`):** The final rendered image is typically displayed within an EGUI panel (`ScenePanel`). User camera controls update the view parameters, triggering re-rendering.
+
+In the Brush application UI, the `ScenePanel` includes a toggle ("Live update splats"). When enabled (default), the panel visually updates with the latest splat data received during training. Disabling this toggle prevents these visual updates in the `ScenePanel` (useful for performance on lower-end systems or complex scenes) but does not pause the underlying training computations. Key metrics derived from the rendering process, such as the current number of splats and the active Spherical Harmonic degree, can be monitored in the `Stats` panel.
 
 ## 3.3.3. Training/Optimization Pass (Backward Pass)
 

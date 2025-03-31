@@ -49,10 +49,18 @@ WGSL is the WebGPU Shading Language, used to write shaders that run on the GPU.
 *   [wgpu Official Website](https://wgpu.rs/)
 *   [WGSL Specification](https://www.w3.org/TR/WGSL/)
 
+## 3.4.6. Rerun
+
+Rerun is an SDK and visualization tool for multimodal data, particularly useful for time-series data and understanding complex systems. It helps visualize data streams and logs.
+
+*   Brush integrates with Rerun (`brush-rerun` crate) as an optional dependency to log and visualize training progress, splat evolution, metrics, and memory usage over time, providing deeper insights into the reconstruction process.
+*   [Rerun Official Website](https://rerun.io/)
+
 ---
 
 ## Where to Go Next?
 
 *   See how these technologies fit into the project: **[Architecture Overview](architecture.md)**.
 *   Understand the core algorithms built with these tools: **[Reconstruction Pipeline](reconstruction-pipeline.md)** and **[Rendering Pipeline](rendering-pipeline.md)**.
-*   Get started building the project: **[Developer Guide](../getting-started/developer-guide.md)**. 
+*   Get started building the project: **[Developer Guide](../getting-started/developer-guide.md)**.
+*   Look up definitions for terms: **[Glossary](../supporting-materials/glossary.md)**. 

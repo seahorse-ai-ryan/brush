@@ -1,6 +1,6 @@
 # Brush - 3D reconstruction for all
 
-[![Docs](https://img.shields.io/badge/Documentation-View%20Here-blue)](docs/index.md)
+[![Docs](https://img.shields.io/badge/Documentation-View%20Here-blue)](docs/README.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) <!-- Assuming Apache 2.0 based on Google Research -->
 [![Discord](https://dcbadge.limes.pink/api/server/TbxJST2BbC?style=flat)](https://discord.gg/TbxJST2BbC)
 
@@ -32,15 +32,6 @@ Brush is an open-source 3D reconstruction engine using Gaussian splatting, built
 
 ➡️ **Learn More:** [**Introduction & Project Overview**](docs/introduction.md)
 
-## Why Brush?
-
-Machine learning for real-time rendering holds immense potential, but most standard ML tools present challenges:
-*   **Real-time Interactivity:** Traditional frameworks aren't always optimized for the demands of interactive rendering.
-*   **Complex Graphics Tasks:** Integrating ML with complex graphics tasks like real-time rendering or handling dynamic scenes can be difficult with standard ML tools.
-*   **Deployment:** Shipping applications with large dependencies like PyTorch/Jax/CUDA is cumbersome.
-
-Often, this necessitates separate applications for training and inference. Brush, written in Rust using `wgpu` and `burn`, aims to overcome these hurdles. It produces simpler, dependency-free binaries, runs on a wide array of devices (including web and mobile), requires minimal setup, and integrates training and viewing.
-
 ## Features
 
 *   Load datasets in **COLMAP** and **Synthetic NeRF** (`transforms.json`) formats.
@@ -51,14 +42,14 @@ Often, this necessitates separate applications for training and inference. Brush
 *   Command-line interface for processing (`brush_app`). <!-- Assuming brush_app is the CLI -->
 *   Cross-platform compatibility (Desktop, Web, Android).
 
-➡️ **See More:** [**Full Feature List**](docs/introduction.md#13-key-features) | [**Supported Platforms**](docs/getting_started/user_guide.md#213-hardware--software-requirements)
+➡️ **See More:** [**Full Feature List**](docs/introduction.md#13-key-features) | [**Supported Platforms**](docs/getting-started/user-guide.md#211-installation)
 
 ## Getting Started
 
 ### Prerequisites
 
 *   **Rust:** Install Rust 1.78+ via [rustup](https://rustup.rs/).
-*   **Platform Dependencies:** See the [Setup Guide](docs/getting_started/developer_guide.md#221-development-environment-setup) for Linux, macOS, or Windows requirements.
+*   **Platform Dependencies:** See the [Setup Guide](docs/getting-started/developer-guide.md#221-development-environment-setup) for Linux, macOS, or Windows requirements.
 *   **(Web):** `trunk` (`cargo install trunk`) and the WASM target (`rustup target add wasm32-unknown-unknown`).
 *   **(Visualization):** [Rerun SDK](https://www.rerun.io/docs/getting-started/installing-the-sdk) (Optional, for live training view).
 
@@ -74,7 +65,7 @@ Often, this necessitates separate applications for training and inference. Brush
     *   Release: `cargo run --bin brush_app --release`
     *   With Rerun: `cargo run --bin brush_app --release --features=rerun`
 
-➡️ **Detailed Guides:** [**Installation**](docs/getting_started/user_guide.md#211-installation) | [**Building for Web/Android**](docs/getting_started/developer_guide.md#222-building-the-project) | [**Basic Workflows**](docs/getting_started/user_guide.md#212-basic-workflows-step-by-step)
+➡️ **Detailed Guides:** [**Installation**](docs/getting-started/user-guide.md#211-installation) | [**Building for Web/Android**](docs/getting-started/developer-guide.md#222-building-the-project) | [**Basic Workflows**](docs/getting-started/user-guide.md#212-basic-workflows-step-by-step)
 
 > [!WARNING]
 > The public web demo is experimental. As of early 2025, it requires Chrome 131+ due to WebGPU and subgroup requirements. Firefox/Safari support may vary. See the User Guide for details.
@@ -83,7 +74,7 @@ Often, this necessitates separate applications for training and inference. Brush
 
 Example datasets (like `bicycle`, `bonsai`, `counter`, synthetic NeRF scenes, etc.) are not included directly in the repository. They can be downloaded and loaded via the "Presets" panel within the `brush_app` application.
 
-➡️ **Learn More:** [**Using Presets (User Guide)**](docs/getting_started/user_guide.md#workflow-1-loading-a-dataset) <!-- Adjust link if needed -->
+➡️ **Learn More:** [**Using Presets (User Guide)**](docs/getting-started/user-guide.md#workflow-1-loading-data) <!-- Adjust link if needed -->
 
 ## Technical Deep Dive
 
@@ -98,7 +89,7 @@ Brush employs a multi-crate architecture for modularity. Key technologies includ
 
 The rendering pipeline uses GPU-accelerated sorting (`brush-sort`) and prefix sums (`brush-prefix-sum`) for efficiency. Training optimizes the Gaussian parameters using a custom **differentiable rendering** approach, implemented with specialized WGSL kernels for the backward pass and integrated seamlessly with Burn's automatic differentiation.
 
-➡️ **Explore Further:** [**Architecture**](docs/technical_deep_dive/architecture.md) | [**Reconstruction Pipeline**](docs/technical_deep_dive/reconstruction_pipeline.md) | [**Rendering Details**](docs/technical_deep_dive/gaussian_splatting.md) | [**Core Technologies**](docs/technical_deep_dive/core_technologies.md)
+➡️ **Explore Further:** [**Architecture**](docs/technical-deep-dive/architecture.md) | [**Reconstruction Pipeline**](docs/technical-deep-dive/reconstruction_pipeline.md) | [**Rendering Details**](docs/technical-deep-dive/gaussian_splatting.md) | [**Core Technologies**](docs/technical-deep-dive/core_technologies.md)
 
 ## Benchmarks & Performance
 

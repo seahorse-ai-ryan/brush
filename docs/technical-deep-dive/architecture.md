@@ -2,40 +2,42 @@
 
 This section describes the overall structure of the Brush codebase.
 
-## 3.1.1. Monorepo Structure
+## 3.1.1. Project Structure
 
-Brush utilizes a Rust workspace managed by Cargo, defined in the root `Cargo.toml` file. This workspace approach organizes the project into multiple interconnected crates (packages).
+Brush is organized as a [Rust Workspace](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html), a standard Cargo feature for managing multiple related packages within a single project structure. The root directory contains several key configuration and informational files:
 
-The key directories are:
+*   **`Cargo.toml` & `Cargo.lock`:** Defines the workspace members (all crates within `crates/`), dependencies, features, and locks specific dependency versions for reproducible builds.
+*   **`rust-toolchain.toml`:** Specifies the exact Rust toolchain version used for development, ensuring consistency.
+*   **`Trunk.toml`:** Configures the build process for the WebAssembly (WASM) target using the [Trunk](https://trunkrs.dev/) tool.
+*   **`README.md`:** Provides a high-level overview, quick start instructions, and links to further documentation.
+*   **`CONTRIBUTING.md`:** Outlines guidelines for contributing to the project.
+*   **`LICENSE`:** Contains the project's open-source license information.
+*   **`deny.toml`:** Configures `cargo-deny` for checking licenses, advisories, etc., across dependencies.
+*   **`.github/workflows/`:** Contains CI/CD pipeline configurations (e.g., building, testing, releasing).
 
-*   `crates/`: Contains all the individual Rust crates that make up the Brush library and applications.
-*   `examples/`: Contains standalone example applications demonstrating specific features or usage patterns.
-
-The `Cargo.toml` in the root specifies `members = ["crates/*", "examples/*"]`, meaning all subdirectories within `crates/` and `examples/` are treated as members of the workspace.
+The core source code is organized into multiple interconnected crates located within the **`crates/`** directory. This modular approach promotes code reuse and separation of concerns. The specific roles of these crates are detailed in the next section.
 
 ## 3.1.2. Crate Breakdown
 
 Brush is composed of several specialized crates, each handling a specific part of the functionality:
 
-*(Note: Descriptions are based on crate names and project context. Further code analysis is needed for complete accuracy.)*
-
-*   **`brush-app`**: Likely the main application crate, orchestrating the UI, rendering, and training processes. It serves as the primary entry point for the desktop application.
-*   **`brush-ui`**: Contains the user interface components, built using the [EGUI](https://github.com/emilk/egui) library.
-*   **`brush-process`**: Handles data loading, parsing, and preprocessing steps necessary before training or rendering (e.g., reading image data, handling masks).
-*   **`brush-dataset`**: Defines structures and logic for managing datasets, including handling formats like COLMAP and Nerfstudio.
-*   **`brush-train`**: Implements the core 3D reconstruction training logic, utilizing the [Burn](https://github.com/tracel-ai/burn) framework for machine learning tasks (optimization, automatic differentiation).
-*   **`brush-render`**: Contains the forward rendering pipeline logic for Gaussian Splatting.
-*   **`brush-render-bwd`**: Implements the backward pass for rendering, necessary for training the Gaussian Splat parameters.
-*   **`brush-kernel`**: Contains low-level compute kernels, likely written using `wgpu` or WGSL for GPU acceleration of tasks like rasterization.
-*   **`brush-wgsl`**: May specifically hold WGSL shader code used by `brush-kernel` or `wgpu`.
-*   **`brush-sort`**: Implements GPU-accelerated sorting algorithms, crucial for the Gaussian Splatting rendering order.
-*   **`brush-prefix-sum`**: Provides GPU-accelerated prefix sum (scan) operations, often used in parallel algorithms like sorting or stream compaction.
-*   **`brush-cli`**: Provides the command-line interface executable (`brush`).
-*   **`brush-rerun`**: Handles integration with the [Rerun](https://rerun.io/) visualization tool.
-*   **`colmap-reader`**: A utility crate specifically for parsing the COLMAP data format.
-*   **`brush-android`**: Contains code specific to building and running Brush on the Android platform.
-*   **`sync-span`:** A small utility crate integrating with the `tracing` ecosystem. It provides a `tracing` layer (`SyncLayer`) that can automatically synchronize a Burn backend (e.g., wait for GPU operations to complete via `Backend::sync`) when specific, designated tracing spans are closed. This is likely used for debugging or performance analysis to ensure operations within certain spans finish before proceeding.
-*   **`rrfd`:** Provides a cross-platform abstraction layer for native file dialog operations (picking files, picking directories, saving files). It uses the `rfd` crate for desktop/web platforms and custom Android JNI calls for Android, allowing UI code to request file operations without platform-specific logic.
+*   **`brush-app`**: The main graphical application crate (binary). It initializes the `eframe` window, sets up the different UI panels (`SettingsPanel`, `ScenePanel`, etc.), manages the application state (`AppContext`), handles user interactions (loading data, starting processes), and orchestrates communication between the UI, processing logic, and rendering.
+*   **`brush-ui`**: Provides shared UI utilities and manages the integration between `egui`, `wgpu`, and `burn`. It includes helpers for setting up the `wgpu` device for `egui` (`create_egui_options`), drawing UI elements like checkerboards, and managing the display of `burn` tensors within `egui` textures (`burn_texture` module).
+*   **`brush-process`**: Orchestrates the core data processing workflows. It determines whether to run the viewing stream (for `.ply` files) or the training stream (for datasets) based on the input `DataSource`. It manages the main loop (`process_stream`), handles process arguments (`ProcessArgs`), loads data via `brush-dataset`, invokes training via `brush-train`, and emits `ProcessMessage` updates for the UI.
+*   **`brush-dataset`**: Defines data structures (`Dataset`, `Scene`, `SceneView`) and logic for loading and managing datasets. It includes parsers for different formats (COLMAP in `formats/colmap.rs`, Nerfstudio/JSON in `formats/nerfstudio.rs`), handles image loading (`LoadImage`) potentially with masks, manages a virtual filesystem abstraction (`brush_vfs`), and provides utilities for importing/exporting splats (`splat_import.rs`, `splat_export.rs`).
+*   **`brush-train`**: Implements the core 3D reconstruction training logic. It defines the `SplatTrainer` which manages the optimization loop using a custom Adam optimizer (`adam_scaled.rs`) and learning rate schedules. It calculates the loss (L1 + SSIM), performs backpropagation using `brush-render-bwd`, and handles the Gaussian refinement process (densification/pruning).
+*   **`brush-render`**: Contains the forward rendering pipeline for Gaussian Splatting. It defines the `Splats` structure holding Gaussian parameters, implements the `SplatForward` trait with the `render_splats` method, and includes WGSL shaders (`shaders/`) and kernel definitions (`kernels.rs`) for projecting and rasterizing splats onto the image plane.
+*   **`brush-render-bwd`**: Implements the differentiable backward pass for the rendering pipeline. It defines `SplatForwardDiff` and `SplatBackwardOps` traits and uses custom WGSL kernels (`ProjectBackwards`, `RasterizeBackwards`) to compute gradients for the Gaussian parameters with respect to the rendered image loss, enabling training via `brush-train`.
+*   **`brush-kernel`**: A utility crate for defining and compiling WGSL compute kernels for Burn's `Cube` backend. It provides the `kernel_source_gen!` macro for generating Rust boilerplate to integrate WGSL modules (processed by `brush-wgsl`) as `CubeTask`s, along with helpers for creating GPU tensors and uniform buffers.
+*   **`brush-wgsl`**: Handles processing and composition of WGSL shader files. It uses `naga_oil` to manage imports (`@import`) between shader modules and includes a build script (`build.rs`) to generate Rust code (via `lib.rs`) that defines shader modules and potentially reflects WGSL structs into Rust structs.
+*   **`brush-sort`**: Implements a GPU-accelerated radix sort algorithm (`radix_argsort`). Uses custom WGSL kernels compiled via `brush-kernel` to efficiently sort data (like Gaussian depths) on the GPU.
+*   **`brush-prefix-sum`**: Provides a GPU-accelerated prefix sum (scan) operation (`prefix_sum`). Uses custom WGSL kernels compiled via `brush-kernel`, often used as a primitive within other parallel GPU algorithms like sorting.
+*   **`brush-cli`**: Provides the command-line interface executable (`brush_app` binary, distinct from the GUI `brush-app`). Parses arguments using `clap` and likely uses `brush-process` to run operations without a graphical interface.
+*   **`brush-rerun`**: Handles integration with the [Rerun](https://rerun.io/) visualization tool, allowing training progress, splats, and metrics to be logged and viewed externally.
+*   **`colmap-reader`**: A utility crate specifically designed for parsing the COLMAP data format (reading `cameras.bin`/`txt`, `images.bin`/`txt`, `points3D.bin`/`txt`).
+*   **`brush-android`**: Contains code specific to building and running the Brush application on the Android platform, including JNI bindings and build configurations.
+*   **`sync-span`**: A small utility crate integrating with the `tracing` ecosystem. It provides a `tracing` layer (`SyncLayer`) that can automatically synchronize a Burn backend (e.g., wait for GPU operations to complete) when specific tracing spans are closed, useful for accurate performance profiling.
+*   **`rrfd`**: Provides a cross-platform abstraction for native file dialogs (open file, save file, pick directory). Uses `rfd` on desktop/web and custom JNI calls on Android, allowing crates like `brush-app` to request file operations in a platform-agnostic way.
 
 ## 3.1.3. Data Flow
 
