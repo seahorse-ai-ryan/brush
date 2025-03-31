@@ -3,6 +3,7 @@ use crate::{
     brush_vfs::BrushVfs,
     splat_import::{SplatMessage, load_splat_from_ply},
 };
+use anyhow::Context;
 use burn::prelude::Backend;
 use path_clean::PathClean;
 use std::{
@@ -24,30 +25,15 @@ pub async fn load_dataset<B: Backend>(
     load_args: &LoadDataseConfig,
     device: &B::Device,
 ) -> anyhow::Result<(DataStream<SplatMessage<B>>, Dataset)> {
-    let mut err_context = anyhow::anyhow!("Attempting to load dataset.");
+    let data_read = nerfstudio::read_dataset(vfs.clone(), load_args, device).await;
 
-    let stream = nerfstudio::read_dataset(vfs.clone(), load_args, device).await;
-
-    let stream = match stream {
-        Ok(s) => Ok(s),
-        Err(e) => {
-            err_context = err_context
-                .context(e)
-                .context("Failed to load as json format.");
-
-            colmap::load_dataset::<B>(vfs.clone(), load_args, device).await
-        }
-    };
-
-    let init_stream_dataset = match stream {
-        Ok(stream) => stream,
-        Err(e) => {
-            err_context = err_context
-                .context(e)
-                .context("Failed to load as COLMAP format.");
-
-            Err(err_context.context("Failed to load dataset as any format."))?
-        }
+    let data_read = if let Some(data_read) = data_read {
+        data_read.context("Failed to load as json format.")?
+    } else {
+        let stream = colmap::load_dataset::<B>(vfs.clone(), load_args, device)
+            .await
+            .context("Dataset was neither in nerfstudio or COLMAP format.")?;
+        stream.context("Failed to load as COLMAP format.")?
     };
 
     // If there's an initial ply file, override the init stream with that.
@@ -67,10 +53,10 @@ pub async fn load_dataset<B: Backend>(
             device.clone(),
         ))
     } else {
-        init_stream_dataset.0
+        data_read.0
     };
 
-    Ok((init_stream, init_stream_dataset.1))
+    Ok((init_stream, data_read.1))
 }
 
 fn find_mask_path(vfs: &BrushVfs, path: &Path) -> Option<PathBuf> {

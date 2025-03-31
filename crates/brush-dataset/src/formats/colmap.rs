@@ -61,22 +61,32 @@ fn find_mask_and_img(vfs: &BrushVfs, paths: &[PathBuf]) -> Result<(PathBuf, Opti
         .context("No candidates found")
 }
 
-async fn read_views(vfs: Arc<BrushVfs>, load_args: LoadDataseConfig) -> Result<Vec<SceneView>> {
+pub(crate) async fn load_dataset<B: Backend>(
+    vfs: Arc<BrushVfs>,
+    load_args: &LoadDataseConfig,
+    device: &B::Device,
+) -> Option<Result<(DataStream<SplatMessage<B>>, Dataset)>> {
     log::info!("Loading colmap dataset");
 
-    let (is_binary, base_path) = if let Some(path) = find_base_path(&vfs, "cameras.bin") {
-        (true, path)
+    let (cam_path, img_path) = if let Some(path) = find_base_path(&vfs, "cameras.bin") {
+        (path.join("cameras.bin"), path.join("images.bin"))
     } else if let Some(path) = find_base_path(&vfs, "cameras.txt") {
-        (false, path)
+        (path.join("cameras.txt"), path.join("images.txt"))
     } else {
-        anyhow::bail!("No COLMAP data found (either text or binary.)")
+        return None;
     };
 
-    let (cam_path, img_path) = if is_binary {
-        (base_path.join("cameras.bin"), base_path.join("images.bin"))
-    } else {
-        (base_path.join("cameras.txt"), base_path.join("images.txt"))
-    };
+    Some(load_dataset_inner(vfs, load_args, device, cam_path, img_path).await)
+}
+
+async fn load_dataset_inner<B: Backend>(
+    vfs: Arc<BrushVfs>,
+    load_args: &LoadDataseConfig,
+    device: &<B as Backend>::Device,
+    cam_path: PathBuf,
+    img_path: PathBuf,
+) -> Result<(DataStream<SplatMessage<B>>, Dataset)> {
+    let is_binary = cam_path.ends_with("cameras.bin");
 
     let cam_model_data = {
         let mut cam_file = vfs.reader_at_path(&cam_path).await?;
@@ -90,18 +100,18 @@ async fn read_views(vfs: Arc<BrushVfs>, load_args: LoadDataseConfig) -> Result<V
     };
 
     let mut img_info_list = img_infos.into_iter().collect::<Vec<_>>();
+    img_info_list.sort_by_key(|key_img| key_img.1.name.clone());
 
     log::info!("Loading colmap dataset with {} images", img_info_list.len());
 
-    // Sort by image name. This is important to match the exact eval images mipnerf uses.
-    img_info_list.sort_by_key(|key_img| key_img.1.name.clone());
+    let mut train_views = vec![];
+    let mut eval_views = vec![];
 
-    let mut views = vec![];
-
-    for (_, img_info) in img_info_list
+    for (i, (_img_id, img_info)) in img_info_list
         .into_iter()
         .take(load_args.max_frames.unwrap_or(usize::MAX))
         .step_by(load_args.subsample_frames.unwrap_or(1) as usize)
+        .enumerate()
     {
         let cam_data = cam_model_data[&img_info.camera_id].clone();
         let vfs = vfs.clone();
@@ -134,30 +144,14 @@ async fn read_views(vfs: Arc<BrushVfs>, load_args: LoadDataseConfig) -> Result<V
 
         log::info!("Loaded COLMAP image at path {path:?}");
 
-        let load_img = LoadImage::new(vfs.clone(), path, mask_path, load_args.max_resolution)
-            .await
-            .context("Failed to construct loadable image")?;
+        let load_img =
+            LoadImage::new(vfs.clone(), path, mask_path, load_args.max_resolution).await?;
 
         let view = SceneView {
             camera,
             image: load_img,
         };
-        views.push(view);
-    }
-    Ok(views)
-}
 
-pub(crate) async fn load_dataset<B: Backend>(
-    vfs: Arc<BrushVfs>,
-    load_args: &LoadDataseConfig,
-    device: &B::Device,
-) -> Result<(DataStream<SplatMessage<B>>, Dataset)> {
-    let views = read_views(vfs.clone(), load_args.clone()).await?;
-
-    let mut train_views = vec![];
-    let mut eval_views = vec![];
-
-    for (i, view) in views.into_iter().enumerate() {
         if let Some(eval_period) = load_args.eval_split_every {
             if i % eval_period == 0 {
                 eval_views.push(view);
@@ -168,8 +162,6 @@ pub(crate) async fn load_dataset<B: Backend>(
             train_views.push(view);
         }
     }
-
-    let dataset = Dataset::from_views(train_views, eval_views);
 
     let device = device.clone();
     let load_args = load_args.clone();
@@ -243,5 +235,8 @@ pub(crate) async fn load_dataset<B: Backend>(
         Ok(())
     });
 
-    Ok((Box::pin(init_stream), dataset))
+    Ok((
+        Box::pin(init_stream),
+        Dataset::from_views(train_views, eval_views),
+    ))
 }

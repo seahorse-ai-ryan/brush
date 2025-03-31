@@ -181,7 +181,7 @@ pub async fn read_dataset<B: Backend>(
     vfs: Arc<BrushVfs>,
     load_args: &LoadDataseConfig,
     device: &B::Device,
-) -> Result<(DataStream<SplatMessage<B>>, Dataset)> {
+) -> Option<Result<(DataStream<SplatMessage<B>>, Dataset)>> {
     log::info!("Loading nerfstudio dataset");
 
     let json_files: Vec<_> = vfs
@@ -192,16 +192,25 @@ pub async fn read_dataset<B: Backend>(
     let transforms_path = if json_files.len() == 1 {
         json_files.first().cloned().expect("Must have 1 json file")
     } else {
-        let train = json_files.iter().find(|x| {
-            x.file_name()
-                .is_some_and(|p| p.to_string_lossy().contains("_train"))
-        });
-        let Some(train) = train else {
-            anyhow::bail!("No json file found.");
-        };
-        train.clone()
+        json_files
+            .iter()
+            .find(|x| {
+                x.file_name()
+                    .is_some_and(|p| p.to_string_lossy().contains("_train"))
+            })?
+            .clone()
     };
 
+    Some(read_dataset_inner(vfs, load_args, device, json_files, transforms_path).await)
+}
+
+async fn read_dataset_inner<B: Backend>(
+    vfs: Arc<BrushVfs>,
+    load_args: &LoadDataseConfig,
+    device: &<B as Backend>::Device,
+    json_files: Vec<std::path::PathBuf>,
+    transforms_path: std::path::PathBuf,
+) -> Result<(DataStream<SplatMessage<B>>, Dataset)> {
     let mut buf = String::new();
     vfs.reader_at_path(&transforms_path)
         .await?
