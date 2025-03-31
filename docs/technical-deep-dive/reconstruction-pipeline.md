@@ -95,7 +95,7 @@ The training process can be configured through various command-line options when
 
 ## Where to Go Next?
 
-*   Understand how the scene is rendered: **[Gaussian Splat Rendering](gaussian-splatting.md)**.
+*   Understand how the scene is rendered: **[Rendering Pipeline](rendering-pipeline.md)**.
 *   See the high-level project structure: **[Architecture Overview](architecture.md)**.
 *   Learn about the ML framework used: **[Burn in Core Technologies](core-technologies.md#343-burn)**.
 *   Try running it: **[User Guide](../getting-started/user-guide.md)**. 

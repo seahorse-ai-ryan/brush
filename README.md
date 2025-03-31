@@ -10,6 +10,7 @@ Brush is an open-source 3D reconstruction engine using Gaussian splatting, built
 
 **Key Goals:**
 
+*   **State-of-the-Art Reconstruction:** Achieve 3D reconstruction quality on par with top benchmarks from the latest research in the field.
 *   **Portable:** Run training and rendering across macOS, Windows, Linux, Web (WASM), and Android.
 *   **Flexible:** Support various input dataset formats.
 *   **Fast:** Optimized rendering and training pipeline using modern GPU techniques.
@@ -30,6 +31,15 @@ Brush is an open-source 3D reconstruction engine using Gaussian splatting, built
 *Rerun viewer showing detailed training visualization (losses, splat counts, 3D view) for the LEGO dataset.*
 
 ➡️ **Learn More:** [**Introduction & Project Overview**](docs/introduction.md)
+
+## Why Brush?
+
+Machine learning for real-time rendering holds immense potential, but most standard ML tools present challenges:
+*   **Real-time Interactivity:** Traditional frameworks aren't always optimized for the demands of interactive rendering.
+*   **Complex Graphics Tasks:** Integrating ML with complex graphics tasks like real-time rendering or handling dynamic scenes can be difficult with standard ML tools.
+*   **Deployment:** Shipping applications with large dependencies like PyTorch/Jax/CUDA is cumbersome.
+
+Often, this necessitates separate applications for training and inference. Brush, written in Rust using `wgpu` and `burn`, aims to overcome these hurdles. It produces simpler, dependency-free binaries, runs on a wide array of devices (including web and mobile), requires minimal setup, and integrates training and viewing.
 
 ## Features
 
@@ -71,7 +81,7 @@ Brush is an open-source 3D reconstruction engine using Gaussian splatting, built
 
 ## Example Data
 
-Example datasets (like `bicycle`, `bonsai`, `counter`, synthetic NeRF scenes, etc.) can be loaded directly via the "Presets" panel within the `brush_app` application.
+Example datasets (like `bicycle`, `bonsai`, `counter`, synthetic NeRF scenes, etc.) are not included directly in the repository. They can be downloaded and loaded via the "Presets" panel within the `brush_app` application.
 
 ➡️ **Learn More:** [**Using Presets (User Guide)**](docs/getting_started/user_guide.md#workflow-1-loading-a-dataset) <!-- Adjust link if needed -->
 
@@ -86,9 +96,9 @@ Brush employs a multi-crate architecture for modularity. Key technologies includ
 *   **egui:** Immediate-mode GUI for the viewer application.
 *   **naga & naga-oil:** Shader processing and management.
 
-The rendering pipeline uses GPU-accelerated sorting (`brush-sort`) and prefix sums (`brush-prefix-sum`) for efficiency. Training involves forward and backward passes with gradient aggregation suitable for WebGPU compatibility.
+The rendering pipeline uses GPU-accelerated sorting (`brush-sort`) and prefix sums (`brush-prefix-sum`) for efficiency. Training optimizes the Gaussian parameters using a custom **differentiable rendering** approach, implemented with specialized WGSL kernels for the backward pass and integrated seamlessly with Burn's automatic differentiation.
 
-➡️ **Explore Further:** [**Architecture**](docs/technical_deep_dive/architecture.md) | [**Reconstruction Pipeline**](docs/technical_deep_dive/reconstruction_pipeline.md) | [**Rendering Details**](docs/technical_deep_dive/gaussian_splat_rendering.md) | [**Core Technologies**](docs/technical_deep_dive/core_technologies.md)
+➡️ **Explore Further:** [**Architecture**](docs/technical_deep_dive/architecture.md) | [**Reconstruction Pipeline**](docs/technical_deep_dive/reconstruction_pipeline.md) | [**Rendering Details**](docs/technical_deep_dive/gaussian_splatting.md) | [**Core Technologies**](docs/technical_deep_dive/core_technologies.md)
 
 ## Benchmarks & Performance
 

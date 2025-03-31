@@ -54,5 +54,5 @@ WGSL is the WebGPU Shading Language, used to write shaders that run on the GPU.
 ## Where to Go Next?
 
 *   See how these technologies fit into the project: **[Architecture Overview](architecture.md)**.
-*   Understand the core algorithms built with these tools: **[Reconstruction Pipeline](reconstruction-pipeline.md)** and **[Gaussian Splat Rendering](gaussian-splatting.md)**.
+*   Understand the core algorithms built with these tools: **[Reconstruction Pipeline](reconstruction-pipeline.md)** and **[Rendering Pipeline](rendering-pipeline.md)**.
 *   Get started building the project: **[Developer Guide](../getting-started/developer-guide.md)**. 

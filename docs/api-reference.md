@@ -31,6 +31,7 @@ Navigating the `rustdoc` generated in section 4.1 is the best way to explore the
 
 ## Where to Go Next?
 
-*   See how the crates fit together: **[Architecture Overview](technical-deep-dive/architecture.md)**.
-*   Understand the context for the code: **[Reconstruction Pipeline](technical-deep-dive/reconstruction-pipeline.md)** and **[Gaussian Splat Rendering](technical-deep-dive/gaussian-splatting.md)**.
-*   Learn how to build the project and generate this documentation: **[Developer Guide](getting-started/developer-guide.md)**. 
+*   See the overall structure: **[Architecture Overview](technical-deep-dive/architecture.md)**.
+*   Understand the reconstruction process: **[Reconstruction Pipeline](technical-deep-dive/reconstruction-pipeline.md)**.
+*   Learn about the rendering algorithm: **[Gaussian Splat Rendering](technical-deep-dive/rendering-pipeline.md)**.
+*   Get started as a developer: **[Developer Guide](getting-started/developer-guide.md)**. 

@@ -136,6 +136,6 @@ Brush achieves its wide platform support (Desktop, Web, Android) primarily throu
 ## Where to Go Next?
 
 *   Learn how reconstruction works: **[Reconstruction Pipeline](reconstruction-pipeline.md)**.
-*   Understand the rendering process: **[Gaussian Splat Rendering](gaussian-splatting.md)**.
+*   Understand the rendering process: **[Rendering Pipeline](rendering-pipeline.md)**.
 *   See how the tech stack fits together: **[Core Technologies Guide](core-technologies.md)**.
 *   Explore the code: **[API Reference](../api-reference.md)**. 

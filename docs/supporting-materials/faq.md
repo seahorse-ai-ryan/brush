@@ -4,9 +4,9 @@ Frequently Asked Questions about Brush.
 
 ### General
 
-*   **What are 3D Gaussian Splats?**
-    *   They are a representation for 3D scenes used in the "3D Gaussian Splatting" rendering and reconstruction technique. Instead of triangles or voxels, the scene is modeled as a collection of 3D ellipsoids (Gaussians) with properties like position, shape, color, and opacity. See the [Gaussian Splatting Deep Dive](technical-deep-dive/gaussian-splatting.md#331-conceptual-overview) for more details.
-*   **Can I use Brush commercially?**
+*   **What is 3D Gaussian Splatting?**
+    *   It's a technique representing 3D scenes using millions of tiny, colored, semi-transparent ellipsoids (Gaussians). It allows for fast, high-quality rendering directly from data learned from images. See the [Gaussian Splatting Deep Dive](technical-deep-dive/rendering-pipeline.md#331-conceptual-overview) for more details.
+*   **Can I use Brush for commercial projects?**
     *   Yes, Brush is licensed under the Apache License, Version 2.0. This permissive license generally allows commercial use, modification, and distribution, subject to its terms (like retaining copyright and license notices). Please consult the `LICENSE` file in the root of the repository for the full legal text.
 
 ### Installation & Hardware

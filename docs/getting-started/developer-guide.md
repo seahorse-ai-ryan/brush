@@ -94,5 +94,7 @@ Please refer to the [`CONTRIBUTING.md`](../../CONTRIBUTING.md) file in the root 
 ## Where to Go Next?
 
 *   Understand the project structure: **[Architecture Overview](../technical-deep-dive/architecture.md)**.
-*   Learn about the core algorithms: **[Reconstruction Pipeline](../technical-deep-dive/reconstruction-pipeline.md)** and **[Gaussian Splat Rendering](../technical-deep-dive/gaussian-splatting.md)**.
-*   Explore the code APIs: **[API Reference](../api-reference.md)**. 
+*   Learn about the core algorithms: **[Reconstruction Pipeline](../technical-deep-dive/reconstruction-pipeline.md)** and **[Rendering Pipeline](../technical-deep-dive/rendering-pipeline.md)**.
+*   Explore the code APIs: **[API Reference](../api-reference.md)**.
+*   Curious about the underlying tech? Dive into the **[Technical Deep Dive](../technical-deep-dive/architecture.md)**.
+*   Need details on the core algorithms? See the **[Reconstruction Pipeline](../technical-deep-dive/reconstruction-pipeline.md)** and **[Rendering Pipeline](../technical-deep-dive/rendering-pipeline.md)**. 
