@@ -90,8 +90,8 @@ pub async fn process_ui(
         let msg = match msg {
             Ok(msg) => msg,
             Err(error) => {
-                // Don't need to log this as it'll bubble up as an error.
-                let _ = sp.println(format!("❌ Error: {error:?}"));
+                // Don't print the error here. It'll bubble up and be printed as output.
+                let _ = sp.println(format!("❌ Encountered an error"));
                 return Err(error);
             }
         };
