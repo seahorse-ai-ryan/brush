@@ -71,6 +71,8 @@ skip = [
     { name = 'windows-core' },        # Wgpu & rerun
     { name = 'windows-strings' },     # Wgpu & rerun
     { name = 'windows-result' },      # Wgpu & rerun
+    { name = 'windows-interface' },   # Wgpu & rerun
+    { name = 'windows-implement' },   # Wgpu & rerun
 
     { name = 'rustix' },        # Winit & clap
     { name = 'linux-raw-sys' }, # Winit & clap

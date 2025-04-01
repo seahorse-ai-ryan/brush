@@ -81,6 +81,7 @@ pub fn radix_argsort(
             client.execute_unchecked(
                 SortCount::task(),
                 CubeCount::Dynamic(num_wgs.clone().handle.binding()),
+                vec![],
                 vec![
                     uniforms_buffer.clone().handle.binding(),
                     n_sort.clone().handle.binding(),
@@ -99,6 +100,7 @@ pub fn radix_argsort(
                 client.execute_unchecked(
                     SortReduce::task(),
                     CubeCount::Dynamic(num_reduce_wgs.clone().handle.binding()),
+                    vec![],
                     vec![
                         n_sort.clone().handle.binding(),
                         count_buf.clone().handle.binding(),
@@ -112,6 +114,7 @@ pub fn radix_argsort(
                 client.execute_unchecked(
                     SortScan::task(),
                     CubeCount::Static(1, 1, 1),
+                    vec![],
                     vec![
                         n_sort.clone().handle.binding(),
                         reduced_buf.clone().handle.binding(),
@@ -124,6 +127,7 @@ pub fn radix_argsort(
                 client.execute_unchecked(
                     SortScanAdd::task(),
                     CubeCount::Dynamic(num_reduce_wgs.handle.clone().binding()),
+                    vec![],
                     vec![
                         n_sort.clone().handle.binding(),
                         reduced_buf.clone().handle.binding(),
@@ -142,6 +146,7 @@ pub fn radix_argsort(
             client.execute_unchecked(
                 SortScatter::task(),
                 CubeCount::Dynamic(num_wgs.clone().handle.binding()),
+                vec![],
                 vec![
                     uniforms_buffer.handle.clone().binding(),
                     n_sort.clone().handle.binding(),

@@ -217,6 +217,7 @@ pub fn create_dispatch_buffer<R: CubeRuntime>(
         client.execute_unchecked(
             Box::new(CreateDispatchBuffer {}),
             CubeCount::Static(1, 1, 1),
+            vec![],
             vec![
                 uniforms_buffer.handle.binding(),
                 thread_nums.handle.binding(),

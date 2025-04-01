@@ -126,6 +126,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
             client.execute_unchecked(
                 ProjectSplats::task(),
                 calc_cube_count([total_splats as u32], ProjectSplats::WORKGROUP_SIZE),
+                vec![],
                 vec![
                     uniforms_buffer.clone().handle.binding(),
                     means.clone().handle.binding(),
@@ -176,6 +177,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
         client.execute_unchecked(
             ProjectVisible::task(),
             CubeCount::Dynamic(num_vis_wg.clone().handle.binding()),
+            vec![],
             vec![
                 uniforms_buffer.clone().handle.binding(),
                 means.handle.binding(),
@@ -235,6 +237,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
                 client.execute_unchecked(
                     MapGaussiansToIntersect::task(),
                     CubeCount::Dynamic(intersect_wg_buf.handle.binding()),
+                    vec![],
                     vec![
                         num_intersections.clone().handle.binding(),
                         isect_info.handle.clone().binding(),
@@ -325,6 +328,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
         client.execute_unchecked(
             raster_task,
             calc_cube_count([img_size.x, img_size.y], Rasterize::WORKGROUP_SIZE),
+            vec![],
             bindings,
         );
     }

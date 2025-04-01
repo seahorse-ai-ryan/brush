@@ -88,6 +88,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
                 client.execute_unchecked(
                     RasterizeBackwards::task(hard_floats),
                     CubeCount::Static(invocations, 1, 1),
+                    vec![],
                     vec![
                         uniforms_buffer.clone().handle.binding(),
                         compact_gid_from_isect.handle.binding(),
@@ -108,6 +109,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
         client.execute_unchecked(
             GatherGrads::task(),
             calc_cube_count([num_points as u32], GatherGrads::WORKGROUP_SIZE),
+            vec![],
             vec![
                 uniforms_buffer.clone().handle.binding(),
                 global_from_compact_gid.clone().handle.binding(),
@@ -126,6 +128,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
         client.execute_unchecked(
             ProjectBackwards::task(),
             calc_cube_count([num_points as u32], ProjectBackwards::WORKGROUP_SIZE),
+            vec![],
             vec![
                 uniforms_buffer.handle.binding(),
                 means.handle.binding(),
