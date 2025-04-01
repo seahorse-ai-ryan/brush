@@ -2,44 +2,123 @@
 
 First off, thank you for considering contributing to Brush! We welcome contributions from everyone.
 
-This document provides guidelines for contributing to the project.
+## Prerequisites
+
+*   Rust 1.85.0 or later (see `rust-toolchain.toml`)
+*   GPU with WebGPU support
+*   8GB+ VRAM recommended
+*   Basic understanding of Gaussian Splatting
+
+## Development Setup
+
+1.  **Clone and Build:**
+    ```bash
+    git clone https://github.com/ArthurBrussee/brush
+    cd brush
+    cargo build --workspace
+    ```
+
+2.  **Run Tests:**
+    ```bash
+    cargo test --workspace
+    ```
+
+3.  **Generate Documentation:**
+    ```bash
+    cargo doc --workspace --no-deps
+    ```
 
 ## How Can I Contribute?
 
 ### Reporting Bugs
 
-*   **Ensure the bug was not already reported** by searching on GitHub under [Issues](https://github.com/ArthurBrussee/brush/issues).
-*   If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/ArthurBrussee/brush/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample or an executable test case** demonstrating the expected behavior that is not occurring.
+*   **Check Existing Issues:** Search [Issues](https://github.com/ArthurBrussee/brush/issues) first
+*   **Create New Issue:** Include:
+    - Clear title and description
+    - Steps to reproduce
+    - System information (OS, GPU, driver version)
+    - Error messages or logs
+    - Minimal reproducible example if possible
 
 ### Suggesting Enhancements
 
-*   Open a new issue, clearly describing the enhancement proposal and the reasoning behind it.
-*   Explain why this enhancement would be useful and provide examples if possible.
+*   Open a new issue with:
+    - Clear description of the enhancement
+    - Use cases and benefits
+    - Implementation considerations
+    - Performance implications
+    - Impact on existing features
 
 ### Pull Requests
 
-1.  Fork the repository and create your branch from `main`.
-2.  If you've added code that should be tested, add tests.
-3.  If you've changed APIs, update the documentation (`cargo doc --workspace --no-deps`).
-4.  Ensure the test suite passes (`cargo test --workspace`).
-5.  Format your code using `cargo fmt`.
-6.  Ensure your code adheres to the linter rules (`cargo clippy --workspace --all-targets --all-features -- -D warnings`). The specific lint rules are configured in the root `Cargo.toml` under `[workspace.lints.*]`.
-7.  Make sure your commit messages are clear and descriptive.
-8.  Open a pull request to the `main` branch.
+1.  Fork and create branch from `main`
+2.  Implement changes following our guidelines
+3.  Add tests for new functionality
+4.  Update documentation if needed
+5.  Run quality checks:
+    ```bash
+    # Format code
+    cargo fmt
+    
+    # Run clippy with all features
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    
+    # Run tests
+    cargo test --workspace
+    
+    # Generate docs
+    cargo doc --workspace --no-deps
+    ```
+6.  Create pull request to `main`
 
-## Style Guides
+## Code Guidelines
 
-### Rust Code
+### Performance Considerations
 
-*   Follow the standard [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/).
-*   Use `cargo fmt` to automatically format your code before committing.
-*   Address warnings reported by `cargo clippy` (using the command above). The project aims to be free of clippy warnings.
+*   Profile changes with Tracy (`--features=tracy`)
+*   Consider GPU memory usage (splat data structure is 40 bytes)
+*   Maintain 60+ FPS rendering target
+*   Keep training speed at 10-20 iterations/second
+*   Use 16x16 tile size for rendering
+
+### Code Style
+
+*   Follow [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
+*   Use `cargo fmt` for formatting
+*   Address all clippy warnings
+*   Document public APIs
+*   Add comments for complex algorithms
+*   Keep functions focused and reasonably sized
+
+### Testing
+
+*   Add unit tests for new functionality
+*   Include performance tests for critical paths
+*   Test edge cases and error conditions
+*   Verify WebGPU compatibility
+*   Test on different GPU vendors if possible
+
+### Documentation
+
+*   Update relevant documentation files
+*   Add inline documentation for public APIs
+*   Include examples for new features
+*   Update performance characteristics if changed
+*   Keep technical details accurate
 
 ### Commit Messages
 
-*   Use the present tense ("Add feature" not "Added feature").
-*   Use the imperative mood ("Move cursor to..." not "Moves cursor to...").
-*   Limit the first line to 72 characters or less.
-*   Reference issues and pull requests liberally after the first line.
+*   Use present tense ("Add feature" not "Added feature")
+*   Use imperative mood ("Move cursor" not "Moves cursor")
+*   Limit first line to 72 characters
+*   Reference issues after first line
+*   Include technical context if needed
+
+## Getting Help
+
+*   Check the [Developer Guide](docs/getting-started/developer-guide.md)
+*   Review the [Architecture Overview](docs/technical-deep-dive/architecture.md)
+*   Read the [API Reference](docs/api-reference.md)
+*   Ask questions in Issues
 
 Thank you for contributing! 

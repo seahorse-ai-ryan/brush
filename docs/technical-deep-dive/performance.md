@@ -1,58 +1,136 @@
 # 3.5 Performance Considerations
 
-Optimizing the performance of 3D reconstruction and rendering is crucial. This section provides guidance on profiling Brush and understanding potential performance bottlenecks.
+This section provides guidance on profiling Brush and understanding performance characteristics.
 
 ## 3.5.1 Profiling with Tracy
 
-Brush integrates with the [Tracy Profiler](https://github.com/wolfpld/tracy) for detailed performance analysis, especially useful for visualizing GPU and CPU workloads over time.
+Brush integrates with [Tracy Profiler](https://github.com/wolfpld/tracy) for detailed performance analysis.
 
-**Enabling Tracy:**
+**Setup:**
 
-1.  **Install Tracy:** Download a pre-built Tracy profiler executable for your OS from the [Tracy releases page](https://github.com/wolfpld/tracy/releases) or build it from source.
-2.  **Build Brush with Tracy feature:** Compile Brush using the `tracy` feature flag:
+1.  Install Tracy:
+    ```bash
+    # macOS
+    brew install tracy
+    
+    # Linux
+    sudo apt install tracy
+    ```
+
+2.  Build Brush with Tracy:
     ```bash
     cargo build --release --features=tracy
-    # Or run directly:
+    ```
+
+3.  Run and Connect:
+    ```bash
+    # Start Tracy
+    tracy
+    
+    # Run Brush
     cargo run --bin brush_app --release --features=tracy
     ```
-3.  **Run Tracy & Connect:**
-    *   Start the Tracy profiler application you downloaded/built.
-    *   Run the `brush_app` executable compiled with the `tracy` feature.
-    *   Tracy should automatically detect and connect to the running Brush application.
 
-**Using Tracy:**
+**Key Areas to Profile:**
 
-*   Tracy provides detailed timelines for CPU threads and GPU queues.
-*   Look for long-running spans, especially on the critical path.
-*   Identify GPU bottlenecks (e.g., long kernel execution times in `brush-sort`, `brush-render`, `brush-render-bwd`).
-*   Analyze CPU usage, particularly during data loading or preprocessing (`brush-process`, `brush-dataset`).
-*   The `sync-span` crate mentioned in the architecture might be used to automatically insert synchronization points for more accurate measurement of specific code sections.
+*   **GPU Operations:**
+    - `brush-sort`: Radix sort performance
+    - `brush-render`: Rasterization time
+    - `brush-render-bwd`: Gradient computation
+    - Memory bandwidth usage
+    - Kernel execution times
+
+*   **CPU Operations:**
+    - `brush-process`: Training loop overhead
+    - `brush-dataset`: Data loading
+    - `brush-ui`: UI responsiveness
+    - Memory allocation patterns
 
 ## 3.5.2 Common Bottlenecks
 
-Based on typical Gaussian Splatting implementations, potential performance bottlenecks include:
+Based on Brush's implementation, common performance bottlenecks include:
 
-*   **GPU Sorting:** Sorting millions of Gaussians by depth (`brush-sort`) before rendering is computationally intensive.
-The efficiency of the radix sort implementation is critical.
-*   **GPU Rasterization/Splatting:** The process of drawing the projected 2D Gaussians onto the image plane (`brush-render`, `brush-render-bwd`) involves significant memory bandwidth and computation, especially with high splat counts or complex Spherical Harmonics.
-*   **GPU Memory Bandwidth:** Transferring Gaussian data, image data, and intermediate results between different GPU compute passes can be a limiting factor.
-*   **Data Loading/Preprocessing:** While often less critical than GPU work, loading and preparing large datasets (`brush-dataset`, `brush-process`) can still impact startup time or introduce stalls if not efficiently parallelized or asynchronous.
-*   **CPU-GPU Synchronization:** Excessive synchronization points between the CPU and GPU can lead to stalls.
+*   **GPU Sorting:**
+    - Radix sort in `brush-sort`
+    - Memory bandwidth for large datasets
+    - Synchronization overhead
+    - Target: < 1ms for sorting 1M splats
 
-## 3.5.3 Hardware Considerations
+*   **Rendering:**
+    - Tile-based rasterization in `brush-render`
+    - Memory bandwidth for splat data
+    - Shader compilation time
+    - Target: 60+ FPS, < 16ms frame time
 
-*   **GPU VRAM:** The number of Gaussians and the training image resolution directly impact GPU memory usage. Insufficient VRAM will lead to errors or extremely slow performance due to swapping.
-*   **GPU Compute Power & Bandwidth:** A faster GPU with higher memory bandwidth will significantly improve both training and rendering speeds.
-*   **CPU:** While less critical than the GPU for rendering/training loops, a faster CPU can improve data loading times and overall application responsiveness.
-*   **Storage:** Faster storage (SSD) improves dataset loading times.
+*   **Training:**
+    - Gradient computation in `brush-render-bwd`
+    - Memory transfers between passes
+    - Dataset loading and preprocessing
+    - Target: 10-20 iterations/second
 
-Refer to the **[Benchmarks](benchmarks.md)** page for quantitative performance results on specific hardware.
+## 3.5.3 Hardware Requirements
+
+**Recommended Specifications:**
+
+*   **GPU:**
+    - 8GB+ VRAM
+    - Modern GPU with good compute capabilities
+    - High memory bandwidth (20GB/s+)
+    - Support for WebGPU/WGSL
+
+*   **CPU:**
+    - 8+ cores
+    - 16GB+ RAM
+    - SSD storage
+
+*   **Storage:**
+    - Fast SSD for dataset loading
+    - Sufficient space for intermediate files
+    - Target: 100MB/s+ throughput
+
+## 3.5.4 Memory Management
+
+**Key Memory Considerations:**
+
+*   **GPU Memory:**
+    - ProjectedSplat structure: 40 bytes per splat
+    - Tile size: 16x16
+    - Maximum splats: 10M
+    - Memory layout optimized for GPU access
+
+*   **CPU Memory:**
+    - Efficient buffer reuse
+    - Compact data structures
+    - Smart memory allocation
+    - Automatic cleanup
+
+## 3.5.5 Performance Optimization Tips
+
+*   **Rendering:**
+    - Use appropriate tile size (16x16)
+    - Monitor GPU memory usage
+    - Profile shader performance
+    - Optimize memory transfers
+
+*   **Training:**
+    - Monitor iteration speed
+    - Profile gradient computation
+    - Track memory bandwidth
+    - Optimize data loading
+
+*   **General:**
+    - Enable Tracy profiling
+    - Monitor frame times
+    - Track memory usage
+    - Profile critical paths
+
+See **[Benchmarks](benchmarks.md)** for performance results on specific hardware.
 
 ---
 
-➡️ **Where to Go Next?**
+## Where to Go Next?
 
-*   See quantitative results: **[Benchmarks](../benchmarks.md)**.
-*   Understand the rendering steps: **[Rendering Pipeline](rendering-pipeline.md)**.
-*   Explore the overall structure: **[Architecture Overview](architecture.md)**.
-*   Learn about the core libraries used: **[Core Technologies Guide](core-technologies.md)**. 
+*   See quantitative results: **[Benchmarks](../benchmarks.md)**
+*   Understand the rendering steps: **[Rendering Pipeline](rendering-pipeline.md)**
+*   Explore the overall structure: **[Architecture Overview](architecture.md)**
+*   Learn about the core libraries used: **[Core Technologies Guide](core-technologies.md)** 

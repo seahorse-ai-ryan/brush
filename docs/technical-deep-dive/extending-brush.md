@@ -4,59 +4,129 @@ Brush is designed with modularity in mind, allowing developers to extend its cor
 
 ## 3.6.1 Contributing to Core Brush
 
-Contributing improvements or new features directly to the Brush open-source project is highly encouraged. Potential areas for contribution include:
+Contributing improvements or new features directly to the Brush open-source project is highly encouraged.
 
-*   Implementing new reconstruction algorithms or variations.
-*   Adding support for different dataset formats or camera models.
-*   Optimizing GPU kernels (`brush-sort`, `brush-render`, etc.).
-*   Improving the UI/UX (`brush-ui`).
-*   Enhancing the training process (`brush-train`).
-*   Adding new export formats.
+**Potential Areas for Contribution:**
+
+*   **Reconstruction Algorithms:**
+    - Implement new optimization strategies in `brush-train`
+    - Add support for different camera models in `brush-dataset`
+    - Enhance Gaussian refinement in `brush-process`
+
+*   **Rendering Optimizations:**
+    - Improve GPU kernels in `brush-sort` and `brush-render`
+    - Optimize memory usage in `brush-render-bwd`
+    - Add new rendering features to `brush-kernel`
+
+*   **UI/UX Improvements:**
+    - Enhance training controls in `brush-ui`
+    - Add new visualization tools
+    - Improve platform-specific UI adaptations
 
 **Key Considerations:**
 
-*   **Architecture:** Familiarize yourself with the **[Architecture Overview](architecture.md)**, particularly the roles of different crates.
-*   **Core Technologies:** Understand how **[Burn](core-technologies.md#343-burn)**, **[wgpu](core-technologies.md#345-wgpu--wgsl)**, and **[egui](core-technologies.md#344-egui--eframe)** are used.
-*   **Contribution Guidelines:** Strictly follow the process outlined in [`CONTRIBUTING.md`](../../CONTRIBUTING.md) regarding code style, testing, branching, and pull requests.
-*   **API Stability:** Consider the impact of changes on existing APIs, especially those likely used by downstream crates or potential external users.
+*   **Architecture:** Familiarize yourself with the **[Architecture Overview](architecture.md)**
+*   **Core Technologies:** Understand how **[Burn](core-technologies.md#343-burn)**, **[wgpu](core-technologies.md#345-wgpu--wgsl)**, and **[egui](core-technologies.md#344-egui--eframe)** are used
+*   **Contribution Guidelines:** Follow the process in **[Contributing Guide](../../CONTRIBUTING.md)**
+*   **API Stability:** Consider impact on existing APIs
 
 ## 3.6.2 Building Custom Applications
 
 The modular nature of Brush allows its crates to be used as libraries in other Rust projects.
 
-**Potential Use Cases:**
+**Example Usage:**
 
-*   **Specialized Viewers:** Create a custom viewer application with specific features not present in the default `brush_app` UI, potentially using a different GUI framework or integrating Brush rendering into a larger application.
-*   **Domain-Specific Tools:** Build tools tailored for specific industries (e.g., cultural heritage, robotics, VFX) that use Brush's reconstruction or rendering capabilities.
-*   **Alternative Front-Ends:** Develop different user interfaces (e.g., a simplified mobile app, a web front-end with different features) that utilize the core Brush libraries (`brush-train`, `brush-render`, `brush-dataset`) for the heavy lifting.
+```rust
+use brush_render::render;
+use brush_dataset::{LoadDataseConfig, ModelConfig};
+use burn::backend::WgpuDevice;
 
-**Using Brush Crates:**
+// Configure dataset loading
+let load_config = LoadDataseConfig {
+    max_frames: None,
+    max_resolution: 1920,
+    eval_split_every: None,
+    subsample_frames: None,
+    subsample_points: None,
+};
 
-1.  Add the desired Brush crates (e.g., `brush-render`, `brush-dataset`) as dependencies in your `Cargo.toml`. You might point to the Git repository directly or a published version if available.
-2.  Interact with the public APIs exposed by these crates. Refer to the **[API Reference](../api-reference.md)** for guidance on generating and navigating the detailed `rustdoc`.
-3.  Note that you will need to manage the setup of `wgpu` and potentially `egui` or `Burn` in your own application if using those components directly.
+// Configure model parameters
+let model_config = ModelConfig {
+    sh_degree: 3,
+};
 
-## 3.6.3 Automation, Scripting, and Services
+// Set up GPU device
+let device = WgpuDevice::default();
+let backend = WgpuRuntime::new(device);
 
-The command-line interface (`brush_cli` or `brush_app` used via CLI arguments) provides a powerful way to integrate Brush into automated workflows.
+// Render configuration
+let render_config = RenderConfig {
+    tile_size: 16,
+    max_splats: 10_000_000,
+    ..Default::default()
+};
 
-**Example Scenarios:**
+// Use Brush components
+let (out_img, aux) = render(
+    means,
+    log_scales,
+    quats,
+    sh_coeffs,
+    opacities,
+    camera,
+    img_size,
+    bwd_info,
+);
+```
 
-*   **Batch Processing:** Write scripts (e.g., shell scripts, Python) to automate the training of multiple datasets sequentially using `brush_app` with appropriate command-line arguments.
-    ```bash
-    # Example pseudo-script
-    for dataset in /path/to/datasets/*; do
-      brush_app --dataset "$dataset" --output "$dataset/output.ply" --total-steps 30000 --save-final
-    done
-    ```
-*   **Cloud Services:** Build a cloud-based 3D reconstruction service where users upload datasets, and backend workers use `brush_app` or its core libraries to process them on GPU instances.
-*   **Integration with Pipelines:** Incorporate Brush reconstruction as a step within larger data processing or content creation pipelines.
+**Common Use Cases:**
 
-**Using the CLI:**
+*   **Custom Viewers:**
+    - Create specialized visualization tools
+    - Integrate with other 3D applications
+    - Build platform-specific viewers
 
-*   Run `brush_app --help` (or `brush --help` if using the dedicated CLI build) to see all available commands and options.
-*   Key commands likely involve specifying input dataset paths (`--dataset`), output file paths (`--output`), training parameters (`--total-steps`, learning rates, etc.), and actions like training (`--train`) or exporting (`--save-final`).
-*   Ensure the environment where the script runs has access to the necessary hardware (GPU) and dependencies.
+*   **Domain-Specific Tools:**
+    - Cultural heritage digitization
+    - Robotics and SLAM
+    - VFX and animation
+
+## 3.6.3 Automation and Services
+
+Brush provides CLI tools for automation and service integration.
+
+**Example Scripts:**
+
+```bash
+# Batch processing example
+for dataset in /path/to/datasets/*; do
+  brush_app --dataset "$dataset" \
+           --output "$dataset/output.ply" \
+           --total-steps 30000 \
+           --save-final
+done
+
+# Service integration example
+brush_app --dataset /path/to/dataset \
+         --output /path/to/output \
+         --train \
+         --no-ui
+```
+
+**Key CLI Options:**
+*   `--dataset`: Input dataset path
+*   `--output`: Output file path
+*   `--total-steps`: Training iterations (default: 30000)
+*   `--train`: Run training
+*   `--no-ui`: Run without GUI
+*   `--max-resolution`: Maximum image resolution (default: 1920)
+*   `--sh-degree`: Spherical harmonics degree (default: 3)
+
+**Performance Considerations:**
+*   GPU memory requirements: ~8GB VRAM
+*   Training speed: 10-20 iterations/second
+*   Rendering target: 60+ FPS
+*   Memory bandwidth: 20GB/s+ for GPU operations
 
 ---
 
@@ -64,5 +134,5 @@ The command-line interface (`brush_cli` or `brush_app` used via CLI arguments) p
 
 *   Dive into the code structure: **[Architecture Overview](architecture.md)**.
 *   See the detailed API structure: **[API Reference](../api-reference.md)**.
-*   Find contribution rules: **[`CONTRIBUTING.md`](../../CONTRIBUTING.md)**.
+*   Find contribution rules: **[CONTRIBUTING](../../CONTRIBUTING.md)**.
 *   Ready to set up your dev environment? **[Developer Guide](../getting-started/developer-guide.md)**. 
