@@ -4,36 +4,80 @@ This section provides information on how to access documentation for Brush's cod
 
 ## 4.1 Key Public APIs
 
-Understanding Brush's library APIs is essential if you plan to contribute directly to the codebase or use its components as libraries within your own Rust applications, as described in the **[Extending Brush](technical-deep-dive/extending-brush.md)** guide. While the `rustdoc` generated in the next section is the definitive source for API structure, some key crates developers frequently interact with include:
+Understanding Brush's library APIs is essential if you plan to contribute directly to the codebase or use its components as libraries within your own Rust applications. The codebase is organized into several key crates:
 
-*   **`brush_app`:** The main graphical application logic and entry point.
-*   **`brush_train`:** Core training loop, model definition (using Burn), and optimization logic.
-*   **`brush_render`:** Forward rendering pipeline implementation.
-*   **`brush_dataset`:** Data loading and representation structures.
-*   **`brush_cli`:** Argument parsing and command handling for the CLI.
+### Core Functionality
+*   **`brush_app`:** The main graphical application logic and entry point
+    * Handles UI initialization and event loop
+    * Manages the application state and panel system
+*   **`brush_train`:** Core training loop and optimization
+    * Implements the training configuration and parameters
+    * Provides the Adam optimizer with custom scaling
+*   **`brush_render`:** Forward rendering pipeline implementation
+    * GPU kernel management and WebGPU integration
+    * Gaussian splat rendering algorithms
+*   **`brush_dataset`:** Data loading and representation
+    * Handles various dataset formats and import/export
+    * Manages scene and camera data structures
 
-Navigating the `rustdoc` is the best way to explore the specific functions, structs, traits, and modules available within these and other crates.
+### Platform-Specific
+*   **`brush_android`:** Android platform integration
+    * Uses winit with android-game-activity
+    * Provides Android-specific logging and file handling
+*   **`brush_ui`:** Cross-platform UI components
+    * WebGPU configuration and device setup
+    * Shared UI elements and panels
 
-## 4.2 Generating `rustdoc` Documentation
+### Utility Crates
+*   **`brush_wgsl`:** WGSL shader compilation and management
+*   **`brush_prefix_sum`:** GPU-accelerated prefix sum operations
+*   **`brush_sort`:** Sorting algorithms for GPU data
+*   **`brush_cli`:** Command-line interface and argument parsing
+
+## 4.2 Feature Flags
+
+The codebase includes several optional features that affect API availability.
+
+Features available in brush-app:
+```rust
+tracy = ["tracing", "dep:tracing-tracy"]
+tracing = ["tracing-subscriber"]
+```
+The `tracy` feature enables performance tracing integration, while `tracing` enables debug logging with tracing-subscriber.
+
+Features available in brush-render:
+```rust
+debug_validation = []
+```
+Enables additional validation checks during rendering.
+
+## 4.3 Generating Documentation
 
 The most comprehensive and accurate low-level API reference is the documentation generated directly from the Rust source code comments using `rustdoc`.
 
-> Note: `rustdoc` is the standard Rust tool for generating detailed API documentation directly from comments in the source code (`.rs` files). Running the command below will generate HTML documentation outlining the structure of Brush's public library API (modules, functions, structs, etc.), which is essential if you plan to use Brush crates as libraries. However, please be aware that detailed explanations and examples within the generated `rustdoc` may currently be limited due to sparse documentation comments in the source code. For a conceptual understanding of the components, please refer to the relevant guides in the `/docs/technical-deep-dive/` directory.
-
-Run the following command from the root of the repository to generate and open the documentation for all workspace crates (excluding external dependencies):
-
+To generate documentation for all workspace crates (excluding dependencies) and view it in your browser:
 ```bash
-# Ensure you are in the root directory of the brush repository
 cargo doc --workspace --no-deps --open
 ```
 
-This command will build the HTML documentation and attempt to open it in your default web browser. The output will typically be located in the `target/doc/` directory.
+For development purposes, you can also generate documentation including private items:
+```bash
+cargo doc --workspace --no-deps --document-private-items
+```
+
+The documentation will be generated in `target/doc/` and includes:
+- Public API interfaces and types
+- Module structure and relationships
+- Feature flag documentation
+- Platform-specific functionality
+
+Note: While the API structure is complete, some implementation details may have limited documentation. We encourage contributions to improve documentation coverage. The codebase is verified with `cargo doc` in CI to ensure documentation builds successfully.
 
 ---
 
-## 4.3 Where to Go Next?
+## Where to Go Next
 
-*   See the overall structure: **[Architecture Overview](technical-deep-dive/architecture.md)**.
-*   Understand the reconstruction process: **[Reconstruction Pipeline](technical-deep-dive/reconstruction-pipeline.md)**.
-*   Learn about the rendering algorithm: **[Gaussian Splat Rendering](technical-deep-dive/rendering-pipeline.md)**.
-*   Get started as a developer: **[Developer Guide](getting-started/developer-guide.md)**. 
+*   See the overall structure: **[Architecture Overview](technical-deep-dive/architecture.md)**
+*   Understand the reconstruction process: **[Reconstruction Pipeline](technical-deep-dive/reconstruction-pipeline.md)**
+*   Learn about the rendering algorithm: **[Gaussian Splat Rendering](technical-deep-dive/rendering-pipeline.md)**
+*   Get started as a developer: **[Developer Guide](getting-started/developer-guide.md)** 

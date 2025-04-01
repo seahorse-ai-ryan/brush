@@ -2,8 +2,20 @@
 
 This guide helps end-users install and use the Brush Graphical User Interface (UI).
 
-![Brush Desktop UI (macOS)](../media/Brush_Mac_launch_screen.png)
-*The main interface of the Brush desktop application.* 
+**Contents:**
+- [Installation](#211-installation)
+  - [Desktop](#desktop)
+  - [Web (WASM)](#web-wasm)
+  - [Android](#android)
+- [Prerequisites for Workflows](#212-prerequisites-for-workflows)
+- [Core UI Workflows](#213-core-ui-workflows)
+  - [Train a Scene](#workflow-1-train-a-scene)
+  - [Export Trained Scene](#workflow-2-export-trained-scene)
+  - [View Pre-trained Scene](#workflow-3-view-pre-trained-scene)
+- [Using the Command Line Interface](#214-using-the-command-line-interface-cli)
+- [Hardware & Software Requirements](#215-hardware--software-requirements)
+
+
 
 **Quick Start:** Want to see Brush in action right away? See the **[Web (WASM) Installation section](#web-wasm)** below for links to the live demo and example scenes.
 
@@ -11,6 +23,8 @@ This guide helps end-users install and use the Brush Graphical User Interface (U
 
 Brush can be run on Desktop (macOS, Windows, Linux), Android, and the Web.
 
+![Brush Launch Screen](../media/Brush_Mac_client_launch_screen.png)
+*Initial Brush screen when launching the Mac desktop client.* 
 ### Desktop
 
 *   **Pre-built Binaries (Recommended):** The easiest way to install Brush on the desktop is to download a pre-built binary for your operating system.
@@ -65,13 +79,13 @@ Before starting the workflows below, ensure you have:
 ## 2.1.3 Core UI Workflows
 
 This section outlines the main tasks performed using the Brush UI:
-1. [Train a Scene](#workflow-1-train-a-scene)
-2. [Export Trained Scene](#workflow-2-export-trained-scene)
-3. [View Pre-trained Scene](#workflow-3-view-pre-trained-scene)
 
 ### Workflow 1: Train a Scene
 
 This workflow involves loading a dataset and training the Gaussian Splatting model.
+
+![Training Room Scene](../media/Brush_training_room_scene.png)
+*Desktop client running on a Macbook showing training in progress on the "room" dataset.*
 
 1.  **Load Dataset:**
     *   Go to the **Settings** panel (see **[UI Overview](ui-overview.md#settings-panel)** for details).
@@ -96,21 +110,38 @@ Once training is complete or has reached a satisfactory state, you can save the 
 
 ### Workflow 3: View Pre-trained Scene
 
-This workflow focuses on loading and viewing an existing `.ply` Gaussian Splat file.
+This workflow focuses on loading and viewing an existing `.ply` Gaussian Splat file. There are two ways to load a pre-trained scene:
 
-1.  **Load PLY:**
+1.  **Load PLY File:**
     *   Go to the **Settings** panel.
-    *   Use the `Load file` button to select a local `.ply` file, OR paste a direct URL (like the examples in the Prerequisites section) to a `.ply` file and click `Load URL`.
-2.  **View and Navigate:**
-    *   The loaded scene will appear in the **Scene** panel.
-    *   Use the mouse and keyboard controls (detailed in the **[UI Overview](ui-overview.md#scene-panel)**) to navigate the 3D scene.
-3.  **Check Stats:**
-    *   The **Stats** panel will display information about the loaded model, such as the total `Splats` count, `SH Degree`, `Frames` (if animated), and GPU memory usage/info.
+    *   Either:
+        *   Use the `Load file` button to select a local `.ply` file, OR
+        *   Paste a direct URL to a `.ply` file and click `Load URL`.
+    *   The scene will load and appear in the **Scene** panel.
 
-> [!NOTE]
-> Settings panel options (like training steps, max splats, etc.) are generally not applicable when just viewing a pre-trained PLY file.
+2.  **Direct URL Loading (Web Demo):**
+    *   For quick sharing or embedding, you can link directly to the web demo with a scene:
+        ```
+        https://arthurbrussee.github.io/brush-demo/?url=<URL_TO_PLY_FILE>
+        ```
+    *   Optional parameters:
+        *   `focal=<FLOAT>`: Sets an initial focal length override
+        *   `zen=true`: Launches in "Zen Mode" with UI panels minimized
 
-## 2.1.4 Using the Command Line Interface (`brush_app`)
+    For example, view the [Garden Scene directly](https://arthurbrussee.github.io/brush-demo/?url=https://f005.backblazeb2.com/file/brush-splats-bakfiets/garden.ply&focal=1.0&zen=true).
+
+![Brush Web Demo with Direct URL Load in Zen Mode](../media/Brush_wed_PLY_URL_zenmode_true.png)
+*Brush web demo loading the garden scene directly from a URL with Zen mode enabled.* 
+
+**Viewing the Scene:**
+The loaded scene appears in the **Scene** panel where you can navigate using standard 3D controls (see **[UI Overview](ui-overview.md#scene-panel)** for details).
+
+**Panel States:**
+*   The **Dataset** panel will be empty since there are no source images for a pre-trained scene
+*   The **Stats** panel shows `Splats` count, `SH Degree`, and `Frames` (if animated)
+*   The **Settings** panel options do not affect pre-trained scene viewing
+
+## 2.1.4 Using the Command Line Interface (CLI)
 
 While this guide focuses on the UI, Brush also offers a command-line interface via the `brush_app` executable (or a dedicated `brush` executable if built with `-p brush-cli`). Running `brush_app` from the command line performs the core operations headlessly, but the optional `--with-viewer` flag launches the separate UI application to visualize the process controlled by the CLI.
 
@@ -157,21 +188,7 @@ For more advanced CLI usage and automation, refer to the help output and the **[
 > [!IMPORTANT]
 > Chrome 131+ is recommended as of early 2025. Firefox/Safari support may vary. Check [Can I use WebGPU?](https://caniuse.com/webgpu).
 
-#### Direct URL Loading (Web Demo)
 
-You can link directly to the web demo and have it automatically load a `.ply` file from a URL by appending query parameters:
-
-*   `?url=<URL_TO_PLY_FILE>`: Specifies the `.ply` file to load.
-*   `?focal=<FLOAT>`: (Optional) Sets an initial focal length override.
-*   `?zen=true`: (Optional) Launches in "Zen Mode" with UI panels minimized.
-
-For example, you can view the [Garden Scene directly](https://arthurbrussee.github.io/brush-demo/?url=https://f005.backblazeb2.com/file/brush-splats-bakfiets/garden.ply&focal=1.0&zen=true). The full URL used for this example, which you can also paste into the URL field in the Settings panel, is:
-```
-https://arthurbrussee.github.io/brush-demo/?url=https://f005.backblazeb2.com/file/brush-splats-bakfiets/garden.ply&focal=1.0&zen=true
-```
-
-![Brush Web Demo with Direct URL Load in Zen Mode](../media/Brush_wed_PLY_URL_zenmode_true.png)
-*Brush web demo loading the garden scene directly from a URL with Zen mode enabled.* 
 
 ---
 
