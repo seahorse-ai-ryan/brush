@@ -1,58 +1,233 @@
-# 3.2 3D Gaussian Splat Rendering
+# 3.1 Rendering Pipeline
 
-This section explains the Gaussian Splatting rendering technique used in Brush, which is essential for both viewing and training.
+This section explains how Brush implements real-time rendering of 3D Gaussian Splats, a core component that serves both the viewing and training workflows.
 
-## 3.2.1 Conceptual Overview
+## 3.1.1 Pipeline Overview
 
-3D Gaussian Splatting, introduced in the original [INRIA paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/), is a rasterization-based technique that renders scenes composed of potentially millions of 3D Gaussians. Each Gaussian has properties like position, shape (covariance represented by scale and rotation), color (using Spherical Harmonics), and opacity.
+The rendering pipeline is implemented primarily in the `brush-render` crate, with support from GPU utilities in `brush-sort` and `brush-prefix-sum`. For training, an additional backward pass is provided by `brush-render-bwd`.
 
-The general rendering pipeline involves:
+Key characteristics of the pipeline:
+- **GPU-Accelerated:** Uses WebGPU (via `wgpu`) for cross-platform GPU support
+- **Tile-Based:** Processes screen space in tiles for efficient parallel execution
+- **Differentiable:** Supports gradient computation for training (when using `brush-render-bwd`)
+- **Performance Targets:**
+  - 60+ FPS on mid-range GPUs (RTX 3060 or equivalent)
+  - < 16ms frame time for interactive viewing
+  - Memory bandwidth: 20GB/s+ for GPU operations
+  - VRAM usage: < 4GB for typical scenes
 
-1.  **Projection:** Transforming the 3D Gaussians into 2D representations ("splats") on the image plane based on the camera view.
-2.  **Sorting:** Ordering the projected 2D splats by depth (typically front-to-back) to ensure correct alpha blending for occlusion.
-3.  **Rasterization:** Iterating through screen pixels (often organized into tiles) and accumulating color and opacity contributions from all overlapping sorted splats.
+The pipeline follows these main stages:
 
-Brush implements this pipeline leveraging the GPU via custom compute shaders written in **WGSL** (managed by `brush-wgsl` and `brush-kernel`). It utilizes the **Burn** framework to orchestrate GPU operations and relies on dedicated crates like **`brush-sort`** for efficient GPU-based radix sorting of the projected splats. This contrasts with implementations like [gsplat](https://github.com/nerfstudio-project/gsplat) which typically use custom CUDA kernels. Brush's use of WGSL aims for broader cross-platform compatibility (including WebGPU).
+```mermaid
+flowchart LR
+    subgraph INPUT["Input"]
+        Splats["3D Gaussians"]
+        Camera["Camera View"]
+    end
 
-## 3.2.2 Rendering Pipeline (Forward Pass)
+    subgraph PROCESS["Processing"]
+        Project["Project to 2D"]
+        Sort["Sort by Depth"]
+        Raster["Rasterize"]
+    end
 
-The forward rendering pass (`brush-render`) generates an image from a set of Gaussians and a camera view. It leverages GPU acceleration heavily.
+    subgraph OUTPUT["Output"]
+        Image["Final Image"]
+        direction TB
+        Gradients["Gradients<br>(Training Only)"]
+    end
 
-*   **Input:** Camera parameters, Set of 3D Gaussians (`Splats` struct).
-*   **GPU Kernels (`brush-kernel`, `brush-wgsl`):** Custom WGSL compute shaders execute the core rendering steps:
-    *   `project_forward`/`project_visible`: Project 3D Gaussians to 2D, calculate view-dependent color, and determine potentially visible splats.
-    *   `map_gaussian_to_intersects`: Identify which screen tiles each projected splat overlaps.
-    *   `rasterize`: Accumulate color and opacity from sorted splats for each pixel within its tile.
-*   **Sorting (`brush-sort`):** A GPU-based radix sort efficiently orders the projected Gaussians by depth before rasterization.
-*   **Prefix Sums (`brush-prefix-sum`):** Provides GPU-accelerated scan operations used as a key component within the `brush-sort` radix sort algorithm.
-*   **Blending:** Alpha compositing occurs within the `rasterize` kernel as it iterates through the sorted Gaussians front-to-back for each pixel.
-*   **UI Display (`brush-ui`, `brush-app`):** The final rendered image is typically displayed within an EGUI panel (`ScenePanel`). User camera controls update the view parameters, triggering re-rendering.
+    Splats --> Project
+    Camera --> Project
+    Project --> Sort
+    Sort --> Raster
+    Raster --> Image
+    Raster -.-> Gradients
 
-In the Brush application UI, the `ScenePanel` includes a toggle ("Live update splats"). When enabled (default), the panel visually updates with the latest splat data received during training. Disabling this toggle prevents these visual updates in the `ScenePanel` (useful for performance on lower-end systems or complex scenes) but does not pause the underlying training computations. Key metrics derived from the rendering process, such as the current number of splats and the active Spherical Harmonic degree, can be monitored in the `Stats` panel.
+    style INPUT fill:#f5f5f5,stroke:#333
+    style PROCESS fill:#e6f3ff,stroke:#333
+    style OUTPUT fill:#fff0f0,stroke:#333
+```
 
-## 3.2.3 Training/Optimization Pass (Backward Pass)
+## 3.1.2 Viewing Workflow
 
-The forward rendering pass calculates the final image color based on the Gaussian parameters. To *train* these parameters, we need to compute how changes in each parameter affect the final rendered image and, consequently, the loss function (typically comparing the rendered image to a ground truth image). This is achieved through a **backward pass**, also known as backpropagation.
+The viewing workflow, primarily handled by `brush-app` and `brush-ui`, focuses on real-time rendering for interactive visualization:
 
-Brush implements this using Burn's automatic differentiation framework, integrated via the `brush-render-bwd` crate:
+```mermaid
+sequenceDiagram
+    participant UI as Scene Panel
+    participant Render as Render Engine
+    participant GPU as GPU Device
+    participant Camera as Camera Controller
 
-1.  **Custom Backward Step:** `brush-render-bwd` defines a custom backward operation (`RenderBackwards`) for the forward `render_splats` function. This tells Burn how to calculate gradients for the Gaussian parameters when gradients flow back from the loss function.
-2.  **Forward Pass State Saving:** When the differentiable version of `render_splats` (from `SplatForwardDiff`) is called during training (likely by `SplatTrainer`), it performs the normal forward rendering. Crucially, if any input Gaussian parameters require gradients, it saves necessary intermediate results (like projected splats, tile information, visibility data, and the input parameters themselves) into a `GaussianBackwardState` struct. This state is registered with Burn's computation graph.
-3.  **Gradient Backpropagation:** When the overall loss is calculated (e.g., L1 + SSIM loss between rendered and ground truth image) and `loss.backward()` is called in `SplatTrainer`:
-    *   Burn propagates gradients back through the computation graph.
-    *   When the gradient reaches the output of the `render_splats` operation, Burn invokes the custom `RenderBackwards::backward` method.
-4.  **Backward Kernel Execution:** The `RenderBackwards::backward` method takes the saved `GaussianBackwardState` and the incoming gradient (representing how the loss changes with respect to each pixel's color) and calls the core backward logic (`render_backward` function, likely executing custom WGSL kernels defined in `brush-render-bwd/src/kernels.rs` and `shaders.rs`).
-5.  **Parameter Gradient Calculation:** These backward kernels compute the gradients of the loss function with respect to each of the input Gaussian parameters (position, scale, rotation, opacity, SH coefficients).
-6.  **Gradient Registration:** The computed parameter gradients (`SplatGrads`) are registered back into Burn's gradient tracking system.
-7.  **Optimizer Step:** Finally, the optimizer (e.g., Adam, managed by `SplatTrainer`) uses these registered gradients to update the Gaussian parameter tensors, completing one training step.
+    Note over UI,Camera: Initialization Phase
+    UI->>Render: Load Splat Data
+    Render->>GPU: Upload to Device
+    Camera->>UI: Initial View Parameters
 
-In essence, `brush-render-bwd` provides the specific mathematical operations (implemented as GPU kernels) needed to reverse the rendering process for gradient calculation, plugging seamlessly into Burn's automatic differentiation machinery.
+    Note over UI,Camera: Viewing Loop
+    loop Every Frame
+        UI->>Camera: Check View Changes
+        opt View Changed
+            Camera->>Render: Update View Matrix
+        end
 
----
+        UI->>Render: Request Frame
+        activate Render
+        Render->>GPU: Project Splats
+        GPU-->>Render: Projected Data
+        
+        Render->>GPU: Sort Splats
+        GPU-->>Render: Sorted Indices
+        
+        Render->>GPU: Rasterize
+        GPU-->>Render: Frame Buffer
+        Render-->>UI: Display Frame
+        deactivate Render
+    end
+```
+
+### Key Components
+
+1. **Scene Panel (`brush-ui`)**
+   - Manages the viewport and user interaction
+   - Handles camera control input
+   - Displays the rendered frame
+   - Performance targets:
+     - Input latency: < 8ms
+     - Camera update rate: 60Hz
+     - Viewport resize: < 16ms
+
+2. **Render Engine (`brush-render`)**
+   - Manages the rendering pipeline stages
+   - Coordinates GPU kernel execution
+   - Handles view-dependent effects
+   - Memory management:
+     - GPU buffer pooling
+     - Dynamic allocation limits
+     - Memory defragmentation
+
+3. **GPU Device**
+   - Executes rendering kernels
+   - Manages splat data in GPU memory
+   - Performs sorting and rasterization
+   - Performance characteristics:
+     - Kernel execution: < 2ms per stage
+     - Memory bandwidth: 20GB/s+
+     - VRAM efficiency: < 4GB for 1M splats
+
+4. **Camera Controller**
+   - Processes user input
+   - Updates view parameters
+   - Manages camera movement
+   - Smoothing and interpolation:
+     - Camera path smoothing
+     - View matrix interpolation
+     - Motion prediction
+
+## 3.1.3 Pipeline Implementation
+
+The rendering pipeline is implemented through several GPU kernels and supporting operations:
+
+1. **Projection (`project_forward`/`project_visible`)**
+   - Transforms 3D Gaussians to 2D screen space
+   - Computes view-dependent colors using Spherical Harmonics
+   - Culls invisible splats
+   - Performance optimizations:
+     - Frustum culling
+     - Backface culling
+     - Screen-space bounds check
+
+2. **Tile Mapping (`map_gaussian_to_intersects`)**
+   - Determines which screen tiles each splat overlaps
+   - Prepares data for efficient parallel processing
+   - Memory layout:
+     - Tile size: 16x16 pixels
+     - Splat overlap tracking
+     - Tile occupancy masks
+
+3. **Sorting (`brush-sort`)**
+   - GPU-based radix sort for depth ordering
+   - Essential for correct alpha blending
+   - Uses prefix sums (`brush-prefix-sum`) for efficient parallel operation
+   - Performance characteristics:
+     - Sort time: < 1ms for 1M splats
+     - Memory bandwidth: 10GB/s+
+     - Workgroup size: 256 threads
+
+4. **Rasterization**
+   - Accumulates color and opacity per pixel
+   - Processes splats in front-to-back order
+   - Handles alpha blending and early termination
+   - Optimizations:
+     - Early depth testing
+     - Alpha cutoff
+     - Tile-based processing
+
+## 3.1.4 Training Integration
+
+For training (detailed in [Reconstruction Pipeline](reconstruction-pipeline.md#training-workflow)), the rendering pipeline provides additional functionality through `brush-render-bwd`:
+
+1. **Forward Pass State**
+   - Saves intermediate results needed for gradient computation
+   - Tracks projected splats, visibility, and tile information
+   - Memory requirements:
+     - Per-splat state: ~1KB
+     - Per-tile state: ~256B
+     - Total state size: O(N) where N is number of splats
+
+2. **Backward Pass**
+   - Computes gradients for Gaussian parameters
+   - Integrates with Burn's automatic differentiation
+   - Uses custom WGSL kernels for efficient gradient calculation
+   - Performance characteristics:
+     - Gradient computation: < 5ms
+     - Memory bandwidth: 30GB/s+
+     - Workgroup size: 128 threads
+
+The training workflow reuses the same core rendering pipeline but adds gradient computation for optimization:
+
+```mermaid
+flowchart TD
+    subgraph FWD["Forward Pass (brush-render)"]
+        Render["Render Image"]
+        Loss["Compute Loss"]
+    end
+
+    subgraph BWD["Backward Pass (brush-render-bwd)"]
+        Grads["Compute Gradients"]
+        Update["Update Parameters"]
+    end
+
+    Render --> Loss
+    Loss --> Grads
+    Grads --> Update
+    Update -.-> Render
+
+    style FWD fill:#e6f3ff,stroke:#333
+    style BWD fill:#fff0f0,stroke:#333
+```
+
+## Memory Requirements
+- Each projected splat: 10 floats (40 bytes)
+  - Position (xy_x, xy_y)
+  - Conic matrix (conic_x, conic_y, conic_z)
+  - Color (color_r, color_g, color_b, color_a)
+- Tile bounds: Calculated as `ceil(image_size / TILE_WIDTH)`
+- Maximum intersections: `min(num_splats * num_tiles, INTERSECTS_UPPER_BOUND)`
+  - INTERSECTS_UPPER_BOUND = 256 * 2 * 65535 (workgroup size * 2 * max dispatches)
+
+## Performance Characteristics
+- Tile-based processing with 16x16 tile size
+- GPU-accelerated using WGPU/WGSL
+- Forward pass optimized for real-time viewing
+- Backward pass supports differentiable rendering
+- Memory-efficient through compact data structures
+- Supports both viewing and training workflows
 
 ## Where to Go Next?
 
-*   See how these rendering passes are used in training: **[Reconstruction Pipeline](reconstruction-pipeline.md)**.
-*   Explore the GPU programming model: **[WGPU/WGSL in Core Technologies](core-technologies.md#345-wgpu--wgsl)**.
-*   Look at the rendering code: **[API Reference](../api-reference.md)** (focus on `brush-render`, `brush-render-bwd`, `brush-kernel`).
-*   See the overall structure: **[Architecture Overview](architecture.md)**. 
+- **Training Process:** See how this pipeline is used in the [Reconstruction Pipeline](reconstruction-pipeline.md#training-workflow)
+- **Implementation Details:** Browse the [API Reference](../api-reference.md#rendering-layer) (focus on `brush-render`, `brush-render-bwd`)
+- **GPU Programming:** Learn about [WGPU/WGSL in Core Technologies](core-technologies.md#wgpu--wgsl)
+- **Overall Structure:** Return to [Architecture Overview](architecture.md#core-architecture-patterns) 

@@ -65,7 +65,7 @@ Once the environment is set up, you can build Brush from the root directory of t
     * A browser with WebGPU support and the MAPPABLE_PRIMARY_BUFFERS feature
     * Firefox users may need to enable WebGPU manually by setting `dom.webgpu.enabled` in `about:config`
     
-    ![Brush Web UI Experimental Note](../media/Brush_web_Scene_panel_nothing_loaded_yet.png)
+    ![Brush Web UI Experimental Note|width=50%](../media/Brush_web_Scene_panel_nothing_loaded_yet.png)
     *The web UI notes its experimental status. Due to WebGPU limitations, performance and features may differ from desktop.*
 *   **Command-Line Interface (CLI only):**
     *   Build the CLI executable: `cargo build --release -p brush-cli`
