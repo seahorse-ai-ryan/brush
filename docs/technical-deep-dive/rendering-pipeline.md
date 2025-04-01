@@ -1,8 +1,8 @@
-# 3.3. 3D Gaussian Splat Rendering
+# 3.2 3D Gaussian Splat Rendering
 
 This section explains the Gaussian Splatting rendering technique used in Brush, which is essential for both viewing and training.
 
-## 3.3.1. Conceptual Overview
+## 3.2.1 Conceptual Overview
 
 3D Gaussian Splatting, introduced in the original [INRIA paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/), is a rasterization-based technique that renders scenes composed of potentially millions of 3D Gaussians. Each Gaussian has properties like position, shape (covariance represented by scale and rotation), color (using Spherical Harmonics), and opacity.
 
@@ -14,7 +14,7 @@ The general rendering pipeline involves:
 
 Brush implements this pipeline leveraging the GPU via custom compute shaders written in **WGSL** (managed by `brush-wgsl` and `brush-kernel`). It utilizes the **Burn** framework to orchestrate GPU operations and relies on dedicated crates like **`brush-sort`** for efficient GPU-based radix sorting of the projected splats. This contrasts with implementations like [gsplat](https://github.com/nerfstudio-project/gsplat) which typically use custom CUDA kernels. Brush's use of WGSL aims for broader cross-platform compatibility (including WebGPU).
 
-## 3.3.2. Rendering Pipeline (Forward Pass)
+## 3.2.2 Rendering Pipeline (Forward Pass)
 
 The forward rendering pass (`brush-render`) generates an image from a set of Gaussians and a camera view. It leverages GPU acceleration heavily.
 
@@ -30,7 +30,7 @@ The forward rendering pass (`brush-render`) generates an image from a set of Gau
 
 In the Brush application UI, the `ScenePanel` includes a toggle ("Live update splats"). When enabled (default), the panel visually updates with the latest splat data received during training. Disabling this toggle prevents these visual updates in the `ScenePanel` (useful for performance on lower-end systems or complex scenes) but does not pause the underlying training computations. Key metrics derived from the rendering process, such as the current number of splats and the active Spherical Harmonic degree, can be monitored in the `Stats` panel.
 
-## 3.3.3. Training/Optimization Pass (Backward Pass)
+## 3.2.3 Training/Optimization Pass (Backward Pass)
 
 The forward rendering pass calculates the final image color based on the Gaussian parameters. To *train* these parameters, we need to compute how changes in each parameter affect the final rendered image and, consequently, the loss function (typically comparing the rendered image to a ground truth image). This is achieved through a **backward pass**, also known as backpropagation.
 

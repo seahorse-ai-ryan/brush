@@ -1,8 +1,8 @@
-# 3.1. Architecture Overview
+# 3.1 Architecture Overview
 
 This section describes the overall structure of the Brush codebase.
 
-## 3.1.1. Project Structure
+## 3.1.1 Project Structure
 
 Brush is organized as a [Rust Workspace](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html), a standard Cargo feature for managing multiple related packages within a single project structure. The root directory contains several key configuration and informational files:
 
@@ -17,7 +17,7 @@ Brush is organized as a [Rust Workspace](https://doc.rust-lang.org/book/ch14-03-
 
 The core source code is organized into multiple interconnected crates located within the **`crates/`** directory. This modular approach promotes code reuse and separation of concerns. The specific roles of these crates are detailed in the next section.
 
-## 3.1.2. Crate Breakdown
+## 3.1.2 Crate Breakdown
 
 Brush is composed of several specialized crates, each handling a specific part of the functionality:
 
@@ -39,7 +39,7 @@ Brush is composed of several specialized crates, each handling a specific part o
 *   **`sync-span`**: A small utility crate integrating with the `tracing` ecosystem. It provides a `tracing` layer (`SyncLayer`) that can automatically synchronize a Burn backend (e.g., wait for GPU operations to complete) when specific tracing spans are closed, useful for accurate performance profiling.
 *   **`rrfd`**: Provides a cross-platform abstraction for native file dialogs (open file, save file, pick directory). Uses `rfd` on desktop/web and custom JNI calls on Android, allowing crates like `brush-app` to request file operations in a platform-agnostic way.
 
-## 3.1.3. Data Flow
+## 3.1.3 Data Flow
 
 *   **Input:** User provides data via UI (file load, URL, preset) or CLI arguments (path, URL).
 *   **Loading:** `brush-app` or `brush-cli` uses `brush-process` which leverages `brush-dataset` (and `brush_vfs`) to parse COLMAP/Nerfstudio formats, load images, and potentially initial splats.
@@ -120,7 +120,7 @@ graph TD
 
 *(Note: This diagram simplifies interactions. For example, `brush-app` orchestrates many calls between these components.)*
 
-## 3.1.4. Cross-Platform Strategy
+## 3.1.4 Cross-Platform Strategy
 
 Brush achieves its wide platform support (Desktop, Web, Android) primarily through:
 

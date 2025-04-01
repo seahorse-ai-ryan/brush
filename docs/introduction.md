@@ -2,7 +2,7 @@
 
 This section provides a high-level overview of the Brush project.
 
-## 1.1. Project Overview
+## 1.1 Project Overview
 
 Brush is an open-source 3D reconstruction engine built with Rust, leveraging the power of **[3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/)**. Its core purpose is to create 3D scenes from posed image data.
 
@@ -23,7 +23,7 @@ Brush supports several input data formats:
 *   ZIP archives containing datasets (required for web training).
 *   ZIP archives or specialized `.ply` files containing sequences of splats for animation viewing.
 
-## 1.1a. Why Brush?
+## 1.2 Why Brush?
 
 Machine learning for real-time rendering holds immense potential, but most standard ML tools present challenges:
 *   **Real-time Interactivity:** Traditional frameworks aren't always optimized for the demands of interactive rendering.
@@ -32,14 +32,14 @@ Machine learning for real-time rendering holds immense potential, but most stand
 
 Often, this necessitates separate applications for training and inference. Brush, written in Rust using `wgpu` and `burn`, aims to overcome these hurdles. It produces simpler, dependency-free binaries, runs on a wide array of devices (including web and mobile), requires minimal setup, and integrates training and viewing.
 
-## 1.2. Target Audience
+## 1.3 Target Audience
 
 Brush is designed for:
 
 *   **Developers:** Individuals looking to contribute to the Brush codebase, integrate its features into other applications, or understand its implementation details.
 *   **Researchers:** Academics and practitioners interested in using Brush for 3D reconstruction experiments, exploring its underlying algorithms (like Gaussian Splatting), or extending its capabilities.
 
-## 1.3. Key Features
+## 1.4 Key Features
 
 Brush offers a range of features for both training and viewing 3D Gaussian Splat scenes:
 
@@ -51,9 +51,9 @@ Brush offers a range of features for both training and viewing 3D Gaussian Splat
 *   **Command-Line Interface (CLI):** Perform training and other operations via the `brush-cli` crate, optionally launching the UI alongside (`--with-viewer`) for debugging.
 *   **Rerun Integration:** Visualize additional training data and metrics using the [Rerun](https://rerun.io/) visualization tool (requires separate installation).
 
-## 1.4. High-Level Architecture
+## 1.5 High-Level Architecture
 
-*(A diagram showing the relationship between key crates like `brush-app`, `brush-process`, `brush-train`, `brush-render`, and `brush-dataset` can be found in the [Architecture Deep Dive](../technical-deep-dive/architecture.md#313-data-flow). This diagram provides a visual overview but may be simplified.)*
+*(A diagram showing the relationship between key crates like `brush-app`, `brush-process`, `brush-train`, `brush-render`, and `brush-dataset` can be found in the [Architecture Deep Dive](technical-deep-dive/architecture.md#313-data-flow). This diagram provides a visual overview but may be simplified.)*
 
 ---
 

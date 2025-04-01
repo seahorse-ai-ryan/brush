@@ -1,4 +1,4 @@
-# Benchmarks
+# 6. Benchmarks
 
 This page contains performance benchmark results for Brush, comparing it against other Gaussian Splatting implementations on standard datasets. These results may change as the project evolves.
 

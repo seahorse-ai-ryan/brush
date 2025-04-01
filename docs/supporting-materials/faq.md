@@ -1,4 +1,4 @@
-# 5.1. FAQ
+# 5.1 FAQ
 
 Frequently Asked Questions about Brush.
 

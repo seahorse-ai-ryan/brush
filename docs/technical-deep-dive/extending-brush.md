@@ -1,8 +1,8 @@
-# 3.y Extending Brush
+# 3.6 Extending Brush
 
 Brush is designed with modularity in mind, allowing developers to extend its core functionality or leverage its components to build new applications and workflows.
 
-## 3.y.1 Contributing to Core Brush
+## 3.6.1 Contributing to Core Brush
 
 Contributing improvements or new features directly to the Brush open-source project is highly encouraged. Potential areas for contribution include:
 
@@ -20,7 +20,7 @@ Contributing improvements or new features directly to the Brush open-source proj
 *   **Contribution Guidelines:** Strictly follow the process outlined in [`CONTRIBUTING.md`](../../CONTRIBUTING.md) regarding code style, testing, branching, and pull requests.
 *   **API Stability:** Consider the impact of changes on existing APIs, especially those likely used by downstream crates or potential external users.
 
-## 3.y.2 Building Custom Applications
+## 3.6.2 Building Custom Applications
 
 The modular nature of Brush allows its crates to be used as libraries in other Rust projects.
 
@@ -36,7 +36,7 @@ The modular nature of Brush allows its crates to be used as libraries in other R
 2.  Interact with the public APIs exposed by these crates. Refer to the **[API Reference](../api-reference.md)** for guidance on generating and navigating the detailed `rustdoc`.
 3.  Note that you will need to manage the setup of `wgpu` and potentially `egui` or `Burn` in your own application if using those components directly.
 
-## 3.y.3 Automation, Scripting, and Services
+## 3.6.3 Automation, Scripting, and Services
 
 The command-line interface (`brush_cli` or `brush_app` used via CLI arguments) provides a powerful way to integrate Brush into automated workflows.
 

@@ -1,4 +1,4 @@
-# 5.2. Glossary
+# 5.2 Glossary
 
 Definitions of key terms used in the Brush project and documentation.
 

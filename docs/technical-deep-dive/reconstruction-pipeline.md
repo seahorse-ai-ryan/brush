@@ -1,8 +1,8 @@
-# 3.2. 3D Reconstruction Pipeline
+# 3.3 3D Reconstruction Pipeline
 
 This section details the algorithms and implementation of the 3D reconstruction process in Brush.
 
-## 3.2.1. Conceptual Overview
+## 3.3.1 Conceptual Overview
 
 Brush performs 3D reconstruction using the **3D Gaussian Splatting (GS)** technique, introduced in the paper [3D Gaussian Splatting for Real-Time Radiance Field Rendering](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/). This approach represents a 3D scene as a collection of millions of 3D Gaussians, each defined by parameters like position, shape (covariance/scale+rotation), color (represented by Spherical Harmonics), and opacity.
 
@@ -17,7 +17,7 @@ The general GS process, which Brush follows, involves:
 
 Brush implements this process using the [Burn](core-technologies.md#343-burn) framework with custom WGSL kernels for GPU acceleration.
 
-## 3.2.2. Brush Reconstruction Algorithm Details
+## 3.3.2 Brush Reconstruction Algorithm Details
 
 Brush specifically implements the optimization phase of the 3D Gaussian Splatting pipeline. It does not perform the initial SfM step itself but relies on input formats like COLMAP or Nerfstudio which provide pre-computed camera poses.
 
@@ -36,7 +36,7 @@ Key aspects of Brush's implementation (primarily within the `brush-train` and `b
 
 Compared to other open-source implementations like [gsplat](https://github.com/nerfstudio-project/gsplat) which often rely on custom CUDA kernels, Brush's key distinction is its implementation using Rust, the Burn framework, and WGSL for cross-platform GPU acceleration.
 
-## 3.2.3. Implementation Details
+## 3.3.3 Implementation Details
 
 The reconstruction pipeline involves tight interaction between several core crates:
 
@@ -67,7 +67,7 @@ The reconstruction pipeline involves tight interaction between several core crat
 
 *(Note: Many of these values, such as splat counts, training step, steps/s, and evaluation results, are displayed live in the `Stats` panel in the UI.)*
 
-## 3.2.4. Configuration
+## 3.3.4 Configuration
 
 The training process can be configured through various command-line options when running `brush_app`. Key parameters influencing the reconstruction include:
 
