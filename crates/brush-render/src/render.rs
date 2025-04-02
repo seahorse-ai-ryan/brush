@@ -20,7 +20,7 @@ use burn::tensor::{
     ops::{FloatTensorOps, IntTensorOps},
 };
 
-use burn_cubecl::BoolElement;
+use burn_cubecl::{BoolElement, cubecl::server::Bindings};
 use burn_wgpu::CubeTensor;
 use burn_wgpu::WgpuRuntime;
 use glam::uvec2;
@@ -112,6 +112,8 @@ pub(crate) fn render_forward<BT: BoolElement>(
         num_intersections: 0,
     };
 
+    // Nb: This contains both static metadata and some dynamic data so can't pass this as metadata to execute. In the future
+    // should seperate the two.
     let uniforms_buffer = create_uniform_buffer(uniforms, device, &client);
 
     let client = &means.client.clone();
@@ -126,7 +128,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
             client.execute_unchecked(
                 ProjectSplats::task(),
                 calc_cube_count([total_splats as u32], ProjectSplats::WORKGROUP_SIZE),
-                vec![],
+                Bindings::new().with_buffers(
                 vec![
                     uniforms_buffer.clone().handle.binding(),
                     means.clone().handle.binding(),
@@ -135,7 +137,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
                     opacities.clone().handle.binding(),
                     global_from_presort_gid.clone().handle.binding(),
                     depths.clone().handle.binding(),
-                ],
+                ]),
             );
         });
 
@@ -177,7 +179,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
         client.execute_unchecked(
             ProjectVisible::task(),
             CubeCount::Dynamic(num_vis_wg.clone().handle.binding()),
-            vec![],
+            Bindings::new().with_buffers(
             vec![
                 uniforms_buffer.clone().handle.binding(),
                 means.handle.binding(),
@@ -189,7 +191,7 @@ pub(crate) fn render_forward<BT: BoolElement>(
                 projected_splats.handle.clone().binding(),
                 tiles_hit_per_splat.handle.clone().binding(),
                 isect_info.handle.clone().binding(),
-            ],
+            ]),
         );
     });
 
@@ -237,15 +239,14 @@ pub(crate) fn render_forward<BT: BoolElement>(
                 client.execute_unchecked(
                     MapGaussiansToIntersect::task(),
                     CubeCount::Dynamic(intersect_wg_buf.handle.binding()),
-                    vec![],
-                    vec![
+                    Bindings::new().with_buffers(vec![
                         num_intersections.clone().handle.binding(),
                         isect_info.handle.clone().binding(),
                         cum_tiles_hit.handle.binding(),
                         tile_counts.handle.clone().binding(),
                         tile_id_from_isect.handle.clone().binding(),
                         compact_gid_from_isect.handle.clone().binding(),
-                    ],
+                    ]),
                 );
             }
         });
@@ -287,13 +288,13 @@ pub(crate) fn render_forward<BT: BoolElement>(
         if bwd_info { DType::F32 } else { DType::U32 },
     );
 
-    let mut bindings = vec![
+    let mut bindings = Bindings::new().with_buffers(vec![
         uniforms_buffer.clone().handle.binding(),
         compact_gid_from_isect.handle.clone().binding(),
         tile_offsets.handle.clone().binding(),
         projected_splats.handle.clone().binding(),
         out_img.handle.clone().binding(),
-    ];
+    ]);
 
     let (visible, final_index) = if bwd_info {
         let visible = BBase::<BT>::float_zeros([total_splats].into(), device);
@@ -306,9 +307,12 @@ pub(crate) fn render_forward<BT: BoolElement>(
             DType::I32,
         );
 
-        bindings.push(global_from_compact_gid.handle.clone().binding());
-        bindings.push(final_index.handle.clone().binding());
-        bindings.push(visible.handle.clone().binding());
+        // Add the buffer to the bindings
+        bindings = bindings.with_buffers(vec![
+            global_from_compact_gid.handle.clone().binding(),
+            final_index.handle.clone().binding(),
+            visible.handle.clone().binding(),
+        ]);
 
         (visible, final_index)
     } else {
@@ -328,7 +332,6 @@ pub(crate) fn render_forward<BT: BoolElement>(
         client.execute_unchecked(
             raster_task,
             calc_cube_count([img_size.x, img_size.y], Rasterize::WORKGROUP_SIZE),
-            vec![],
             bindings,
         );
     }

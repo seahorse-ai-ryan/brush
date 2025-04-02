@@ -5,6 +5,7 @@ mod shaders;
 
 use burn::tensor::{DType, Shape};
 pub use burn_cubecl::cubecl::prelude::ExecutionMode;
+use burn_cubecl::cubecl::server::{Bindings, MetadataBinding};
 pub use burn_cubecl::cubecl::{
     CubeCount, CubeDim, KernelId, client::ComputeClient, compute::CompiledKernel,
     compute::CubeTask, server::ComputeServer,
@@ -156,18 +157,28 @@ pub fn create_tensor<const D: usize, R: CubeRuntime>(
     CubeTensor::new_contiguous(client.clone(), device.clone(), shape, buffer, dtype)
 }
 
+pub fn create_meta_binding<T: Pod>(val: T) -> MetadataBinding {
+    // Copy data to u32. If length of T is not % 4, this will correctly
+    // pad with zeros.
+    let data = bytemuck::pod_collect_to_vec(&[val]);
+    MetadataBinding {
+        static_len: data.len(),
+        data,
+    }
+}
+
 /// Create a buffer to use as a shader uniform, from a structure.
 pub fn create_uniform_buffer<R: CubeRuntime, T: Pod>(
     val: T,
     device: &R::Device,
     client: &ComputeClient<R::Server, R::Channel>,
 ) -> CubeTensor<R> {
-    let bytes = bytemuck::bytes_of(&val);
+    let binding = create_meta_binding(val);
     CubeTensor::new_contiguous(
         client.clone(),
         device.clone(),
-        Shape::new([bytes.len() / 4]),
-        client.create(bytes),
+        Shape::new([binding.data.len()]),
+        client.create(bytemuck::cast_slice(&binding.data)),
         DType::I32,
     )
 }
@@ -201,28 +212,25 @@ pub fn create_dispatch_buffer<R: CubeRuntime>(
     wg_size: [u32; 3],
 ) -> CubeTensor<R> {
     let client = thread_nums.client;
-    let uniforms_buffer = create_uniform_buffer::<R, _>(
-        wg::Uniforms {
-            wg_size_x: wg_size[0] as i32,
-            wg_size_y: wg_size[1] as i32,
-            wg_size_z: wg_size[2] as i32,
-        },
-        &thread_nums.device,
-        &client,
-    );
     let ret = create_tensor([3], &thread_nums.device, &client, DType::I32);
+
+    let data = create_meta_binding(wg::Uniforms {
+        wg_size_x: wg_size[0] as i32,
+        wg_size_y: wg_size[1] as i32,
+        wg_size_z: wg_size[2] as i32,
+    });
 
     // SAFETY: wgsl FFI, kernel checked to have no OOB.
     unsafe {
         client.execute_unchecked(
             Box::new(CreateDispatchBuffer {}),
             CubeCount::Static(1, 1, 1),
-            vec![],
-            vec![
-                uniforms_buffer.handle.binding(),
-                thread_nums.handle.binding(),
-                ret.clone().handle.binding(),
-            ],
+            Bindings::new()
+                .with_buffers(vec![
+                    thread_nums.handle.binding(),
+                    ret.clone().handle.binding(),
+                ])
+                .with_metadata(data),
         );
     }
 

@@ -5,6 +5,7 @@ use brush_render::BBase;
 use brush_render::sh::sh_coeffs_for_degree;
 use burn::tensor::ops::FloatTensorOps;
 use burn::{backend::wgpu::WgpuRuntime, prelude::Backend, tensor::ops::FloatTensor};
+use burn_cubecl::cubecl::server::Bindings;
 use burn_cubecl::{BoolElement, cubecl::AtomicFeature};
 use glam::uvec2;
 
@@ -88,7 +89,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
                 client.execute_unchecked(
                     RasterizeBackwards::task(hard_floats),
                     CubeCount::Static(invocations, 1, 1),
-                    vec![],
+                    Bindings::new().with_buffers(
                     vec![
                         uniforms_buffer.clone().handle.binding(),
                         compact_gid_from_isect.handle.binding(),
@@ -99,7 +100,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
                         v_output.handle.binding(),
                         v_grads.clone().handle.binding(),
                         v_refine_weight.clone().handle.binding(),
-                    ],
+                    ]),
                 );
             });
     let _span = tracing::trace_span!("GatherGrads", sync_burn = true).entered();
@@ -109,8 +110,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
         client.execute_unchecked(
             GatherGrads::task(),
             calc_cube_count([num_points as u32], GatherGrads::WORKGROUP_SIZE),
-            vec![],
-            vec![
+            Bindings::new().with_buffers(vec![
                 uniforms_buffer.clone().handle.binding(),
                 global_from_compact_gid.clone().handle.binding(),
                 // raw_opac.handle.binding(),
@@ -118,7 +118,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
                 v_grads.clone().handle.binding(),
                 v_coeffs.handle.clone().binding(),
                 v_opac.handle.clone().binding(),
-            ],
+            ]),
         );
     }
 
@@ -128,7 +128,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
         client.execute_unchecked(
             ProjectBackwards::task(),
             calc_cube_count([num_points as u32], ProjectBackwards::WORKGROUP_SIZE),
-            vec![],
+            Bindings::new().with_buffers(
             vec![
                 uniforms_buffer.handle.binding(),
                 means.handle.binding(),
@@ -139,7 +139,7 @@ pub(crate) fn render_backward<BT: BoolElement>(
                 v_means.handle.clone().binding(),
                 v_scales.handle.clone().binding(),
                 v_quats.handle.clone().binding(),
-            ],
+            ]),
         );
     });
 

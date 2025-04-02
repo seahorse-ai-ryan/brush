@@ -115,17 +115,17 @@ hashbrown = "0.15"
 # burn-fusion = { path = "../burn/crates/burn-fusion" }
 # burn-ir = { path = "../burn/crates/burn-ir" }
 
-# # Uncomment this to use local cubcl.
+# Uncomment this to use local cubcl.
 # [patch."https://github.com/tracel-ai/cubecl"]
 # cubecl = { path = "../cubecl/crates/cubecl" }
 # cubecl-common = { path = "../cubecl/crates/cubecl-common" }
 # cubecl-std = { path = "../cubecl/crates/cubecl-std" }
 # cubecl-linalg = { path = "../cubecl/crates/cubecl-linalg" }
 
-[patch.crates-io]
-# Use wgpu and naga at head
-wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
-naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
+# TODO: When re-enabling web training, update wasm branch.
+# [patch.crates-io]
+# wgpu = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
+# naga = { git = "https://github.com/ArthurBrussee/wgpu", branch = "v24" }
 
 [profile.dev]
 opt-level = 1

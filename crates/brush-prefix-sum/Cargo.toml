@@ -9,6 +9,7 @@ license.workspace = true
 brush-kernel.path = "../brush-kernel"
 burn.workspace = true
 burn-wgpu.workspace = true
+burn-cubecl.workspace = true
 naga_oil.workspace = true
 wgpu.workspace = true
 

@@ -20,8 +20,7 @@ pub fn stats_gather_kernel(
 
     let global_gid = gs_ids[compact_gid];
 
-    let mut line: Line<f32> = Line::empty(2);
-
+    let mut line: Line<f32> = Line::empty(2u32);
     // Nb: Clippy reports a warning here about a useless conversion but it's wrong.
     line[0] = comptime!(w as f32 / 2.0);
     line[1] = comptime!(h as f32 / 2.0);

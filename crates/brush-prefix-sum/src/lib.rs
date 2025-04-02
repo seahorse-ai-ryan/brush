@@ -4,6 +4,7 @@ use brush_kernel::calc_cube_count;
 use brush_kernel::create_tensor;
 use brush_kernel::kernel_source_gen;
 use burn::tensor::DType;
+use burn_cubecl::cubecl::server::Bindings;
 use burn_wgpu::WgpuRuntime;
 use shaders::prefix_sum_add_scanned_sums;
 use shaders::prefix_sum_scan;
@@ -26,8 +27,10 @@ pub fn prefix_sum(input: CubeTensor<WgpuRuntime>) -> CubeTensor<WgpuRuntime> {
         client.execute_unchecked(
             PrefixSumScan::task(),
             calc_cube_count([num as u32], PrefixSumScan::WORKGROUP_SIZE),
-            vec![],
-            vec![input.handle.binding(), outputs.handle.clone().binding()],
+            Bindings::new().with_buffers(vec![
+                input.handle.binding(),
+                outputs.handle.clone().binding(),
+            ]),
         );
     }
 
@@ -54,11 +57,10 @@ pub fn prefix_sum(input: CubeTensor<WgpuRuntime>) -> CubeTensor<WgpuRuntime> {
         client.execute_unchecked(
             PrefixSumScanSums::task(),
             calc_cube_count([work_size[0] as u32], PrefixSumScanSums::WORKGROUP_SIZE),
-            vec![],
-            vec![
+            Bindings::new().with_buffers(vec![
                 outputs.handle.clone().binding(),
                 group_buffer[0].handle.clone().binding(),
-            ],
+            ]),
         );
     }
 
@@ -68,11 +70,10 @@ pub fn prefix_sum(input: CubeTensor<WgpuRuntime>) -> CubeTensor<WgpuRuntime> {
             client.execute_unchecked(
                 PrefixSumScanSums::task(),
                 calc_cube_count([work_size[l + 1] as u32], PrefixSumScanSums::WORKGROUP_SIZE),
-                vec![],
-                vec![
+                Bindings::new().with_buffers(vec![
                     group_buffer[l].handle.clone().binding(),
                     group_buffer[l + 1].handle.clone().binding(),
-                ],
+                ]),
             );
         }
     }
@@ -85,11 +86,10 @@ pub fn prefix_sum(input: CubeTensor<WgpuRuntime>) -> CubeTensor<WgpuRuntime> {
             client.execute_unchecked(
                 PrefixSumAddScannedSums::task(),
                 calc_cube_count([work_sz as u32], PrefixSumAddScannedSums::WORKGROUP_SIZE),
-                vec![],
-                vec![
+                Bindings::new().with_buffers(vec![
                     group_buffer[l].handle.clone().binding(),
                     group_buffer[l - 1].handle.clone().binding(),
-                ],
+                ]),
             );
         }
     }
@@ -102,11 +102,10 @@ pub fn prefix_sum(input: CubeTensor<WgpuRuntime>) -> CubeTensor<WgpuRuntime> {
                 [(work_size[0] * threads_per_group) as u32],
                 PrefixSumAddScannedSums::WORKGROUP_SIZE,
             ),
-            vec![],
-            vec![
+            Bindings::new().with_buffers(vec![
                 group_buffer[0].handle.clone().binding(),
                 outputs.handle.clone().binding(),
-            ],
+            ]),
         );
     }
 
