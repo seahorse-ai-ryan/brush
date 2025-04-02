@@ -29,7 +29,6 @@ impl<B: Backend> Ssim<B> {
 
         let conv_options_v = ConvOptions::new([1, 1], [padding, 0], [1, 1], channels);
         let conv_options_h = ConvOptions::new([1, 1], [0, padding], [1, 1], channels);
-
         let kernel_v = self.weights_1d_v.clone();
         let kernel_h = self
             .weights_1d_v
@@ -68,7 +67,6 @@ impl<B: Backend> Ssim<B> {
 
 #[cfg(all(test, not(target_family = "wasm")))]
 mod tests {
-    use assert_approx_eq::assert_approx_eq;
     use burn::{
         backend::{Wgpu, wgpu::WgpuDevice},
         tensor::{Float, Tensor},
@@ -101,6 +99,6 @@ mod tests {
 
         // You get 0.078679755 when using  a naive 2d conv.
         // The separable approach results in 0.078679785
-        assert_approx_eq!(ssim_val.into_scalar(), 0.078679755, 1e-7);
+        assert!((ssim_val.into_scalar() - 0.078679755).abs() < 1e-7);
     }
 }
