@@ -20,6 +20,7 @@ The revision process will proceed in the following phases:
     *   Assumptions made about the LLM's understanding of the niche domain (Rust + ML frameworks) and specific codebase details.
     *   Lack of iterative verification during the initial generation.
 *   **Goal:** Identify lessons learned and define improved AI collaboration patterns (prompting techniques, verification steps, context management) to avoid repeating these mistakes during the rebuild process.
+*   **Action:** Define and implement relevant Cursor Rules and/or Modes based on Phase 0 findings to enforce grounding, code priority, workarounds, and persona focus, reducing manual oversight and potential user error.
 
 ### Phase 1: Sanitize Existing Docs & Setup New Structure
 
