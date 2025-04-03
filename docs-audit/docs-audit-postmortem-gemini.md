@@ -40,6 +40,10 @@ Based on a review of the generated documentation, the audit findings, maintainer
     *   **Hypothesis:** The specific lines of code needed to verify a claim might not have been retrieved by the RAG system and included in the context window provided to the LLM for a given turn.
     *   **Evidence:** This is difficult to prove directly from the outputs but is a known limitation of RAG systems. An LLM cannot verify against information it wasn't given.
 
+9.  **Finite Context Window / Imperfect Recall:**
+    *   **Hypothesis:** The AI does not maintain perfect memory of the entire conversation or previously discovered workarounds/constraints. Information falls out of the limited context window provided with each turn, requiring constraints or solutions to be repeated or be present in the active context.
+    *   **Evidence:** During the initial documentation effort, the AI encountered an issue with multi-line `git commit` messages via the terminal command and correctly devised a `printf ... | git commit -F -` workaround. However, in a later turn (Screenshots 4 & 5), it forgot this solution and attempted the direct `git commit -m "..."` approach again, triggering the same error and requiring user intervention to re-apply the workaround. This clearly demonstrates that solutions are not permanently "learned" and rely on being present in the active context or explicitly re-prompted.
+
 ## Conclusion & Mitigation
 
 It's likely that a combination of these factors contributed to the documentation issues. The revised "Start Fresh" strategy outlined in the [Revision Plan](./docs-post-audit-revisions-plan-gemini.md) aims to mitigate these risks through:
