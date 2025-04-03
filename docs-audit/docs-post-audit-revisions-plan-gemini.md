@@ -1,59 +1,64 @@
 # Brush Documentation Revision Plan
 
-## Goal
+## Introduction
 
-To holistically revise the Brush project documentation, moving beyond simple accuracy checks towards creating a resource that is truly useful and beneficial for the target audience (software developers, 3D researchers). This plan is guided by the findings of the technical audit and direct feedback from the project maintainer.
+This plan outlines the steps to holistically revise the Brush project documentation. It aims to move beyond simple accuracy checks towards creating a resource that is truly useful, trustworthy, and beneficial for the target audience (software developers, 3D researchers).
 
-The core aims are to:
+This effort is guided by:
+1.  The specific maintainer feedback received regarding inaccuracies and lack of clarity (detailed in the [Audit Plan](./docs-ai-agent-audit-plan.md)).
+2.  The detailed findings of the technical audit (documented in [Audit Findings](./docs-audit-findings-gemini.md)).
 
-*   Ensure technical accuracy.
-*   Improve organization and information architecture based on user tasks and workflows.
-*   Clearly explain the "Why" behind design decisions and architecture.
-*   Provide practical, concrete examples and usage guidance.
-*   Address specific content gaps and inaccuracies identified in the audit.
+The core principles guiding these revisions are: ensuring **technical accuracy**, adopting a **user-centric and task-oriented structure**, clearly explaining the **"Why"** behind design decisions, providing **concrete examples**, and improving overall **clarity and trustworthiness**.
 
-## Guiding Principles for Revision
+## Revision Phases
 
-To achieve the goal, the revision process will focus on the following principles:
+The revision process will proceed in the following phases:
 
-1.  **Problem/Solution & Task Orientation:** Structure documentation around what users want to *do* (e.g., "Getting Started," "Integrating Brush," "Understanding the Pipeline," "Customizing Behavior," "Performance Tuning") rather than just listing features.
-2.  **Explain the "Why":** Explicitly include the rationale behind design choices, algorithms, and architecture. Help users build a correct mental model.
-3.  **Layered Information:** Provide high-level overviews first, then link clearly to deeper dives, tutorials, or API references. Avoid overwhelming users with detail upfront.
-4.  **Concrete Examples & Tutorials:** Include practical, runnable code snippets and step-by-step guides for common tasks. Link these back to conceptual explanations.
-5.  **Audience-Centric Language:** Tailor explanations to the expected background of software developers and 3D researchers, defining necessary jargon but avoiding overly simplistic or overly academic language.
-6.  **Accurate and Purposeful Visuals:** If diagrams or flowcharts are used, ensure they are accurate, simple, clearly explained, and directly aid understanding of a specific concept or workflow.
-7.  **Refined API Documentation:** Keep API references (`rustdoc`) concise and focused on usage (parameters, return types, errors, basic examples), linking *out* to conceptual docs for broader explanations.
-8.  **Clear Information Architecture:** Ensure information is easy to find, logically organized, and minimally redundant. Use cross-linking effectively.
-9.  **Trustworthiness:** Prioritize correcting all identified factual errors to rebuild confidence in the documentation's reliability.
+### Phase 1: Correct Factual Errors
 
-## Specific Revision Actions (Based on Audit & Maintainer Feedback)
+*   **Action:** Systematically review the [Audit Findings](./docs-audit-findings-gemini.md) and correct *every* specifically identified factual error marked with `⚠️ Partially Verified / Documentation Errors`. This includes incorrect parameter values, struct details, algorithm descriptions, function/command names, non-existent features/flags, wrong crate names, etc., across all affected files.
 
-Based on the detailed audit findings and the maintainer's feedback, the following specific actions are planned:
+### Phase 2: Remove Problematic Content
 
-**1. Content to Remove / Re-evaluate:**
+*   **Action:** Remove potentially misleading or hard-to-verify diagrams (flowcharts, complex architectural diagrams) as per maintainer feedback.
+    *   *Applicable Files:* Primarily `architecture.md`, `reconstruction-pipeline.md`, `rendering-pipeline.md`.
+*   **Action:** Remove specific, unverified numerical performance targets (e.g., `<1ms sort`, `60+ FPS`, `10-20 iter/sec`) flagged as "meaningless" and unverified by the audit. These can be replaced with qualitative statements or links to live benchmark data if available later.
+    *   *Applicable Files:* `performance.md`, `reconstruction-pipeline.md`, `rendering-pipeline.md`, `introduction.md`, `CONTRIBUTING.md`.
+*   **Action:** Remove inaccurate content from `api-reference.md`, specifically the pseudo-code struct definitions and incorrect feature flag descriptions. Refocus this file as a guide to generating/using `rustdoc`.
+    *   *Applicable Files:* `api-reference.md`.
 
-*   **Most Diagrams/Flowcharts (Applicable: Primarily `architecture.md`, `reconstruction-pipeline.md`, `rendering-pipeline.md`):** Remove potentially misleading or hard-to-verify diagrams (flowcharts, complex architectural diagrams) as per maintainer feedback ("don't have much to do with the actual code"). Simple, verifiable diagrams (e.g., crate dependencies) may be kept if deemed essential and accurate.
-*   **Specific Numerical Performance Targets (Applicable: `performance.md`, `reconstruction-pipeline.md`, `rendering-pipeline.md`, `introduction.md`, `CONTRIBUTING.md`):** Remove specific, unverified performance numbers (e.g., <1ms sort, 60+ FPS, 10-20 iter/sec) flagged as "meaningless" by the maintainer and unverified by the audit. These can be replaced with qualitative statements or links to live benchmark data if available.
-*   **Inaccurate `api-reference.md` Content (Applicable: `api-reference.md`):** Remove pseudo-code struct definitions and incorrect feature flag descriptions, aligning with maintainer feedback that it was "almost entirely hallucinated." Refocus the file as a guide to generating/using `rustdoc`.
-*   **All Specifically Identified Errors (Applicable: All files with documented errors):** Remove or correct all factual errors identified in the audit findings (incorrect parameters, struct details, function/command names, non-existent features/flags, wrong crate names, inaccurate algorithm descriptions) to address maintainer feedback about "wrong" and "hallucinated details."
-*   **Potentially "Irrelevant" Sections (Applicable: Primarily `technical-deep-dive` section):** Critically evaluate sections, especially in technical deep dives, that lack clear explanations of "why" or "how" (addressing maintainer feedback about lack of "intent" and "relevance"). Consider removing/condensing superficial descriptions that don't add significant value beyond the code itself.
+### Phase 3: Revise, Clarify, and Enhance
 
-**2. Content to Add / Clarify:**
+*   **Action:** Add missing technical explanations and address identified content gaps. Integrate detailed explanations for the following topics into appropriate documents:
+    1.  **GPU Memory Management Strategy:** Specifics on buffer allocation, pooling, reuse (e.g., via Burn's `WgpuRuntime` or custom logic), and the details of `client.memory_cleanup()`.
+    2.  **Burn Fusion Implementation Details:** Explanation of which operations are fused, how custom kernels interact with the fusion engine, and if custom fusion operations/rules are defined.
+    3.  **WGSL Kernel Optimizations & Logic:** Deeper dive into the algorithms within key shaders (`rasterize`, `project_visible`, `*_backwards`), including any performance-specific techniques (subgroups, shared memory) or data layout assumptions.
+    4.  **Adaptive Density Control Algorithm:** Precise description of the pruning and densification logic (selection criteria beyond thresholds, how splats are split/cloned, how new parameters are determined).
+    5.  **Rationale/Details for `AdamScaled` Optimizer:** Explanation for needing a custom optimizer and details on its specific scaling mechanism (how the `scaling` field in `AdamState` is used).
+    6.  **Data Loading Normalization:** Details on how different input formats (COLMAP, Nerfstudio) are processed and potentially normalized into the internal `Dataset` structure, including coordinate system assumptions.
+    7.  **Tile-Based Rendering Internals:** Explanation of how splat-to-tile mapping (`map_gaussian_to_intersects`) works and how `tile_offsets` are used in subsequent sorting and rasterization stages.
+    8.  **Concrete Platform Differences:** Elaboration on functional or performance differences between Web, Desktop, and Android beyond simple feature gating.
+*   **Action:** Restructure technical sections to clarify narrative and intent ("Why"). Explain motivation and design choices *before* implementation details, framing technical details within the context of solving specific problems or achieving specific goals.
+    *   *Applicable Files:* Primarily `technical-deep-dive` section documents.
+*   **Action:** Replace incorrect/missing code examples with verified, simple, runnable examples for key library usage and correct CLI commands.
+    *   *Applicable Files:* `extending-brush.md`, potentially `api-reference.md`.
+*   **Action:** Critically re-evaluate sections flagged as potentially "irrelevant" during the audit, particularly those lacking clear explanations of "why" or "how". Condense or remove superficial descriptions that don't add significant value beyond the code itself.
+    *   *Applicable Files:* Primarily `technical-deep-dive` section documents.
+*   **Action (Optional):** If diagrams are reintroduced, ensure they are simple, accurate, clearly labeled, explained in accompanying text, and add significant value. Consider standard notations (e.g., simple box-and-arrow for architecture, basic flowcharts for processes).
+*   **Action (Strategic):** Consider adding or restructuring content into specific task-oriented guides (e.g., "Integration Guide," "Performance Tuning Guide," "Custom Kernel Guide") based on the guiding principles.
 
-*   **Corrections for All Errors (Applicable: All files with documented errors):** Implement fixes for every inaccuracy documented in the audit findings.
-*   **Missing Technical Explanations (Applicable: See 'Suggestions' section in `docs-audit-findings.md` for placement):** Add detailed explanations for the topics identified in the audit's "Suggestions for Further Documentation" section (GPU Memory, Burn Fusion, WGSL Kernels, Density Control Algorithm, AdamScaled Rationale, Data Loading, Tile Rendering, Platform Differences) to address maintainer feedback on "most important things are missing."
+## Execution Strategy for AI Agent
 
-    *   _**(Moved from Audit Findings)**_ **Identified Content Gaps:** Based on the audit (primarily of the technical sections), the following technical areas lack sufficient explanation and represent opportunities for new or expanded content. This content could be integrated into existing technical deep-dive documents or form new sections/pages as appropriate:
-        1.  **GPU Memory Management Strategy:** Specifics on buffer allocation, pooling, reuse (e.g., via Burn's `WgpuRuntime` or custom logic), and the details of `client.memory_cleanup()`.
-        2.  **Burn Fusion Implementation Details:** Explanation of which operations are fused, how custom kernels interact with the fusion engine, and if custom fusion operations/rules are defined.
-        3.  **WGSL Kernel Optimizations & Logic:** Deeper dive into the algorithms within key shaders (`rasterize`, `project_visible`, `*_backwards`), including any performance-specific techniques (subgroups, shared memory) or data layout assumptions.
-        4.  **Adaptive Density Control Algorithm:** Precise description of the pruning and densification logic (selection criteria beyond thresholds, how splats are split/cloned, how new parameters are determined).
-        5.  **Rationale/Details for `AdamScaled` Optimizer:** Explanation for needing a custom optimizer and details on its specific scaling mechanism (how the `scaling` field in `AdamState` is used).
-        6.  **Data Loading Normalization:** Details on how different input formats (COLMAP, Nerfstudio) are processed and potentially normalized into the internal `Dataset` structure, including coordinate system assumptions.
-        7.  **Tile-Based Rendering Internals:** Explanation of how splat-to-tile mapping (`map_gaussian_to_intersects`) works and how `tile_offsets` are used in subsequent sorting and rasterization stages.
-        8.  **Concrete Platform Differences:** Elaboration on functional or performance differences between Web, Desktop, and Android beyond simple feature gating.
+To execute this plan systematically, especially within context window limits:
 
-*   **Clearer Narrative and Intent ("Why") (Applicable: Primarily `technical-deep-dive` section):** Restructure technical sections to explain motivation and design choices *before* implementation details, addressing feedback about content lacking clear "why". Frame technical details within the context of solving specific problems or achieving specific goals.
-*   **Accurate, Minimal Code Examples (Applicable: `extending-brush.md`, potentially `api-reference.md`):** Replace incorrect code examples with verified, simple examples for key library usage and correct CLI commands. Ensure examples are runnable and demonstrate common use cases.
-*   **(Optional) Verified Simple Diagrams (Applicable: Where needed for clarity):** If diagrams are reintroduced, ensure they are simple, accurate, clearly labeled, explained in accompanying text, and add significant value to understanding. Consider standard notations (e.g., simple box-and-arrow for architecture, basic flowcharts for processes).
-*   **Task-Oriented Guides:** Consider adding or restructuring content into specific guides (e.g., "Integration Guide," "Performance Tuning Guide," "Custom Kernel Guide") based on the principles outlined above. 
+1.  **Process File-by-File:** Iterate through the documentation files listed in the [Audit Plan](./docs-ai-agent-audit-plan.md).
+2.  **Load Context:** For each target file:
+    *   Read the relevant sections of the target documentation file.
+    *   Read the corresponding findings section for that file from [Audit Findings](./docs-audit-findings-gemini.md).
+    *   Keep this Revision Plan accessible for reference.
+3.  **Execute Phases Sequentially (within file context):**
+    *   **Phase 1:** Apply all specific error corrections identified in the findings for the current file.
+    *   **Phase 2:** Apply all content removals applicable to the current file.
+    *   **Phase 3:** Apply relevant revisions, clarifications, and additions (like adding missing explanations if the current file is the designated place, improving examples, clarifying intent).
+4.  **Commit Incrementally:** After processing each file (or a logical group of related changes), commit the modifications with a clear message referencing the phase and file(s) changed.
+5.  **Track Progress:** Mark completed actions or files within a local copy or by referencing commit history against this plan. 
