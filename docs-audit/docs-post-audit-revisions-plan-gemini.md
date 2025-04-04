@@ -53,37 +53,41 @@ The revision process will proceed in the following phases:
 
 ## AI Collaboration Strategy (Co-Creation within Cursor)
 
-This outlines the general approach for how the AI agent (Gemini 2.5 Pro/Max) and the User will collaborate during the documentation rebuild process. This strategy prioritizes accuracy, clarity, and efficient use of context, and may be refined after Phase 0.
+This outlines the general approach for how the AI agent (Gemini 2.5 Pro/Max) and the User will collaborate during the documentation rebuild process. This strategy leverages **Cursor Project Rules** and potentially **Custom Modes** (beta) to prioritize accuracy, clarity, persona alignment, and efficient use of context, aiming to mitigate issues identified in Phase 0.
 
 **Core Principles:**
 
 *   **User-Guided:** The user directs the overall process, selects tasks, provides goals, and makes final decisions.
-*   **AI as Co-Creator & Verifier:** The AI assists in generating drafts, applying specific corrections, finding information, and verifying claims against provided context (code, findings).
+*   **AI as Co-Creator & Verifier:** The AI assists in generating drafts, applying specific corrections, finding information, and verifying claims against provided context (code, findings), guided by defined rules.
 *   **Incremental & Verifiable:** We will favor smaller, manageable steps with explicit verification over large, monolithic changes.
+*   **Rule-Driven Consistency:** Utilize Cursor's features to enforce best practices and reduce repetitive prompting or user error.
+
+**Leveraging Cursor Features (Setup during Phase 0/1):**
+
+1.  **Project Rules (`.cursor/rules`):** Define persistent instructions triggered by file paths or semantics. Examples:
+    *   `accuracy.rule`: "Base all factual claims *only* on provided code snippets or explicitly cited `/old-docs` snippets. State inability to verify if context is missing."
+    *   `code_priority.rule`: "When context includes both code and documentation, prioritize code as the source of truth for technical details."
+    *   `git_commit.rule`: "When using the terminal tool for multi-line git commit messages, *always* use the `printf '.' | git commit -F -` format."
+    *   `persona_researcher.rule` (applied to `/docs/for-researchers/*`): "Tailor language and depth for 3D graphics researchers. Explain algorithms and link to relevant code sections."
+    *   `persona_engineer.rule` (applied to `/docs/for-engineers/*`): "Focus on API usage, contribution guidelines, and system architecture for software engineers."
+    *   `persona_enthusiast.rule` (applied to `/docs/for-enthusiasts/*`): "Prioritize clear setup, basic usage, and engaging examples for users exploring Brush."
+    *   `sanitization.rule` (applied to `/old-docs/*` during Phase 1): "Focus *only* on correcting specific factual errors listed in `docs-audit-findings-gemini.md`. Do not make stylistic changes or add new content."
+2.  **Custom Modes (Beta - If Enabled/Suitable):** Compose modes that bundle specific rules, prompts, or even model settings for different phases or tasks. Examples:
+    *   **"Sanitize Mode":** Activates `sanitization.rule` and `accuracy.rule`.
+    *   **"DocGen - Researcher Mode":** Activates `accuracy.rule`, `code_priority.rule`, `persona_researcher.rule`, maybe a default prompt like "Drafting content for 3D researchers...".
+    *   **"DocGen - Engineer Mode":** Similar, but activates `persona_engineer.rule`.
+    *   **"Git Helper Mode":** Activates `git_commit.rule`.
+    *(Using modes could streamline switching contexts and associated instructions.)*
 
 **Workflow & Interaction:**
 
-1.  **Task Definition:** The user clearly defines the goal for the current task (e.g., "Sanitize file X according to findings Y," "Draft the 'Installation' section for the Enthusiast persona," "Find code relevant to claim Z").
-2.  **Context Gathering & Confirmation:**
-    *   AI identifies the necessary context (specific parts of audit findings, sections of `/old-docs`, code snippets via file reads or search, this plan).
-    *   AI explicitly states the context it intends to use.
-    *   **AI Asks:** "Is this the correct/sufficient context, or should I include anything else?" before proceeding with generation or complex analysis.
-3.  **Planning & Clarification:**
-    *   For non-trivial generation tasks (e.g., a new page/section), AI proposes a brief outline or plan first.
-    *   **AI Asks:** If a request is ambiguous or requires technical assumptions beyond the provided context, AI asks clarifying questions *before* generating content or code edits.
-4.  **Execution (Small Steps):**
-    *   AI breaks down larger generation tasks into logical sub-sections.
-    *   AI performs actions (reading, searching, drafting, editing) one manageable step at a time.
-    *   Use targeted `edit_file` for applying changes rather than outputting large blocks in chat. State clearly *what* change is being proposed.
-5.  **Verification & User Feedback:**
-    *   After each significant step (generating a draft section, applying a set of corrections), AI presents the result (e.g., via `edit_file` diff).
-    *   **AI Waits:** AI explicitly waits for user review and confirmation ("Does this look correct?", "Ready for the next step?") before proceeding with further edits, committing, or moving to the next task.
-6.  **Progress Tracking:**
-    *   Primary tracking mechanism is **Git commits**. User or AI initiates commits after logical units of work are completed and verified by the user. Commit messages should clearly describe the completed task/change.
-    *   Avoid adding progress-tracking comments directly into the documentation files.
-    *   Use temporary scratchpad files sparingly, only for complex intermediate notes explicitly agreed upon, not as a primary progress log.
-7.  **Context Management:**
-    *   Focus strictly on the context needed for the immediate task. Avoid loading entire directories (`/old-docs`, codebase) unless necessary and explicitly requested.
-    *   After completing a task on one file/section and before starting another, mentally (or explicitly state) "dropping" the previous specific file context to keep the window clean.
+*   **Mode/Rule Activation:** Before starting a task, ensure the appropriate Cursor Mode (if used) or relevant Project Rules are active/applicable.
+*   **Task Definition:** User clearly defines the goal, target file(s), and relevant persona.
+*   **Context Gathering & Confirmation:** AI identifies context needed (code, findings, `/old-docs` snippets, plan). AI explicitly states context used. **AI Asks** for confirmation if context seems insufficient or potentially ambiguous *despite* active rules.
+*   **Planning & Clarification:** For new sections, AI proposes an outline. **AI Asks** clarifying questions if the request conflicts with active rules or lacks detail.
+*   **Execution (Small Steps):** AI performs actions incrementally, respecting active rules (e.g., grounding claims, using correct commit format). Use targeted `edit_file`.
+*   **Verification & User Feedback:** AI presents results. **AI Waits** for user review and confirmation ("Does this draft align with the 'Researcher' persona rule?", "Does this commit command use the correct format?", "Ready to proceed?") before committing or moving on.
+*   **Progress Tracking:** Primary tracking via frequent **local Git commits** initiated by user or AI (with user confirmation). Push to remote only when requested by the user. Commit messages describe the task and phase.
+*   **Context Management:** Focus strictly on task-relevant context. Rely on Rules/Modes for persistent instructions rather than chat history recall.
 
-**Adaptability:** This is a starting point. We will reflect during/after Phase 0 on what worked well or poorly in the initial documentation attempt and refine this collaboration strategy accordingly. 
+**Adaptability:** This strategy, including the specific Rules/Modes, will be reviewed and refined based on Phase 0 findings and practical experience during the rebuild. 
