@@ -44,124 +44,16 @@ flowchart TD
     style INFRA fill:#e6ffe6,stroke:#333
 ```
 
-## 4.2 Core APIs by Layer
-
-### Application Layer
-- **`brush_app`:** Main graphical application
-  ```rust
-  pub struct BrushApp {
-      pub ui: BrushUI,
-      pub process: ProcessManager,
-      pub config: AppConfig,
-  }
-  ```
-- **`brush_ui`:** UI components and integration
-  ```rust
-  pub struct BrushUI {
-      pub scene_panel: ScenePanel,
-      pub settings_panel: SettingsPanel,
-      pub dataset_panel: DatasetPanel,
-  }
-  ```
-- **`brush_cli`:** Command-line interface
-  ```rust
-  pub struct BrushCli {
-      pub config: CliConfig,
-      pub process: ProcessManager,
-  }
-  ```
-
-### Domain Layer
-- **`brush_process`:** Processing orchestration
-  ```rust
-  pub struct ProcessManager {
-      pub trainer: Option<SplatTrainer>,
-      pub dataset: Option<Dataset>,
-      pub state: ProcessState,
-  }
-  ```
-- **`brush_train`:** Training implementation
-  ```rust
-  pub struct SplatTrainer<B: Backend> {
-      pub splats: Splats<B>,
-      pub optimizer: AdamScaled<B>,
-      pub config: TrainConfig,
-  }
-  ```
-- **`brush_dataset`:** Data management
-  ```rust
-  pub struct Dataset {
-      pub images: Vec<Image>,
-      pub cameras: Vec<Camera>,
-      pub points: Option<Points3D>,
-  }
-  ```
-
-### Rendering Layer
-- **`brush_render`:** Forward rendering
-  ```rust
-  pub struct Splats<B: Backend> {
-      pub means: Tensor<B>,
-      pub scales: Tensor<B>,
-      pub rotations: Tensor<B>,
-      pub colors: Tensor<B>,
-  }
-  ```
-- **`brush_render_bwd`:** Backward pass
-  ```rust
-  pub struct RenderBackward<B: Backend> {
-      pub state: GaussianBackwardState<B>,
-      pub grads: SplatGrads<B>,
-  }
-  ```
-- **`brush_kernel`:** GPU kernels
-  ```rust
-  pub mod kernels {
-      pub mod project;
-      pub mod sort;
-      pub mod rasterize;
-  }
-  ```
-
-### Infrastructure Layer
-- **`brush_sort`:** GPU sorting
-  ```rust
-  pub struct RadixSort<B: Backend> {
-      pub keys: Tensor<B>,
-      pub values: Tensor<B>,
-  }
-  ```
-- **`brush_prefix_sum`:** Parallel scan
-  ```rust
-  pub struct PrefixSum<B: Backend> {
-      pub input: Tensor<B>,
-      pub output: Tensor<B>,
-  }
-  ```
-
 ## 4.3 Feature Flags
 
 Brush provides several feature flags to control optional functionality:
 
 ### Performance Tracing
-```rust
-// Enable performance tracing
-tracing = ["brush-render/tracing", "brush-train/tracing"]
-```
-
-### Debug Logging
-```rust
-// Enable debug logging
-debug = ["brush-render/debug", "brush-train/debug"]
-```
-
-### Platform Support
-```rust
-// WebGPU support
-webgpu = ["brush-render/webgpu", "brush-train/webgpu"]
-
-// Native GPU support
-native = ["brush-render/native", "brush-train/native"]
+```toml
+# Enable performance tracing via the 'tracing' feature
+# Example in Cargo.toml:
+# brush-render = { path = "../brush-render", features = ["tracing"] }
+# brush-train = { path = "../brush-train", features = ["tracing"] }
 ```
 
 ## 4.4 Example Usage
@@ -212,9 +104,9 @@ let model_config = ModelConfig {
 
 ### Rendering
 ```rust
-use brush_render::render;
+use brush_render::render_forward;
 
-let (out_img, aux) = render(
+let (out_img, aux) = render_forward(
     means,
     log_scales,
     quats,

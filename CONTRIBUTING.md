@@ -76,9 +76,9 @@ First off, thank you for considering contributing to Brush! We welcome contribut
 ### Performance Considerations
 
 *   Profile changes with Tracy (`--features=tracy`)
-*   Consider GPU memory usage (splat data structure is 40 bytes)
-*   Maintain 60+ FPS rendering target
-*   Keep training speed at 10-20 iterations/second
+*   Consider GPU memory usage (splat data structure is 36 bytes)
+*   Optimize for rendering performance
+*   Optimize for training speed
 *   Use 16x16 tile size for rendering
 
 ### Code Style

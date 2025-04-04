@@ -59,19 +59,16 @@ This page contains performance benchmark results for Brush, comparing it against
 ## Performance Notes
 
 *   **Rendering Performance:**
-    - Target: 60+ FPS on RTX 4070 Ti
-    - Memory usage: < 8GB VRAM
-    - Frame time: < 16ms
+    - Memory usage: < 8GB VRAM (example target)
     - Tile size: 16x16
 
 *   **Training Performance:**
-    - Speed: 10-20 iterations/second
-    - Memory efficiency: < 8GB VRAM
-    - Convergence: 30k-50k iterations
-    - Splat count: 0.6-3.3M splats
+    - Memory efficiency: < 8GB VRAM (example target)
+    - Convergence: 30k-50k iterations (typical)
+    - Splat count: 0.6-3.3M splats (example results)
 
 *   **Memory Requirements:**
-    - ProjectedSplat: 40 bytes per splat
+    - ProjectedSplat: 36 bytes per splat
     - Maximum splats: 10M
     - Memory bandwidth: 20GB/s+
     - Storage throughput: 100MB/s+

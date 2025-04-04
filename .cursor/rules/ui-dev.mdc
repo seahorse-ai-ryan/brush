@@ -1,0 +1,23 @@
+---
+description: 
+globs: crates/brush-app/**
+alwaysApply: false
+---
+
+# UI Development Rules (Egui / Eframe)
+
+Apply these rules *in addition* to `cursor-rules.mdc` when working on UI code, primarily within the `crates/brush-app` crate or other areas using `egui`/`eframe`.
+
+## Focus Areas
+
+*   **User Experience (UX):** Prioritize clear, intuitive workflows. Ensure controls are logically grouped and easy to understand. Consider the impact of changes on usability.
+*   **Visual Presentation:** Maintain consistency with the existing UI style. Use `egui_tiles` for panel management effectively.
+*   **State Management:** Handle application state (`AppContext` in `brush-app`) carefully. Ensure proper communication between UI panels and background processes (render/train).
+*   **Performance:** Be mindful of UI responsiveness. Avoid blocking the UI thread with long-running operations (use background processes).
+*   **Egui/Eframe Best Practices:** Leverage standard `egui` patterns and widgets where appropriate. Refer to `egui` documentation for complex interactions or custom widgets.
+
+## Code Implementation
+
+*   Clearly separate UI logic (in `brush-app`) from core processing logic (in `brush-process`, `brush-render`, `brush-train`).
+*   Use the existing patterns for panel creation, state sharing, and background task communication.
+*   Ensure widgets correctly reflect and update the underlying application state. 

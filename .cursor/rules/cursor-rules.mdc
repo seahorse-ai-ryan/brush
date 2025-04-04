@@ -1,0 +1,41 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Core AI Collaboration Guidelines
+
+## General Principles
+
+1.  **Proactive Verification:** Before acting on information (especially from previous turns or existing documentation), critically assess its likely accuracy based on the audit findings. Explicitly state the source of information you are using. If uncertain, ask for clarification or seek verification from the codebase. **Do not assume prior context or instructions are still active** unless they are present in the current context window or codified in a rule.
+2.  **Prioritize Grounding:** Base all technical claims, specifications, and examples *directly* on the provided codebase context.
+    *   If information isn't in the code, state that it cannot be verified. Avoid making assumptions or using general knowledge to fill gaps, especially for technical specifics (like numerical values, struct sizes, algorithm details).
+    *   **Specifically verify the existence of file paths, directories, function names, struct names, and other code symbols within the provided context before asserting their existence or using them (e.g., in `globs` or code examples).**
+    *   **Do not assume standard project layouts (e.g., `tests/`, `src/`) or infer code structure (e.g., inferring crate paths from struct names like `BrushVfs`) unless directly supported by the provided context (file listings, verified documentation like the audit).**
+    *   Reference relevant specialized rules (like `documentation.mdc`) when applicable.
+3.  **Incremental Steps & Clarity:** Break down complex tasks into smaller, manageable steps. Explain your plan before executing code changes or generating significant content. Announce which rules you are applying for the current task.
+4.  **Ask Questions:** If a request is ambiguous, potentially conflicts with a rule, or requires knowledge outside the provided context (especially regarding complex Rust/WGPU/Burn concepts), ask clarifying questions before proceeding. Do not guess.
+5.  **Less Aggression:** Favor proposing changes or commands and asking for confirmation over immediate execution, especially for file modifications, commits, or potentially destructive operations.
+
+## Task-Specific Rule Application
+
+Based on the primary goal of the current task, consult and apply the relevant specialized rule file(s) in addition to these core guidelines:
+
+*   **Documentation:** When writing or editing documentation (`.md`, `README`, `CONTRIBUTING`, etc.), apply `documentation.mdc`.
+*   **Git Operations:** When performing Git actions (commits, branching, etc.) via the terminal tool, apply `git-workflow.mdc`.
+*   **UI Development:** When working in UI-related crates (e.g., `crates/brush-app`), apply `ui-dev.mdc`.
+*   **Reconstruction/Rendering Dev:** When working in core algorithm crates (e.g., `crates/brush-train`, `crates/brush-render*`, `crates/brush-kernel`, shaders), apply `reconstruction-dev.mdc`.
+*   **Infrastructure Dev:** When working on architecture, platform, data, CLI (e.g., `crates/brush-process`, `crates/brush-dataset`, `brush-cli`), apply `infrastructure-dev.mdc`.
+*   **Developer Environment:** When working on build system, tests, CI/CD, dependencies, tooling, apply `dev-environment.mdc`.
+*   **Bug Fixing:** Review relevant goal-specific rules for the affected code area. Focus on root cause analysis and targeted fixes.
+*   **New Features:** Review relevant goal-specific rules. Ensure features are implemented according to project patterns and documented accurately (ref: `documentation.mdc`).
+
+## Learning from the Audit (Anti-Patterns to Avoid - Ref: docs-audit/*)
+
+*   **Avoid Error Compounding:** Do not treat previously generated (potentially incorrect) documentation as ground truth. Always verify against code.
+*   **Avoid Unverified Claims:** Do not state performance numbers (FPS, iter/sec), specific struct sizes (e.g., `ProjectedSplat`), or algorithm parameters unless directly verified in the *current* code context.
+*   **Avoid Hallucination:** Do not invent configuration flags, function names, CLI arguments, or component names that don't exist in the code.
+*   **Avoid Assuming Structure:** **Do not infer the existence of files, directories (like `tests/`), or code organization based on language conventions or indirect references if not explicitly verified in the current context.**
+*   **Distinguish Plans vs. Reality:** Do not document planned features (from TODOs, comments, or design docs) as if they already exist.
+*   **Address Context Limitations:** Explicitly state if necessary code context isn't available to verify a claim or complete a task accurately. Remember specific workarounds (like the `git commit` format) codified in rules. 

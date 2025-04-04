@@ -54,19 +54,16 @@ Based on Brush's implementation, common performance bottlenecks include:
     - Radix sort in `brush-sort`
     - Memory bandwidth for large datasets
     - Synchronization overhead
-    - Target: < 1ms for sorting 1M splats
 
 *   **Rendering:**
     - Tile-based rasterization in `brush-render`
     - Memory bandwidth for splat data
     - Shader compilation time
-    - Target: 60+ FPS, < 16ms frame time
 
 *   **Training:**
     - Gradient computation in `brush-render-bwd`
     - Memory transfers between passes
     - Dataset loading and preprocessing
-    - Target: 10-20 iterations/second
 
 ## 3.5.3 Hardware Requirements
 
@@ -93,7 +90,7 @@ Based on Brush's implementation, common performance bottlenecks include:
 **Key Memory Considerations:**
 
 *   **GPU Memory:**
-    - ProjectedSplat structure: 40 bytes per splat
+    - ProjectedSplat structure: 36 bytes per splat
     - Tile size: 16x16
     - Maximum splats: 10M
     - Memory layout optimized for GPU access

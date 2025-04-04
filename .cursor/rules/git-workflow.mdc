@@ -1,0 +1,37 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+# Git Workflow Rules (via Terminal Tool)
+
+Apply these rules *in addition* to `cursor-rules.mdc` when proposing Git operations via the terminal tool.
+
+## Workflow Context
+
+*   We are currently working on a **fork** of the main Brush repository.
+*   Development happens on **feature branches** created from the main branch of the fork (e.g., `main` or `develop` on the fork).
+*   We are **NOT pushing directly upstream** to the original Brush repository at this time.
+
+## Branching
+
+*   Propose creating new feature branches from the fork's primary branch (confirm name if unsure) using standard `git checkout -b <branch-name>` commands.
+
+## Committing
+
+1.  **Format:** Always use the `printf '%s\n' "Commit Title" "Optional longer description..." | git commit -F -` format for all commits proposed via the terminal tool.
+2.  **Content:** Ensure commit messages are descriptive, follow conventional commit standards if applicable (e.g., `feat:`, `fix:`, `docs:` prefixes), and accurately reflect the changes made.
+3.  **Confirmation:** **Always ask for user confirmation before executing the `git commit` command.**
+
+## Pushing
+
+*   Propose pushing the current local feature branch to the **fork** (`origin`) using `git push origin <branch-name>`.
+*   **Do NOT propose pushing to the upstream repository.**
+*   **Always ask for user confirmation before executing the `git push` command.**
+
+## Other Operations
+
+*   For other Git commands (`status`, `diff`, `log`, `pull`, `rebase`, etc.), append `| cat` if the output might be paged.
+*   Clearly state the purpose and expected outcome of any proposed Git command.
+*   Ask for confirmation for potentially complex or history-altering operations (like `rebase`). 

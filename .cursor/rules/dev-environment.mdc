@@ -1,0 +1,26 @@
+---
+description: 
+globs: .github/**,examples/**,rust-toolchain.toml,.vscode/**,.cursor/**
+alwaysApply: false
+---
+
+# Developer Environment Rules
+
+Apply these rules *in addition* to `cursor-rules.mdc` when working on testing, benchmarking, examples, CI/CD, dependencies, tooling, or AI agent configuration.
+
+## Focus Areas
+
+*   **Testing:** Write effective unit, integration, and potentially end-to-end tests. Ensure tests cover critical functionality and edge cases. Use standard Rust testing frameworks (`cargo test`).
+*   **Benchmarking:** Implement meaningful benchmarks (`cargo bench`) for performance-critical sections, especially in rendering and training code.
+*   **Examples:** Provide clear, runnable examples demonstrating core library usage or application features.
+*   **CI/CD (`.github/workflows`):** Maintain and improve continuous integration workflows (building, testing, linting, formatting). Ensure workflows are reliable and efficient.
+*   **Dependencies (`Cargo.toml`):** Manage dependencies carefully. Keep versions up-to-date where feasible, but prioritize stability. Justify adding new dependencies.
+*   **Tooling (`rust-toolchain.toml`, scripts):** Ensure consistent use of the specified Rust toolchain. Maintain helper scripts for common development tasks.
+*   **Developer Experience (DX):** Strive to make the setup, build, test, and debug cycle smooth for developers.
+*   **AI Agent Collaboration (`.cursor/rules`):** Maintain and refine these rules to improve AI agent effectiveness and adherence to project standards. Use the `worklog.md` to track changes and decisions related to rules.
+
+## Code Implementation
+
+*   Ensure tests and benchmarks are well-structured and easy to understand.
+*   Keep CI workflow files organized and readable.
+*   Use appropriate tools for linting (`clippy`) and formatting (`rustfmt`). 

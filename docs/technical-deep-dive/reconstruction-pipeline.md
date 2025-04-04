@@ -13,11 +13,7 @@ Key characteristics:
 - **Differentiable:** Uses automatic differentiation for end-to-end optimization
 - **GPU-Accelerated:** Leverages GPU for both rendering and parameter updates
 - **Adaptive:** Dynamically adjusts scene complexity during training
-- **Performance Targets:**
-  - Training speed: 10-20 iterations/second on high-end GPUs
-  - Memory efficiency: < 8GB VRAM for typical scenes
-  - Convergence: 30k-50k iterations for most scenes
-  - Quality metrics: PSNR > 30dB, SSIM > 0.95
+- **Quality metrics:** (e.g., PSNR > 30dB, SSIM > 0.95 reported in literature)
 
 The pipeline follows these main stages:
 
@@ -152,7 +148,6 @@ The reconstruction pipeline is implemented through several coordinated component
   - Initialization strategies:
     - From sparse point cloud
     - Random initialization
-    - Grid-based initialization
 
 ### Training Loop
 
@@ -170,18 +165,18 @@ The reconstruction pipeline is implemented through several coordinated component
   - Updates using Adam optimizer
   - Applies learning rate schedules
   - Optimization details:
-    - Gradient clipping: ±1.0
-    - Learning rate decay: 0.95 per 1000 steps
+    - Gradient clipping: Not enabled by default
+    - Learning rate decay: Exponential decay over total steps (refer to code/config for specifics)
     - Momentum: β1=0.9, β2=0.999
 
 - **Adaptive Density Control**
   - Prunes low-opacity Gaussians
   - Densifies high-gradient regions
   - Maintains scene complexity bounds
-  - Control parameters:
-    - Opacity threshold: 0.01
-    - Gradient threshold: 0.0002
-    - Growth rate: 0.5 per 100 steps
+  - Control parameters (defaults, check config):
+    - Opacity threshold: ~0.0035
+    - Gradient threshold: ~0.00085
+    - Densification timing/logic: Refer to refine_if_needed in `brush-train`
 
 ## 3.2.4 Configuration
 

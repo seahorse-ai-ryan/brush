@@ -143,27 +143,23 @@ The loaded scene appears in the **Scene** panel where you can navigate using sta
 
 ## 2.1.4 Using the Command Line Interface (CLI)
 
-While this guide focuses on the UI, Brush also offers a command-line interface via the `brush_app` executable (or a dedicated `brush` executable if built with `-p brush-cli`). Running `brush_app` from the command line performs the core operations headlessly, but the optional `--with-viewer` flag launches the separate UI application to visualize the process controlled by the CLI.
+While this guide focuses on the UI, Brush also offers a command-line interface via the `brush` executable (if built with `-p brush-cli`), or potentially via `brush_app` with specific flags depending on build configuration. Running the CLI performs the core operations headlessly.
 
-Run `./target/release/brush_app --help` for a full list of options.
+Run `./target/release/brush --help` (or `brush_app --help`) for a full list of options.
 
 **Common Examples:**
 
-*   **Viewing a `.ply` file (with UI):**
+*   **Viewing a `.ply` file (Headless - just loads and exits, primarily for testing):**
     ```bash
-    ./target/release/brush_app --with-viewer /path/to/your/splat.ply
-    ```
-*   **Starting Training (with UI):**
-    ```bash
-    ./target/release/brush_app --with-viewer /path/to/dataset --total-steps 15000
+    ./target/release/brush /path/to/your/splat.ply
     ```
 *   **Starting Training (Headless):**
     ```bash
-    ./target/release/brush_app --dataset /path/to/dataset --output /path/to/output.ply --total-steps 30000 --save-final
+    ./target/release/brush --dataset /path/to/dataset --export-path /path/to/output_dir --total-steps 30000 --export-name final_splats.ply
     ```
 *   **Training with Adjusted Parameters (Headless):**
     ```bash
-    ./target/release/brush_app --dataset /path/to/dataset --output /path/to/output.ply --total-steps 30000 --save-final --sh-degree 1 --lr-mean 1e-4
+    ./target/release/brush --dataset /path/to/dataset --export-path /path/to/output_dir --total-steps 30000 --export-name final_splats.ply --sh-degree 1 --lr-mean 1e-4
     ```
 
 For more advanced CLI usage and automation, refer to the help output and the **[Extending Brush](../technical-deep-dive/extending-brush.md)** guide.

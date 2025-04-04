@@ -10,11 +10,6 @@ Key characteristics of the pipeline:
 - **GPU-Accelerated:** Uses WebGPU (via `wgpu`) for cross-platform GPU support
 - **Tile-Based:** Processes screen space in tiles for efficient parallel execution
 - **Differentiable:** Supports gradient computation for training (when using `brush-render-bwd`)
-- **Performance Targets:**
-  - 60+ FPS on mid-range GPUs (RTX 3060 or equivalent)
-  - < 16ms frame time for interactive viewing
-  - Memory bandwidth: 20GB/s+ for GPU operations
-  - VRAM usage: < 4GB for typical scenes
 
 The pipeline follows these main stages:
 
@@ -209,7 +204,7 @@ flowchart TD
 ```
 
 ## Memory Requirements
-- Each projected splat: 10 floats (40 bytes)
+- Each projected splat: 9 floats (36 bytes)
   - Position (xy_x, xy_y)
   - Conic matrix (conic_x, conic_y, conic_z)
   - Color (color_r, color_g, color_b, color_a)

@@ -67,7 +67,7 @@ let render_config = RenderConfig {
 };
 
 // Use Brush components
-let (out_img, aux) = render(
+let (out_img, aux) = render_forward(
     means,
     log_scales,
     quats,
@@ -100,25 +100,24 @@ Brush provides CLI tools for automation and service integration.
 ```bash
 # Batch processing example
 for dataset in /path/to/datasets/*; do
-  brush_app --dataset "$dataset" \
-           --output "$dataset/output.ply" \
+  brush --dataset "$dataset" \
+           --export-path "$dataset/output" \
            --total-steps 30000 \
-           --save-final
+           --export-name "splats.ply"
 done
 
 # Service integration example
-brush_app --dataset /path/to/dataset \
-         --output /path/to/output \
-         --train \
-         --no-ui
+brush --dataset /path/to/dataset \
+         --export-path /path/to/output \
+         --train
 ```
 
 **Key CLI Options:**
 *   `--dataset`: Input dataset path
-*   `--output`: Output file path
+*   `--export-path`: Output directory path
+*   `--export-name`: Output filename (e.g., splats.ply)
 *   `--total-steps`: Training iterations (default: 30000)
 *   `--train`: Run training
-*   `--no-ui`: Run without GUI
 *   `--max-resolution`: Maximum image resolution (default: 1920)
 *   `--sh-degree`: Spherical harmonics degree (default: 3)
 

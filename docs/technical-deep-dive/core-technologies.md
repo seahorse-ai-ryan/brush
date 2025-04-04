@@ -45,13 +45,12 @@ Brush uses Burn for GPU-accelerated deep learning operations.
     - WGSL backend for GPU compute
     - Memory-efficient tensor operations
 *   **Key Components:**
-    - `brush-burn`: Burn integration crate
     - Custom WGSL kernels for Gaussian operations
     - Fusion optimization for compute kernels
 *   **Features Used:**
     - Automatic differentiation
     - GPU-accelerated tensor operations
-    - Custom backend implementation
+    - Integration with standard WGPU backend via custom kernels
 *   [Burn GitHub Repository](https://github.com/tracel-ai/burn)
 *   [Burn Book (Documentation)](https://burn-rs.github.io/book/)
 
@@ -88,7 +87,7 @@ Brush's GPU operations are implemented using WGPU and WGSL.
     - `brush-render-bwd`: Backward pass implementation
 *   **Technical Specifications:**
     - 16x16 tile size for rendering
-    - ProjectedSplat structure (10 floats, 40 bytes)
+    - ProjectedSplat structure (9 floats, 36 bytes)
     - Custom memory layout for GPU operations
 *   [wgpu-rs Repository](https://github.com/gfx-rs/wgpu)
 *   [wgpu Official Website](https://wgpu.rs/)
@@ -103,7 +102,7 @@ Brush integrates with Rerun for training visualization.
     - Training progress and metrics logging
     - Splat evolution visualization
 *   **Usage:**
-    - Enable via feature flag: `rerun`
+    - Enable via runtime configuration
     - Configure logging in `brush-process`
 *   **Features:**
     - Real-time training visualization
