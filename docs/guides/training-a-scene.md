@@ -2,13 +2,13 @@
 
 This guide walks through the process of training a new 3D Gaussian Splatting scene from your own data using the Brush desktop application (`brush_app`).
 
-> **Prerequisites** ⚙️
->
-> *   Brush installed (see [Installing Brush](./installing-brush.md)).
-> *   A dataset suitable for training. Brush supports:
->     *   **COLMAP format:** A directory containing `images/` and `sparse/0/` subdirectories from a COLMAP reconstruction.
->     *   **Nerfstudio format (Synthetic NeRF):** A directory containing `images/` and a `transforms.json` file.
->     *   Datasets packaged as `.zip` archives containing either of the above structures.
+**Prerequisites:**
+
+*   Brush installed (see [Installing Brush](./installing-brush.md)).
+*   A dataset suitable for training. Brush supports:
+    *   **COLMAP format:** A directory containing `images/` and `sparse/0/` subdirectories from a COLMAP reconstruction.
+    *   **Nerfstudio format (Synthetic NeRF):** A directory containing `images/` and a `transforms.json` file.
+    *   Datasets packaged as `.zip` archives containing either of the above structures.
 
 > **Warning: Browser Training Limitations** ⚠️
 >
@@ -33,7 +33,7 @@ This guide walks through the process of training a new 3D Gaussian Splatting sce
             *   This tab contains links to download example datasets (hosted on Google Drive).
             *   Clicking a preset name (e.g., `bicycle`, `lego`) will **open a download link in your browser**.
             *   You must first download the `.zip` file and then use the **`Load file`** button in the **`Settings`** tab to load it into Brush.
-    *   > **Note:** A "Loading..." message will appear overlayed on the **`Scene`** panel while Brush processes your data. Check the Scene panel for any error messages if loading fails.
+    *   Check the Scene panel for any error messages if loading fails.
 
 3.  **(Optional) Adjust Settings:**
     *   Before or after loading data, you can tweak parameters in the **`Settings`** tab. These correspond to [CLI options](./cli-usage.md) as well.
@@ -47,9 +47,9 @@ This guide walks through the process of training a new 3D Gaussian Splatting sce
             *   `Visualize splats every`: Controls frequency of logging the 3D splat point cloud to Rerun (can be heavy).
             *   *(Includes a link to `rerun.io` and a note about using the `brush_blueprint.rbl` file for layout)*.
 
-    > **Rerun Visualization Example:** When enabled, Rerun provides a detailed, time-scrubbing view of the training process:
-    > <video src="https://github.com/user-attachments/assets/f679fec0-935d-4dd2-87e1-c301db9cdc2c" controls width="100%"></video>
-    > *Rerun viewer showing detailed training visualization for the LEGO dataset.*
+    **Rerun Visualization Example:** When enabled, Rerun provides a detailed, time-scrubbing view of the training process:
+    <video src="https://github.com/user-attachments/assets/f679fec0-935d-4dd2-87e1-c301db9cdc2c" controls width="100%"></video>
+    *Rerun viewer showing detailed training visualization for the LEGO dataset.*
 
 ## Monitoring Training
 
@@ -87,4 +87,8 @@ Brush offers two ways to export the trained Gaussian splat data as `.ply` files:
 
 ## Next Steps
 
-*   Once training is complete (or stopped) and you have `.ply` files, proceed to the [Viewing Scenes](./viewing-scenes.md) guide to learn how to load and interact with them.
+*   Once training is complete (or stopped) and you have `.ply` files, **view the results** following the [Viewing Scenes](./viewing-scenes.md) guide.
+*   To understand **command-line alternatives** for loading and training, see the [CLI Usage Guide](./cli-usage.md).
+*   For a detailed explanation of **all configuration parameters**, refer to the [Configuration Options Reference](../reference/config-options.md).
+*   For technical details on the **algorithms involved**, explore the [Training and Rendering Pipeline](../development/training-and-rendering.md) documentation.
+*   To learn about how the **user interface is built**, read the [UI Development Guide](../development/ui.md).
