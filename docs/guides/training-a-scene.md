@@ -1,6 +1,6 @@
 # Training a Scene
 
-This guide walks through the process of training a new 3D Gaussian Splatting scene from your own data using the Brush desktop application (`brush_app`).
+This guide walks through the process of training a new 3D Gaussian Splatting scene from your own data using the Brush **desktop application (`brush_app`)**. Due to current limitations and performance issues (detailed below), training via the web interface is not recommended.
 
 **Prerequisites:**
 

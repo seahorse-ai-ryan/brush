@@ -108,5 +108,8 @@ Controls logging to the [Rerun](./glossary.md#core-technologies) visualization t
 *   `--rerun-max-img-size <PIXELS>`
     *   Maximum size (width or height) for dataset images logged to Rerun during evaluation runs. (Default: 512)
 
----
-_End of Config Options_ 
+## Next Steps
+
+*   See how these options are used in practice in the [Training a Scene Guide](../guides/training-a-scene.md).
+*   Learn how to set these options via the command line in the [CLI Usage Guide](../guides/cli-usage.md).
+*   Understand the algorithms these parameters control in the [Training and Rendering Pipeline](../development/training-and-rendering.md) document. 

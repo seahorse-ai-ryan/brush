@@ -25,7 +25,7 @@ Brush can be used as a viewer for Gaussian Splatting models saved in the standar
         *   You can also add camera parameters like `&focal=1.2` or hide UI panels with `&zen=true`.
     *   **Via UI:** The **`Settings`** panel in the web demo also has **`Load file`** (requires user selection; verified on Chrome, may vary on other browsers) and **`Load URL`** buttons. <!-- Resolved: Verified on Chrome, leaving note for other browsers -->
 3.  **Interact:** Use the same mouse/keyboard controls as the desktop app to navigate the scene in the **`Scene`** panel.
-    ![Brush web demo showing garden scene](../media/Brush_demo_pretrained_garden_scene.png)
+    ![Brush web demo showing garden scene in zen mode](../media/Brush_demo_pretrained_garden%20_scene.png)
 
 > **Tip:** Loading large `.ply` files directly into the web demo might be slow or hit browser memory limits.
 

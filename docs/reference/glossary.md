@@ -59,5 +59,8 @@ Definitions for key terms and technologies used in the Brush project and documen
 *   **[Clap](https://docs.rs/clap/latest/clap/):** Library used for parsing command-line arguments.
 *   **[Serde](https://serde.rs/):** Framework for serializing and deserializing Rust data structures.
 
----
-_End of Glossary_ 
+## Next Steps
+
+*   See where these terms are applied in the [Configuration Options Reference](./config-options.md).
+*   Explore the [Guides](../guides/) section for practical usage examples.
+*   Understand how components fit together in the [Project Architecture](../development/architecture.md). 
