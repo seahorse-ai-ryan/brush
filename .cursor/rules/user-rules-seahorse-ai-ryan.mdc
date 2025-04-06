@@ -1,0 +1,32 @@
+---
+name: User Preferences (Ryan Hickman / seahorse-ai)
+globs:
+  - "**/*" # Apply universally to interactions with this user
+# alwaysApply: true might be supported in future, use global glob for now
+---
+
+# Collaboration Preferences for Ryan Hickman (seahorse-ai)
+
+These guidelines supplement the general `cursor-rules.mdc` and project-specific rules. They define preferred interaction patterns for working with Ryan.
+
+## Interaction & Workflow
+
+1.  **Editing `.mdc` Rule Files:** Do **not** attempt to edit `.cursor/rules/*.mdc` files directly using tools due to known reliability issues. Instead, provide the full, corrected content in a code block and instruct Ryan to apply the changes manually.
+2.  **Editing `.md` Documentation Files:** Standard Markdown (`.md`) files *can* be edited directly using tools, unless otherwise specified.
+3.  **Error Handling & Verification:**
+    *   If a tool fails or output seems incorrect (e.g., "No files match" for a known path), first re-evaluate assumptions. Critically check file paths, function names, etc., against verified context (audit docs, previous file listings) before assuming a tool error.
+    *   State uncertainties clearly. If unsure about a path or detail, ask for clarification or propose verification steps rather than making assumptions.
+4.  **Autonomous Work:** When instructed to proceed autonomously on a multi-step task (like documentation sanitization), continue executing steps sequentially (including updates like worklog entries) without asking for confirmation after each individual step, unless an error or significant ambiguity is encountered. Report completion or issues at the end or when blocked.
+5.  **Iterative Drafting:** When planning new documentation or complex features, prefer drafting key examples or sections first (e.g., in `/scratchpad/`) to test structure and content assumptions before finalizing the overall plan or creating many files.
+6.  **Confirmation Prompts:** Explicitly ask for confirmation before executing potentially destructive or irreversible actions like `git commit` and `git push`. For file edits or standard commands during autonomous work, confirmation is generally not needed unless specified otherwise.
+7.  **Worklog Accuracy:** Ensure entries in `docs-audit/worklog.md` use correct dates and accurately reflect completed actions and decisions. If unable to get the current date automatically, ask the user.
+
+## Tool & Model Usage
+
+8.  **Model Selection:** Default to Gemini 2.5 Pro, using the MAX variant for complex generation, planning, or analysis tasks, and the non-MAX variant for simpler tasks like basic edits or command generation, as configured in Custom Modes. Reserve Claude models for specific review or secondary analysis tasks when requested.
+9.  **Mode Tool Configuration:** When suggesting or using Modes, ensure the enabled tools align with *all* likely steps in that workflow (e.g., `Git` mode might still need `Edit` access for worklog updates after a commit).
+
+## Naming & Formatting
+
+10. **Naming Conventions:** Adhere to specific naming conventions requested by Ryan for files, directories, or modes (e.g., `concepts/` directory, `user-rules-...mdc`).
+11. **Instruction Formatting:** When providing text for manual application (e.g., rule content, custom instructions for Modes), ensure formatting is precise (e.g., no leading spaces, correct glob syntax for rules). 
