@@ -15,7 +15,7 @@ This guide details how to set up your local environment for developing and contr
 First, clone the Brush repository (or your fork):
 
 ```bash
-git clone https://github.com/ArthurBrussee/brush.git # Or your fork URL
+git clone https://github.com/ArthurBrussee/brush.git
 cd brush
 ```
 
@@ -36,18 +36,14 @@ Install the necessary development libraries for your operating system. These are
 
 *   **Linux (Debian/Ubuntu based):**
     ```bash
-    # General build tools
     sudo apt update
     sudo apt install build-essential pkg-config libssl-dev
-    # GUI dependencies (GTK, XCB, XKB - needed for eframe/winit)
     sudo apt install libgtk-3-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
-    # Graphics dependencies (OpenGL, Vulkan for WGPU)
     sudo apt install libgl1-mesa-dev libvulkan1 mesa-vulkan-drivers
     ```
     > **Note:** Package names might differ slightly on other distributions.
 *   **macOS:**
     ```bash
-    # Install Xcode Command Line Tools (includes compilers, Metal libraries)
     xcode-select --install
     ```
     > **Note:** macOS typically handles graphics drivers (Metal) automatically.
@@ -79,21 +75,13 @@ You can build and run the project using standard `cargo` commands:
     ```
 *   **Run Desktop App (`brush-app`):** The main GUI application.
     ```bash
-    # Debug mode (faster compile, slower execution)
     cargo run --bin brush_app
-
-    # Release mode (slower compile, faster execution)
     cargo run --bin brush_app --release
-
-    # Release mode with Rerun visualization enabled
     cargo run --bin brush_app --release --features=rerun
     ```
 *   **Build/Run Web App:** Uses `trunk` to manage the WASM build.
     ```bash
-    # Build and serve locally (debug), open in browser
     trunk serve --open
-
-    # Build release artifacts to ./dist/
     trunk build --release
     ```
 

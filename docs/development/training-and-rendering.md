@@ -31,7 +31,7 @@ The main training logic resides in `SplatTrainer::step`. This function, typicall
     *   Uses the custom `AdamScaled` optimizer, potentially applying per-parameter scaling (e.g., for SH coefficients).
 6.  **Density Control (`refine_if_needed`):** Periodically (every `--refine-every` steps, until `--growth-stop-iter`), adjusts the number of Gaussians based on statistics gathered during rendering (primarily positional gradients captured in `refine_weight_holder`):
     *   **Pruning:** Removes Gaussians where opacity (`sigmoid(raw_opacity)`) drops below `MIN_OPACITY` (approx 0.0035).
-    *   **Densification (Cloning & Offsetting):** Identifies Gaussians with large view-space positional gradients (norm > `--growth-grad-threshold`). A fraction (`--growth-select-fraction`) of these are selected. Each selected Gaussian is effectively **cloned**: the original is shrunk (scale divided by ~1.4, opacity adjusted) and slightly offset, while a new Gaussian is created with the shrunk scale and offset in the opposite direction. New Gaussians receive **zeroed** optimizer states. <!-- Resolved: Cloning with offset; new splats get zeroed optimizer state -->
+    *   **Densification (Cloning & Offsetting):** Identifies Gaussians with large view-space positional gradients (norm > `--growth-grad-threshold`). A fraction (`--growth-select-fraction`) of these are selected. Each selected Gaussian is effectively **cloned**: the original is shrunk (scale divided by ~1.4, opacity adjusted) and slightly offset, while a new Gaussian is created with the shrunk scale and offset in the opposite direction. New Gaussians receive **zeroed optimizer states** (momentum vectors), causing them to initially follow the gradient more directly. <!-- Resolved: Cloning with offset; new splats get zeroed optimizer state -->
     *   **Resampling:** If pruning removed Gaussians, new ones are created by sampling existing high-opacity Gaussians to replace the pruned ones, helping fill gaps.
 7.  **Logging/Updates:** Returns `TrainStepStats` and the updated `Splats` to `brush-process`, which then sends a `ProcessMessage` to the UI.
 
@@ -60,10 +60,13 @@ The forward rendering pass (`SplatForwardDiff::render_splats` / `render_forward`
 *   These kernels effectively reverse the rasterization and projection steps to calculate `dL/dMeans2D`, `dL/dCovariance2D`, `dL/dColor`, `dL/dOpacity`.
 *   Burn then propagates these gradients further back to the original 3D splat parameters.
 
-**See Also:** [Core Technologies](./core-technologies.md), [Burn Autodiff](https://burn-rs.github.io/book/autodiff/introduction.html), `crates/brush-train/src/train.rs`, `crates/brush-render/src/gaussian_splats.rs`, `crates/brush-render-bwd/`
+**Related Concepts:**
+
+*   This pipeline is based on the original [3D Gaussian Splatting paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) (INRIA). A reference CUDA implementation can be found in [gsplat](https://github.com/nerfstudio-project/gsplat).
+*   See [Core Technologies](./core-technologies.md) for details on how Brush uses `burn`, `wgpu`, and custom WGSL kernels.
 
 ## Next Steps
 
-*   Understand the [Project Architecture](./architecture.md) for crate relationships.
-*   Review the specific [Configuration Options](../reference/config-options.md) controlling this pipeline.
-*   Explore [Data Handling](./data-handling.md) to see where input data comes from. 
+*   Understand how this pipeline fits into the overall [Project Architecture](./architecture.md).
+*   Review the specific [Configuration Options](../reference/config-options.md) that control training and refinement.
+*   Explore [Data Handling](./data-handling.md) to see where the input `SceneBatch` comes from. 

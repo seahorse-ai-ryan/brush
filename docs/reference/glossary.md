@@ -62,5 +62,5 @@ Definitions for key terms and technologies used in the Brush project and documen
 ## Next Steps
 
 *   See where these terms are applied in the [Configuration Options Reference](./config-options.md).
-*   Explore the [Guides](../guides/) section for practical usage examples.
+*   See practical usage examples in the [Training a Scene](../guides/training-a-scene.md) and [Viewing Scenes](../guides/viewing-scenes.md) guides.
 *   Understand how components fit together in the [Project Architecture](../development/architecture.md). 

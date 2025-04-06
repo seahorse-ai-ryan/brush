@@ -33,10 +33,7 @@ Brush integrates with the [Tracy Profiler](https://github.com/wolfpld/tracy) for
 
 1.  **Build with Tracy Feature:** Compile Brush with the `tracy` feature flag enabled. Always use release builds for profiling.
     ```bash
-    # Build with Tracy support
     cargo build --release --features=tracy
-
-    # Or run directly with Tracy support
     cargo run --bin brush_app --release --features=tracy
     ```
 2.  **Download & Run Tracy:** Get the Tracy profiler GUI application matching the library version used by Brush (check `Cargo.lock` or dependencies) for your OS from the [Tracy releases page](https://github.com/wolfpld/tracy/releases).

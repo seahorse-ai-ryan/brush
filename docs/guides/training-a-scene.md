@@ -1,18 +1,14 @@
 # Training a Scene
 
-This guide walks through the process of training a new 3D Gaussian Splatting scene from your own data using the Brush **desktop application (`brush_app`)**. Due to current limitations and performance issues (detailed below), training via the web interface is not recommended.
+This guide walks through training a new 3D Gaussian Splatting scene from your own data using Brush.
 
-**Prerequisites:**
-
-*   Brush installed (see [Installing Brush](./installing-brush.md)).
-*   A dataset suitable for training. Brush supports:
-    *   **COLMAP format:** A directory containing `images/` and `sparse/0/` subdirectories from a COLMAP reconstruction.
-    *   **Nerfstudio format (Synthetic NeRF):** A directory containing `images/` and a `transforms.json` file.
-    *   Datasets packaged as `.zip` archives containing either of the above structures.
-
-> **Warning: Browser Training Limitations** ⚠️
+> **Prerequisites:**
 >
-> While Brush can run in a web browser (WebAssembly), training performance and quality are significantly lower compared to the native desktop application. Furthermore, known issues in the underlying Burn framework ([e.g., Burn #2901](https://github.com/tracel-ai/burn/issues/2901)) can cause **training failures on WASM** due to shader generation problems. For any training, using the **desktop version is strongly recommended**. The browser version is primarily intended for viewing pre-trained scenes.
+> *   The Brush application installed or available to run via CLI (see [Installing Brush](./installing-brush.md)).
+> *   A dataset in a supported format (COLMAP directory, Nerfstudio JSON with images, or a `.zip` of either).
+
+> **Warning: Web Training** ⚠️
+> Training via the web browser interface is **not recommended** due to significantly lower performance and potential failures ([Burn #2901](https://github.com/tracel-ai/burn/issues/2901)). Use the desktop application or CLI for training.
 
 ## Core Workflow
 
@@ -37,6 +33,7 @@ This guide walks through the process of training a new 3D Gaussian Splatting sce
 
 3.  **(Optional) Adjust Settings:**
     *   Before or after loading data, you can tweak parameters in the **`Settings`** tab. These correspond to [CLI options](./cli-usage.md) as well.
+    *   For a detailed explanation of all configuration parameters, refer to the [Configuration Options Reference](../reference/config-options.md).
         *   **Model Settings:** `Spherical Harmonics Degree`, `Max image resolution`, `Max Splats`.
         *   **Load Settings:** `Limit max frames`, `Split dataset for evaluation` (if checked, enables the `eval` tab in the Dataset panel).
         *   **Training Settings:** `Train ... steps` (sets the target number of training iterations).
@@ -68,7 +65,6 @@ Once a dataset is loaded, training typically starts automatically in the backgro
     *   If `Split dataset for evaluation` was checked, an `eval` tab appears here displaying evaluation metrics (PSNR, SSIM, LPIPS) calculated periodically based on the `Evaluate every ... steps` setting.
 *   **Pausing/Stopping:**
     *   **Pausing:** Use the `⏸ paused` button in the **`Scene`** panel controls.
-    *   **Stopping:** To permanently stop training for the current session, **close the Brush application window**. Progress may be saved via automatic checkpoints if configured.
 
 ## Exporting Results
 
@@ -83,12 +79,11 @@ Brush offers two ways to export the trained Gaussian splat data as `.ply` files:
     *   Requires the desktop application.
     *   Saves checkpoint `.ply` files periodically during training.
     *   **Location:** Saves to the *current working directory* by default, or to the path specified by the `--export-path` CLI argument.
-    *   **Naming:** Uses `splats_{iter}.ply` by default, customizable via `--export-name`.
+    *   **Naming:** Uses `export_{iter}.ply` by default, customizable via `--export-name`.
 
 ## Next Steps
 
 *   Once training is complete (or stopped) and you have `.ply` files, **view the results** following the [Viewing Scenes](./viewing-scenes.md) guide.
 *   To understand **command-line alternatives** for loading and training, see the [CLI Usage Guide](./cli-usage.md).
-*   For a detailed explanation of **all configuration parameters**, refer to the [Configuration Options Reference](../reference/config-options.md).
 *   For technical details on the **algorithms involved**, explore the [Training and Rendering Pipeline](../development/training-and-rendering.md) documentation.
 *   To learn about how the **user interface is built**, read the [UI Development Guide](../development/ui.md).

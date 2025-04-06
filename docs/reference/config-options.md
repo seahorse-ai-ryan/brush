@@ -8,7 +8,7 @@ These parameters can typically be set via:
 *   **UI Controls:** Many options are exposed graphically in the `Settings` panel of the `brush_app` UI.
 *   **Config Files:** Although the underlying structs derive `burn::Config` (which *can* support file loading), Brush **does not** currently implement or expose a mechanism to load these operational configurations from external files (e.g., YAML). Settings are managed via CLI flags or UI controls. <!-- TODO: Verify if Brush uses/supports config file loading --> <!-- Resolved: No explicit support found -->
 
-Default values are indicated where known. See the [Glossary](./glossary.md) for definitions of terms like SH, SSIM, etc.
+Default values are indicated where known. See the [Glossary](./glossary.md) for definitions of terms like [SH](./glossary.md#spherical-harmonics-sh), [Splat](./glossary.md#splat), etc.
 
 ## Training Options (`TrainConfig`)
 
@@ -29,7 +29,7 @@ Controls the optimization process. Defined in `crates/brush-train/src/train.rs`.
 *   `--lr-coeffs-dc <RATE>`
     *   Learning rate for the base (DC, 0th order) [Spherical Harmonics (SH)](./glossary.md#3d-reconstruction-rendering) coefficients (main color). (Default: 3e-3)
 *   `--lr-coeffs-sh-scale <SCALE>`
-    *   Factor to divide the base learning rate by for higher-order SH coefficients. (Default: 20.0)
+    *   Factor to divide the base learning rate (`--lr-coeffs-dc`) by for higher-order (degree > 0) SH coefficients. Lower values train higher-order coefficients faster. (Default: 20.0)
 *   `--lr-opac <RATE>`
     *   Learning rate for the raw opacity parameter (before sigmoid). (Default: 3e-2)
 *   `--lr-scale <RATE>`
@@ -52,6 +52,7 @@ Controls the optimization process. Defined in `crates/brush-train/src/train.rs`.
     *   Weight applied to the L1 loss on the alpha channel if input images have transparency (and are not just masks). (Default: 0.1)
 *   `--max-splats <COUNT>`
     *   Target maximum number of [Splats](./glossary.md#3d-reconstruction-rendering). The densification process will attempt not to exceed this limit. (Default: 10,000,000)
+    *   > **Note:** The UI slider for this setting currently limits the range to 1,000,000 - 10,000,000.
 
 ## Model Options (`ModelConfig`)
 

@@ -91,6 +91,15 @@ Building from source ensures you have the latest features and is necessary for d
         ```
     *   This will build the WASM package and open the web app in your default browser.
 
+### Building for Android
+
+Instructions for building and running Brush on Android devices can be found in the Android-specific README:
+
+*   [`crates/brush-android/README.md`](../../crates/brush-android/README.md)
+
+<video src="https://github.com/user-attachments/assets/d6751cb3-ff58-45a4-8321-77d3b0a7b051" controls width="100%"></video>
+*Brush training live on an Android device (Pixel 7).*
+
 ### Next Steps
 
 Once installed, you can proceed to:
@@ -99,7 +108,4 @@ Once installed, you can proceed to:
 *   [Viewing Pre-Trained Scenes](./viewing-scenes.md)
 *   Learn about the [Command Line Interface](./cli-usage.md)
 
-See the [Development Setup Guide](../development/setup.md) for more advanced build configurations and troubleshooting.
-
-<video src="https://github.com/user-attachments/assets/d6751cb3-ff58-45a4-8321-77d3b0a7b051" controls width="100%"></video>
-*Brush training live on an Android device (Pixel 7).* 
+See the [Development Setup Guide](../development/setup.md) for more advanced build configurations and troubleshooting. 

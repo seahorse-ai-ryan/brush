@@ -159,7 +159,6 @@ Controls logging to the [Rerun](https://www.rerun.io/) visualization tool.
 *   **Run headless (no UI):**
     > **Note:** Providing a `DATA_SOURCE` positional argument implicitly sets `--with-viewer` to false (unless explicitly overridden with `--with-viewer true`). This allows the processing (training or viewing-to-export) to run without launching the interactive GUI window. <!-- Resolved: Triggered by providing SOURCE argument -->
     ```bash
-    # Example: Train headlessly by providing a source and training steps
     cargo run --bin brush_app --release -- --total-steps 5000 ./path/to/dataset
     ```
 

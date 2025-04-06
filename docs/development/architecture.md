@@ -1,6 +1,6 @@
 # Project Architecture
 
-This document provides a high-level overview of the Brush project's architecture, focusing on crate responsibilities and key design patterns. Understanding this structure is crucial for developers looking to modify existing functionality or add new features (see [Target Audience Needs](../../docs-process/authoring-guide.md#target-audience-needs)).
+This document provides a high-level overview of the Brush project's architecture, focusing on crate responsibilities and key design patterns. Understanding this structure is crucial for developers looking to modify existing functionality or add new features.
 
 ## Crate Structure and Responsibilities
 
@@ -47,7 +47,7 @@ Brush utilizes a workspace with multiple crates (`/crates/*`) to promote modular
     *   Integrates with `burn`'s autodiff capabilities via `burn_glue.rs`.
 *   **`brush-kernel` / `brush-wgsl`:** Low-level WGSL shader code for GPU computations (rasterization, sorting components, backward pass elements). `brush-kernel` provides Rust bindings/interfaces.
 *   **`brush-sort` / `brush-prefix-sum`:** Helper crates providing GPU-accelerated radix sort and prefix sum implementations, crucial for efficient rendering.
-*   **`brush-vfs`:** Provides a Virtual File System abstraction (`brush-dataset/src/brush_vfs/`) for loading data from local files, zip archives, or URLs consistently.
+*   **`brush-vfs`:** Provides a Virtual File System abstraction (`crates/brush-dataset/src/brush_vfs.rs`) for loading data from local files, zip archives, or URLs consistently.
 *   **`brush-cli`:** Defines the main `clap` argument structure (`Cli`) including `ProcessArgs` and viewer options (`--with-viewer`). Although `brush-app` is the primary binary consuming these in the default setup, `brush-cli` contains the definitions relevant for headless operation or alternative frontends.
 *   **`brush-ui`:** Contains shared UI helper functions (e.g., `draw_checkerboard`, `create_egui_options`) and components (`BurnTexture`) used by `brush-app`.
 *   **`brush-rerun`:** Integration logic for logging data to the [Rerun](https://www.rerun.io/) visualizer (used when `rerun` feature is enabled).
@@ -55,8 +55,6 @@ Brush utilizes a workspace with multiple crates (`/crates/*`) to promote modular
 *   **Helper Crates:** `colmap-reader` (parsing COLMAP), `rrfd` (native file dialogs), `sync-span` (tracing utility).
 
 ## Data Flow Overview
-
-*(See diagram below - Placeholder)* <!-- TODO: Add diagram if feasible/helpful --> <!-- Removed: Diagrams deferred -->
 
 1.  **Startup:** `brush-app` launches, parses optional CLI args, initializes `egui` and `wgpu` via `eframe`, sets up initial panel layout.
 2.  **Data Load Request:** User interacts with `brush-app` UI (`SettingsPanel` buttons or `PresetsPanel` links) or provides `[DATA_SOURCE]` CLI arg specifying a `DataSource`.

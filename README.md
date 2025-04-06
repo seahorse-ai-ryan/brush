@@ -31,6 +31,7 @@ Brush is an open-source 3D reconstruction engine using Gaussian splatting, built
 *   Load datasets in **COLMAP** and **Synthetic NeRF** (`transforms.json`) formats.
 *   Train Gaussian Splatting models from scratch via UI or CLI.
 *   Real-time, cross-platform viewing (Desktop, Web, Android).
+*   View animated sequences via Zip archives or delta PLY files.
 *   Visualize training progress live using [Rerun](https://www.rerun.io/) integration (`--features=rerun`).
 
 ## Getting Started

@@ -1,33 +1,47 @@
 # Viewing Pre-Trained Scenes
 
-Brush can be used as a viewer for Gaussian Splatting models saved in the standard `.ply` format. This is useful for inspecting results from previous training runs (see [Training a Scene](./training-a-scene.md)) or models obtained from other sources.
+Brush can view Gaussian Splatting models saved in the standard `.ply` format. This is useful for inspecting results from training runs (see [Training a Scene](./training-a-scene.md)) or models from other sources.
 
-## Using the Desktop App (`brush_app`)
+## Loading and Viewing
 
-1.  **Launch Brush:** Run the `brush_app` executable (or use `cargo run --bin brush_app --release` if built from source).
+1.  **Launch Brush:**
+    *   **Desktop:** Run the `brush_app` executable (or use `cargo run --bin brush_app --release`).
+    *   **Web:** Open the [**Web Demo**](https://arthurbrussee.github.io/brush-demo/) in a compatible browser (see [Installing Brush](./installing-brush.md#web-demo)).
+        > **Note:** The web demo is experimental and requires WebGPU support.
+
 2.  **Load PLY File:**
-    *   In the **`Settings`** panel, click the **`Load file`** button.
-    *   Select the `.ply` file you want to view.
-    *   Alternatively, if the `.ply` file is hosted online, enter its URL in the text box and click **`Load URL`**.
+    *   In the **`Settings`** panel, use the **`Load file`** button to select a local `.ply` file.
+    *   Alternatively, enter a publicly accessible URL to a `.ply` file in the text box and click **`Load URL`**.
+
 3.  **Interact with the Scene:**
-    *   The model will load and appear in the **`Scene`** panel.
-    *   Use the mouse and keyboard controls to navigate (Hover over the "Controls" text in the `Scene` panel for a reminder: Orbit, Look, Pan, Zoom, Fly, Roll).
-    *   The **`Stats`** panel will show the number of splats and SH degree of the loaded model. GPU memory usage will be minimal.
+    *   The model appears in the **`Scene`** panel.
+    *   Use the mouse/keyboard controls to navigate (Orbit, Look, Pan, Zoom, Fly, Roll - hover over "Controls" for hints).
+    *   The **`Stats`** panel shows model details.
 
-## Using the Web Demo
+## Tip: Web Demo URL Parameters
 
-1.  **Access the Demo:** Open the Brush Web Demo at [**arthurbrussee.github.io/brush-demo/**](https://arthurbrussee.github.io/brush-demo/) in a compatible browser (see [Installing Brush](./installing-brush.md#web-demo)).
-    > **Warning:** The public web demo is experimental and may have limitations.
-2.  **Load PLY File:**
-    *   **Via URL Parameter (Recommended):** Append `?url=<YOUR_PLY_FILE_URL>` to the demo URL. The model should load automatically.
-        *   Example: `https://arthurbrussee.github.io/brush-demo/?url=https://example.com/path/to/your/model.ply`
-        *   Make sure the URL is publicly accessible and properly encoded.
-        *   You can also add camera parameters like `&focal=1.2` or hide UI panels with `&zen=true`.
-    *   **Via UI:** The **`Settings`** panel in the web demo also has **`Load file`** (requires user selection; verified on Chrome, may vary on other browsers) and **`Load URL`** buttons. <!-- Resolved: Verified on Chrome, leaving note for other browsers -->
-3.  **Interact:** Use the same mouse/keyboard controls as the desktop app to navigate the scene in the **`Scene`** panel.
-    ![Brush web demo showing garden scene in zen mode](../media/Brush_demo_pretrained_garden%20_scene.png)
+You can directly load a model and configure the web demo viewer using URL parameters:
 
-> **Tip:** Loading large `.ply` files directly into the web demo might be slow or hit browser memory limits.
+*   `?url=<YOUR_PLY_FILE_URL>`: Loads the specified `.ply` file automatically.
+*   `&focal=<NUMBER>`: Sets the initial focal length (e.g., `&focal=1.2`).
+*   `&zen=true`: Hides most UI panels, maximizing the scene view.
+
+**Example:** `https://arthurbrussee.github.io/brush-demo/?url=https://example.com/model.ply&zen=true`
+
+![Brush web demo showing garden scene in zen mode](../media/Brush_demo_pretrained_garden%20_scene.png)
+
+> **Note:** Loading large `.ply` files via URL might be slow or hit browser memory limits.
+
+## Viewing Animated Scenes
+
+Brush also supports viewing animated sequences of Gaussian Splats. As noted in the [upstream project README](https://github.com/ArthurBrussee/brush/blob/main/README.md):
+
+> Brush also can load .zip of splat files to display them as an animation, or a special ply that includes delta frames. This was used for cat-4D and Cap4D!
+
+*   **ZIP Archives:** Load a `.zip` file containing multiple numbered `.ply` files (e.g., `frame_0000.ply`, `frame_0001.ply`, ...). Brush will detect the sequence and basic playback controls (Play/Pause) will appear below the scene view.
+*   **Delta PLY:** Load a single `.ply` file that contains base frame data plus delta information for subsequent frames (requires specific PLY structure, as used in projects like [cat-4D](https://github.com/zju3dv/cat-4d) and [Cap4D](https://github.com/yijiaguo/Cap4D)). Playback controls will also appear.
+
+Loading is done via the same **`Load file`** or **`Load URL`** buttons described above.
 
 ## Next Steps
 
