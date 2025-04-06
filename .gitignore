@@ -33,3 +33,4 @@ crates/brush-render/test_cases/bench_data.safetensors
 
 # Ignore temporary/local scratchpad files
 scratchpad/
+docs-process/
