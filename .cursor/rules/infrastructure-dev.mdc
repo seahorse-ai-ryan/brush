@@ -1,0 +1,25 @@
+---
+description: 
+globs: crates/brush-process/**,crates/brush-dataset/**,crates/brush-android/**,crates/brush-cli/**,**/build.rs,Cargo.toml,Trunk.toml
+alwaysApply: false
+---
+
+# Infrastructure Development Rules
+
+Apply these rules *in addition* to `cursor-rules.mdc` when working on overall application structure, data handling, platform integration, build system, CLI, or process orchestration.
+
+## Focus Areas
+
+*   **Architecture & Modularity:** Maintain clear boundaries and responsibilities between crates. Ensure changes align with the existing architectural patterns (e.g., separation of UI, processing, rendering).
+*   **Data Flow:** Understand how data (datasets, configurations, intermediate results) flows through the system (VFS -> dataset parsing -> process -> train/render).
+*   **Process Orchestration (`brush-process`):** Manage the coordination between different modes (viewing vs. training) and the interaction with core libraries (`brush-train`, `brush-render`). Handle background process management correctly.
+*   **Platform Integration (`brush-android`, WASM cfg):** Ensure cross-platform compatibility using conditional compilation (`#[cfg(...)]`) and platform-specific adapters where necessary. Understand limitations on different platforms (e.g., filesystem access on WASM).
+*   **Dataset Handling (`brush-dataset`, `brush-vfs`):** Support different input formats correctly. Manage data I/O efficiently using the VFS.
+*   **Command-Line Interface (`brush-cli`):** Provide a clear and consistent CLI experience. Ensure arguments are parsed correctly and map to the appropriate actions in `brush-process`.
+*   **Build System (`Cargo.toml`, `build.rs`, `Trunk.toml`):** Manage dependencies, feature flags, and build configurations correctly for different targets (native, WASM).
+
+## Code Implementation
+
+*   Use standard Rust patterns for error handling (`Result`), data serialization (`serde`), and asynchronous operations (`tokio`).
+*   Ensure platform-specific code is properly gated using `cfg` attributes.
+*   Keep crate dependencies well-managed and justified. 

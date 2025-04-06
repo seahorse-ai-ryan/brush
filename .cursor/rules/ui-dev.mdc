@@ -1,0 +1,25 @@
+---
+description: 
+globs: crates/brush-app/**
+alwaysApply: false
+---
+
+# UI Development Rules (Egui / Eframe)
+
+Apply these rules *in addition* to `cursor-rules.mdc` when working on UI code, primarily within the `crates/brush-app` crate or other areas using `egui`/`eframe`.
+
+## Focus Areas & Egui Considerations
+
+*   **Immediate Mode Paradigm:** Remember that `egui` rebuilds the UI from scratch every frame based on application state. There are no persistent UI objects or callbacks in the traditional sense. Analyze `AppPanel::ui` methods with this in mind.
+*   **State-Driven UI:** The UI's appearance and behavior are direct functions of the current state, primarily `AppContext`. Changes require modifying the state, which then causes the UI to redraw differently on the next frame.
+*   **Input Handling:** User interactions (clicks, drags) are checked within the `ui` method (`if ui.button(...).clicked()`). Actions typically involve modifying `AppContext` state or sending a `ControlMessage`.
+*   **Layout (`egui`, `egui_tiles`):** Understand how `egui`'s layout functions (`ui.horizontal`, `ui.vertical`, `ui.grid`) and `egui_tiles` (for panel management) determine the visual arrangement.
+*   **User Experience (UX):** Prioritize clear, intuitive workflows. Ensure controls are logically grouped and easy to understand. Consider the impact of changes on usability.
+*   **Performance:** Be mindful of UI responsiveness. Avoid blocking the UI thread within `AppPanel::ui`. Long-running operations belong in the background process (`brush-process`).
+*   **Egui/Eframe Best Practices:** Leverage standard `egui` patterns and widgets. Consult official `egui` documentation ([https://docs.rs/egui/](https://docs.rs/egui/), [https://www.egui.rs/](https://www.egui.rs/)) for fundamental concepts or widget usage.
+
+## Code Implementation
+
+*   Maintain clear separation between UI logic (`brush-app`) and core processing logic (`brush-process`, etc.).
+*   Use existing patterns (`AppPanel`, `AppContext`, message passing) for consistency.
+*   Ensure widgets correctly reflect and update the underlying application state via `AppContext`. 

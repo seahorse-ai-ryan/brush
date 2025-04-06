@@ -1,0 +1,25 @@
+---
+description: 
+globs: crates/brush-train/**,crates/brush-render/**,crates/brush-render-bwd/**,crates/brush-kernel/**,**/shaders/**/*.wgsl
+alwaysApply: false
+---
+
+# Reconstruction & Rendering Development Rules
+
+Apply these rules *in addition* to `cursor-rules.mdc` when working on core 3D reconstruction, rendering algorithms, GPU kernels, or related data structures.
+
+## Focus Areas
+
+*   **Algorithmic Correctness:** Ensure mathematical formulas, data transformations, and control flow accurately implement the intended algorithms (e.g., Gaussian splatting, optimization steps, density control, rasterization).
+*   **Performance (GPU):** Optimize WGSL shaders and Rust code interacting with WGPU/Burn for efficiency (memory bandwidth, compute utilization). Be mindful of buffer usage, data transfers, and kernel launch overhead.
+*   **Burn Framework Integration:** Use the `burn` framework (tensors, modules, autodiff, backends) correctly. Understand the implications of operations on the computation graph and memory usage.
+*   **WGPU/WGSL:** Follow WGPU API best practices. Write clear, maintainable, and performant WGSL shaders. Ensure correct data layout and binding definitions (`repr(C)`, WGSL structs).
+*   **Data Structures:** Pay attention to the definition and usage of core data structures like `Splats`, `ProjectedSplat`, tensors, and GPU buffers. Ensure accuracy (e.g., `ProjectedSplat` is 36 bytes).
+*   **Numerical Stability:** Consider potential issues with floating-point precision in calculations.
+
+## Code Implementation
+
+*   Maintain clear separation between CPU-side logic (Rust) and GPU-side logic (WGSL).
+*   Document complex mathematical sections or non-obvious algorithm steps with comments, explaining the "Why".
+*   When modifying algorithms, consider the impact on both forward rendering (`brush-render`) and training/backpropagation (`brush-train`, `brush-render-bwd`).
+*   Ensure any changes to GPU kernels (`brush-kernel`, WGSL) are reflected in the corresponding Rust binding code. 

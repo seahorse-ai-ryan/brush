@@ -1,0 +1,33 @@
+---
+description: 
+globs: *.md
+alwaysApply: false
+---
+
+# Documentation Authoring Rules
+
+Apply these rules *in addition* to `cursor-rules.mdc` when creating or editing documentation.
+
+## Content & Accuracy
+
+1.  **Grounding is Paramount:**
+    *   All technical claims (API usage, parameters, return values, algorithms, performance characteristics, configuration options, struct sizes like `ProjectedSplat`) MUST be directly verifiable from the current codebase context provided.
+    *   If code context is insufficient, state what needs verification and request the relevant code snippets.
+    *   Do NOT include performance numbers (e.g., FPS, iteration times) unless they are asserted in code tests or benchmarks within *this* project.
+    *   Do NOT describe features or behaviors based on TODO comments, design docs, or future plans. Document only existing, verifiable functionality.
+    *   When referencing specific code elements (functions, structs, modules), provide accurate paths or links if possible.
+2.  **Code Examples & Snippets:**
+    *   Ensure any code examples (Rust, CLI, WGSL, etc.) are correct, runnable, and accurately reflect the current APIs and command names.
+    *   Verify CLI examples against the actual CLI arguments/flags available.
+    *   Ensure pseudo-code accurately represents the structure and key elements of the actual code.
+3.  **Clarity and Audience:**
+    *   Write clearly and concisely. Define technical terms (or link to a glossary).
+    *   Consider the intended audience (developer guide vs. user guide vs. technical deep-dive) and tailor the level of detail accordingly.
+    *   Explain the "Why" behind concepts, not just the "What".
+4.  **Structure and Consistency:**
+    *   Maintain a consistent structure and formatting within and across documents.
+    *   Use Markdown effectively for readability (headings, lists, code blocks, etc.).
+
+## Referencing Other Docs
+
+*   **`docs-process/process-notes.md`:** Use the learnings summarized here as guides for required accuracy points and anti-patterns to avoid. 
