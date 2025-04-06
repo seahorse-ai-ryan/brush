@@ -17,7 +17,7 @@ Apply these rules *in addition* to `cursor-rules.mdc` when working on testing, b
 *   **Dependencies (`Cargo.toml`):** Manage dependencies carefully. Keep versions up-to-date where feasible, but prioritize stability. Justify adding new dependencies.
 *   **Tooling (`rust-toolchain.toml`, scripts):** Ensure consistent use of the specified Rust toolchain. Maintain helper scripts for common development tasks.
 *   **Developer Experience (DX):** Strive to make the setup, build, test, and debug cycle smooth for developers.
-*   **AI Agent Collaboration (`.cursor/rules`):** Maintain and refine these rules to improve AI agent effectiveness and adherence to project standards. Use the `worklog.md` to track changes and decisions related to rules.
+*   **AI Agent Collaboration (`.cursor/rules`):** Maintain and refine these rules to improve AI agent effectiveness and adherence to project standards. Use `scratchpad/worklog.md` to track changes and decisions related to rules.
 
 ## Code Implementation
 

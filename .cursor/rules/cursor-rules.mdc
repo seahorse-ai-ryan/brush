@@ -31,7 +31,7 @@ Based on the primary goal of the current task, consult and apply the relevant sp
 *   **Bug Fixing:** Review relevant goal-specific rules for the affected code area. Focus on root cause analysis and targeted fixes.
 *   **New Features:** Review relevant goal-specific rules. Ensure features are implemented according to project patterns and documented accurately (ref: `documentation.mdc`).
 
-## Learning from the Audit (Anti-Patterns to Avoid - Ref: docs-audit/*)
+## Learning from the Audit (Anti-Patterns to Avoid - Ref: docs-process/process-notes.md)
 
 *   **Avoid Error Compounding:** Do not treat previously generated (potentially incorrect) documentation as ground truth. Always verify against code.
 *   **Avoid Unverified Claims:** Do not state performance numbers (FPS, iter/sec), specific struct sizes (e.g., `ProjectedSplat`), or algorithm parameters unless directly verified in the *current* code context.

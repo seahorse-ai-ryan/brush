@@ -30,6 +30,4 @@ Apply these rules *in addition* to `cursor-rules.mdc` when creating or editing d
 
 ## Referencing Other Docs
 
-*   **`/old-docs` (Phase 1 Sanitization):** When working in `/old-docs` during Phase 1, focus *only* on correcting specific factual errors identified in `docs-audit/docs-audit-findings-gemini.md`. Do not restructure, rewrite, or add new content.
-*   **`/old-docs` (Phase 3+ Content Generation):** When generating new docs in `/docs`, reference `/old-docs` **sparingly** and only for specific, *verified* factual snippets (e.g., a default parameter value that was confirmed correct in the audit). Do *not* copy prose or structure wholesale.
-*   **`docs-audit`:** Use the findings and postmortem as guides for required accuracy points and anti-patterns to avoid. 
+*   **`docs-process/process-notes.md`:** Use the learnings summarized here as guides for required accuracy points and anti-patterns to avoid. 

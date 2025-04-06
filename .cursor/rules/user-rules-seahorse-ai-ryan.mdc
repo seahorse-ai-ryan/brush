@@ -19,7 +19,7 @@ These guidelines supplement the general `cursor-rules.mdc` and project-specific 
 4.  **Autonomous Work:** When instructed to proceed autonomously on a multi-step task (like documentation sanitization), continue executing steps sequentially (including updates like worklog entries) without asking for confirmation after each individual step, unless an error or significant ambiguity is encountered. Report completion or issues at the end or when blocked.
 5.  **Iterative Drafting:** When planning new documentation or complex features, prefer drafting key examples or sections first (e.g., in `/scratchpad/`) to test structure and content assumptions before finalizing the overall plan or creating many files.
 6.  **Confirmation Prompts:** Explicitly ask for confirmation before executing potentially destructive or irreversible actions like `git commit` and `git push`. For file edits or standard commands during autonomous work, confirmation is generally not needed unless specified otherwise.
-7.  **Worklog Accuracy:** Ensure entries in `docs-audit/worklog.md` use correct dates and accurately reflect completed actions and decisions. If unable to get the current date automatically, ask the user.
+7.  **Worklog Accuracy:** Ensure entries in `scratchpad/worklog.md` use correct dates and accurately reflect completed actions and decisions. If unable to get the current date automatically, ask the user.
 
 ## Tool & Model Usage
 

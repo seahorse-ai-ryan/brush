@@ -1,123 +1,69 @@
 # Brush - 3D reconstruction for all
 
 [![Docs](https://img.shields.io/badge/Documentation-View%20Here-blue)](docs/README.md)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) <!-- Assuming Apache 2.0 based on Google Research -->
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Discord](https://dcbadge.limes.pink/api/server/TbxJST2BbC?style=flat)](https://discord.gg/TbxJST2BbC)
 
 ## Overview
 
-Brush is an open-source 3D reconstruction engine using Gaussian splatting, built with Rust. It leverages the [Burn](https://github.com/burn-rs/burn) framework and custom WGSL kernels for high portability and performance.
+Brush is an open-source 3D reconstruction engine using Gaussian splatting, built with Rust. It leverages the [Burn](https://github.com/burn-rs/burn) framework and custom WGSL kernels for high portability and performance across desktop (Windows, macOS, Linux), web (WASM), and Android.
 
-**Key Goals:**
+> **Note:** This repository is an experimental fork (derived from [ArthurBrussee/brush](https://github.com/ArthurBrussee/brush), originating from [Google Research](https://github.com/google-research/google-research/tree/master/brush_splat)) representing ongoing development and exploration. While functional, it may not yet implement all the latest extensions to the Gaussian splatting technique.
 
-*   **State-of-the-Art Reconstruction:** Achieve 3D reconstruction quality on par with top benchmarks from the latest research in the field.
-*   **Portable:** Run training and rendering across macOS, Windows, Linux, Web (WASM), and Android.
-*   **Flexible:** Support various input dataset formats.
-*   **Fast:** Optimized rendering and training pipeline using modern GPU techniques.
+## Visual Showcase
 
-> [!NOTE]
-> This project originated from Google Research and is currently maintained as a fork with ongoing development. While functional and capable, it serves as a foundation and may not yet implement all the latest extensions to the Gaussian splatting technique.
+<!-- TODO: Replace placeholders with actual hosted video/gif URLs -->
+
+**Desktop Training:**
 
 <video src="https://github.com/user-attachments/assets/b7f55b9c-8632-49f9-b34b-d5de52a7a8b0" controls width="100%"></video>
-*Live training view showing the interactive UI, scene reconstruction, and dataset visualization.* 
+*Live training view showing the interactive UI, scene reconstruction, and dataset visualization.*
+
+**Web Viewer & Training:**
 
 <video src="https://github.com/user-attachments/assets/4c70f892-cfd2-419f-8098-b0e20dba23c7" controls width="100%"></video>
-*Left: Web viewer rendering a pre-trained scene. Right: Web UI training a new scene.* 
+*Left: Web viewer rendering a pre-trained scene. Right: Web UI training a new scene.*
 
-<video src="https://github.com/user-attachments/assets/d6751cb3-ff58-45a4-8321-77d3b0a7b051" controls width="100%"></video>
-*Brush training live on an Android device (Pixel 7).* 
+<!-- Optional: Add Android / Rerun videos here or link to docs sections containing them -->
 
-<video src="https://github.com/user-attachments/assets/f679fec0-935d-4dd2-87e1-c301db9cdc2c" controls width="100%"></video>
-*Rerun viewer showing detailed training visualization (losses, splat counts, 3D view) for the LEGO dataset.*
-
-➡️ **Learn More:** [**Introduction & Project Overview**](docs/introduction.md)
-
-## Features
+## Core Features
 
 *   Load datasets in **COLMAP** and **Synthetic NeRF** (`transforms.json`) formats.
-*   Train Gaussian splatting models from scratch.
-*   Real-time rendering of trained models.
-*   Visualize training progress live using [Rerun](https://www.rerun.io/).
-*   Interactive desktop and web viewer using `egui`.
-*   Command-line interface for processing (`brush_app`). <!-- Assuming brush_app is the CLI -->
-*   Cross-platform compatibility (Desktop, Web, Android).
-
-➡️ **See More:** [**Full Feature List**](docs/introduction.md#13-key-features) | [**Supported Platforms**](docs/getting-started/user-guide.md#211-installation)
+*   Train Gaussian Splatting models from scratch via UI or CLI.
+*   Real-time, cross-platform viewing (Desktop, Web, Android).
+*   Visualize training progress live using [Rerun](https://www.rerun.io/) integration (`--features=rerun`).
 
 ## Getting Started
 
-### Prerequisites
-
-*   **Rust:** Install Rust 1.78+ via [rustup](https://rustup.rs/).
-*   **Platform Dependencies:** See the [Setup Guide](docs/getting-started/developer-guide.md#221-development-environment-setup) for Linux, macOS, or Windows requirements.
-*   **(Web):** `trunk` (`cargo install trunk`) and the WASM target (`rustup target add wasm32-unknown-unknown`).
-*   **(Visualization):** [Rerun SDK](https://www.rerun.io/docs/getting-started/installing-the-sdk) (Optional, for live training view).
-
-### Quick Start (Desktop)
-
-1.  **Clone the repository:**
+*   **Try the Web Demo:** [**arthurbrussee.github.io/brush-demo/**](https://arthurbrussee.github.io/brush-demo/)
+    > (Requires modern browser with WebGPU support)
+*   **Run Natively (Basic):**
     ```bash
-    git clone https://github.com/ArthurBrussee/brush.git # Or your fork's URL
+    # Clone the repo (replace with your fork URL if needed)
+    git clone https://github.com/ArthurBrussee/brush.git
     cd brush
+    # Build and run (Release mode recommended for performance)
+    cargo run --bin brush_app --release
     ```
-2.  **Run the desktop application:**
-    *   Debug: `cargo run --bin brush_app`
-    *   Release: `cargo run --bin brush_app --release`
-    *   With Rerun: `cargo run --bin brush_app --release --features=rerun`
+*   **Explore the Full Documentation:** ➡️ [**docs/README.md**](./docs/README.md) ⬅️
 
-➡️ **Detailed Guides:** [**Installation**](docs/getting-started/user-guide.md#211-installation) | [**Building for Web/Android**](docs/getting-started/developer-guide.md#222-building-the-project) | [**Basic Workflows**](docs/getting-started/user-guide.md#212-basic-workflows-step-by-step)
+## Community
 
-> [!WARNING]
-> The public web demo is experimental. As of early 2025, it requires Chrome 131+ due to WebGPU and subgroup requirements. Firefox/Safari support may vary. See the User Guide for details.
-
-## Example Data
-
-Example datasets (like `bicycle`, `bonsai`, `counter`, synthetic NeRF scenes, etc.) are not included directly in the repository. They can be downloaded and loaded via the "Presets" panel within the `brush_app` application.
-
-➡️ **Learn More:** [**Using Presets (User Guide)**](docs/getting-started/user-guide.md#workflow-1-loading-data) <!-- Adjust link if needed -->
-
-## Technical Deep Dive
-
-Brush employs a multi-crate architecture for modularity. Key technologies include:
-
-*   **Gaussian Splatting:** The core reconstruction and rendering algorithm.
-*   **Burn:** ML framework providing tensor operations and abstractions.
-*   **wgpu:** Graphics API abstraction for cross-platform GPU access (Vulkan, Metal, DX12, WebGPU).
-*   **WGSL:** Custom compute and rendering kernels.
-*   **egui:** Immediate-mode GUI for the viewer application.
-*   **naga & naga-oil:** Shader processing and management.
-
-The rendering pipeline uses GPU-accelerated sorting (`brush-sort`) and prefix sums (`brush-prefix-sum`) for efficiency. Training optimizes the Gaussian parameters using a custom **differentiable rendering** approach, implemented with specialized WGSL kernels for the backward pass and integrated seamlessly with Burn's automatic differentiation.
-
-➡️ **Explore Further:** [**Architecture**](docs/technical-deep-dive/architecture.md) | [**Reconstruction Pipeline**](docs/technical-deep-dive/reconstruction_pipeline.md) | [**Rendering Details**](docs/technical-deep-dive/gaussian_splatting.md) | [**Core Technologies**](docs/technical-deep-dive/core_technologies.md)
-
-## Benchmarks & Performance
-
-Rendering performance aims to be competitive with other leading Gaussian splatting implementations. Training performance is continually improving.
-
-For detailed performance metrics and comparisons (which may evolve), please see:
-
-➡️ **[Benchmarks](docs/benchmarks.md)**
-
-Profiling is possible using `tracy`: run with `cargo run --release --features=tracy`.
-
-## Contributing
-
-We welcome contributions! Please read our [**Contribution Guidelines**](CONTRIBUTING.md) before submitting pull requests or issues.
+Join the discussion on the [Brush Discord Server](https://discord.gg/TbxJST2BbC).
 
 ## Acknowledgements
 
 Inspired by and building upon foundational work:
 *   [3D Gaussian Splatting for Real-Time Radiance Field Rendering](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) (INRIA)
-*   [Mip-NeRF 360](https://jonbarron.info/mipnerf360/)
-
-Project Contributors & Support:
-*   Original Google Research team.
-*   **Arthur Brussee** ([@ArthurBrussee](https://github.com/ArthurBrussee)) for significant contributions and maintenance.
-*   **Raph Levien** (original GPU radix sort).
-*   **Peter Hedman & George Kopanas** (discussion & inspiration).
-*   **The Burn team** (support with kernel integration).
+*   Original Google Research team & paper contributors.
+*   **Arthur Brussee** ([@ArthurBrussee](https://github.com/ArthurBrussee)) for significant contributions and maintenance of the upstream fork.
+*   The **Burn** team ([@burn-rs](https://github.com/burn-rs)) for the ML framework and support.
+*   The **Rerun** team ([@rerun-io](https://github.com/rerun-io)) for the visualization tool and stewardship of Egui.
 
 ## Disclaimer
 
 This is *not* an official Google product. It is an open-source project.
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) file.
