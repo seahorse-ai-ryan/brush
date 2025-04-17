@@ -74,6 +74,7 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 [features]
 tracy = ["tracing", "dep:tracing-tracy"]
 tracing = ["tracing-subscriber"]
+rerun = ["brush-process/rerun"]
 
 [package.metadata.wasm-pack.profile.release.wasm-bindgen]
 debug-js-glue = false

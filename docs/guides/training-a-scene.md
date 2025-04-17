@@ -39,12 +39,31 @@ This guide walks through training a new 3D Gaussian Splatting scene from your ow
         *   **Training Settings:** `Train ... steps` (sets the target number of training iterations).
         *   **Process Settings:** `Evaluate every ... steps`, `Export every ... steps` (enables automatic periodic export, see `## Exporting Results` below).
         *   **Rerun Settings** (Desktop only, requires `--features=rerun` build):
-            *   `Enable rerun`: Connects to a running Rerun viewer.
-            *   `Log train stats every`: Controls frequency of scalar logging (loss, iter/s) sent to Rerun.
-            *   `Visualize splats every`: Controls frequency of logging the 3D splat point cloud to Rerun (can be heavy).
-            *   *(Includes a link to `rerun.io` and a note about using the `brush_blueprint.rbl` file for layout)*.
+            *   This section controls logging data to the **Rerun Viewer**, a separate application used for detailed visualization. Brush itself does *not* gain extra UI panels; it sends data to the external viewer.
+            *   `Enable rerun`: Must be checked to activate sending data to a running Rerun viewer.
+            *   `Log train stats every`: Controls frequency of scalar logging (loss, iter/s, etc.) sent to Rerun. Set > 0 to enable.
+            *   `Visualize splats every`: Controls frequency of logging the 3D splat point cloud to Rerun (can be performance-intensive). Set > 0 to enable.
 
-    **Rerun Visualization Example:** When enabled, Rerun provides a detailed, time-scrubbing view of the training process:
+    **Using Rerun for Detailed Visualization:**
+
+    Rerun provides powerful, time-scrubbing visualization of the training process, but requires specific setup:
+
+    1.  **Install Rerun Viewer:** Ensure you have installed the viewer using `cargo install rerun-cli`. (See [Installing Brush](./installing-brush.md)). The Python `rerun-sdk` is **not** needed.
+    2.  **Build Brush with Feature:** Run Brush using the `--features=rerun` flag (e.g., `cargo run --bin brush_app --features=rerun`).
+    3.  **Launch Rerun Viewer FIRST:** *Before* starting training in Brush, launch the Rerun Viewer application. The recommended way is to run the following command in your terminal (in the Brush project directory) before starting Brush:
+        ```bash
+        # The blueprint file is located in the project root directory.
+        rerun ./brush_blueprint.rbl &
+        ```
+        This starts the viewer in the background (`&`) and loads the `brush_blueprint.rbl` file for the optimal panel layout. Alternatively, run `rerun` in a separate terminal and load the blueprint via the File menu.
+    4.  **Enable in Brush UI:** Once Brush is running, go to `Settings -> Rerun Settings` and check `Enable rerun`. Also set `Log train stats every` and `Visualize splats every` to desired frequencies (e.g., 50 and 500).
+    5.  **Start Training:** Load your dataset and click the `⏵ training` button.
+    6.  **Check Rerun Window:** Data will start appearing in the separate Rerun Viewer window.
+        *   **Platform Note:** Rerun visualization is only available in native desktop builds (Windows, macOS, Linux) and is disabled in web (WASM) builds.
+        *   **Initial Delay:** Note that some panels (plots, evaluation stats) might take ~30 seconds or until the first evaluation cycle completes to populate fully.
+        *   **Evaluation Data:** The blueprint layout works best if you enable **`Split dataset for evaluation`** in Brush's `Process Settings`, as many panels display evaluation-specific metrics and images.
+
+    **Original Rerun Visualization Example:**
     <video src="https://github.com/user-attachments/assets/f679fec0-935d-4dd2-87e1-c301db9cdc2c" controls width="100%"></video>
     *Rerun viewer showing detailed training visualization for the LEGO dataset.*
 

@@ -68,3 +68,16 @@ This is *not* an official Google product. It is an open-source project.
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) file.
+
+## Rerun
+
+rerun_dash_compressed.mp4 
+
+While training, additional data can be visualized with the excellent [rerun](https://rerun.io/). To set up visualization:
+
+1.  Install the viewer: `cargo install rerun-cli` (see "Building Brush" below).
+2.  Follow the detailed usage instructions in the [**Training Guide**](./docs/guides/training-a-scene.md#using-rerun-for-detailed-visualization) for launching the viewer and Brush.
+
+Open the `./brush_blueprint.rbl` (located in the project root) in the viewer for best results.
+
+## Building Brush

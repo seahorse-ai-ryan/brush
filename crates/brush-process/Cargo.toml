@@ -1,4 +1,3 @@
-
 [package]
 name = "brush-process"
 edition.workspace = true
@@ -38,12 +37,14 @@ reqwest.workspace = true
 clap.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-rerun.workspace = true
-brush-rerun.path = "../brush-rerun"
+rerun = { workspace = true, optional = true }
+brush-rerun = { path = "../brush-rerun", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 web-sys.workspace = true
 
+[features]
+rerun = ["dep:rerun", "dep:brush-rerun"]
 
 [lints]
 workspace = true

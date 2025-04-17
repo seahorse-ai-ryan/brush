@@ -8,7 +8,11 @@ This guide details how to set up your local environment for developing and contr
 > *   **Rust Toolchain:** Brush requires a specific Rust toolchain version defined in the project to ensure consistent builds.
 > *   **System Dependencies:** Libraries needed for GUI development (windowing via `winit`/`eframe`), graphics rendering (WGPU backends like Vulkan/Metal/DX12), and potentially SSL.
 > *   **WASM Tools (`rustup target`, `trunk`):** Required for building and testing the WebAssembly version of the application.
-> *   **(Optional) Rerun SDK:** For using live training visualization.
+> *   **(Optional) Rerun Visualization Setup (for Live Visualization):**
+>     *   Install the **Rerun Viewer application** using Cargo: `cargo install rerun-cli`.
+>     *   This separate viewer application displays data sent by Brush when the `rerun` feature is enabled.
+>     *   **Note:** Brush uses the `rerun` Rust crate internally. You do **not** need the Python `rerun-sdk` (installed via `pip`) for this workflow.
+>     *   See the [Training Guide](../guides/training-a-scene.md#using-rerun-for-detailed-visualization) for detailed usage instructions.
 
 ## 1. Clone the Repository
 

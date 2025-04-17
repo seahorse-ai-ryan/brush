@@ -56,8 +56,11 @@ Building from source ensures you have the latest features and is necessary for d
     rustup target add wasm32-unknown-unknown
     cargo install trunk
     ```
-4.  **(Optional) Rerun SDK:** Required only if you plan to use the live training visualization feature (`--features=rerun`):
-    *   Follow the [Rerun SDK installation guide](https://www.rerun.io/docs/getting-started/installing-the-sdk).
+4.  **(Optional) Rerun Visualization Setup:** Required only if you plan to use the live training visualization feature (`--features=rerun`):
+    *   Install the **Rerun Viewer application** using Cargo: `cargo install rerun-cli`.
+    *   This viewer runs as a separate application to display data sent by Brush.
+    *   **Note:** Brush uses the `rerun` Rust crate internally. You do **not** need the Python `rerun-sdk` (installed via `pip`) for this workflow.
+    *   See the [Training Guide](./training-a-scene.md#using-rerun-for-detailed-visualization) for instructions on how to launch and use the viewer with Brush.
 
 ### Build Steps
 
