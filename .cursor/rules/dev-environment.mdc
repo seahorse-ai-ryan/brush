@@ -23,4 +23,9 @@ Apply these rules *in addition* to `cursor-rules.mdc` when working on testing, b
 
 *   Ensure tests and benchmarks are well-structured and easy to understand.
 *   Keep CI workflow files organized and readable.
-*   Use appropriate tools for linting (`clippy`) and formatting (`rustfmt`). 
+*   Use appropriate tools for linting (`clippy`) and formatting (`rustfmt`).
+
+## Documentation Context
+
+*   Refer to `/docs/guides/installing-brush.md` for setup instructions.
+*   Consult `docs-process/` for guidelines on AI collaboration and documentation standards when modifying rules or processes. 

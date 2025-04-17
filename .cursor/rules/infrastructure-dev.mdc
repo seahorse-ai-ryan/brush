@@ -22,4 +22,10 @@ Apply these rules *in addition* to `cursor-rules.mdc` when working on overall ap
 
 *   Use standard Rust patterns for error handling (`Result`), data serialization (`serde`), and asynchronous operations (`tokio`).
 *   Ensure platform-specific code is properly gated using `cfg` attributes.
-*   Keep crate dependencies well-managed and justified. 
+*   Keep crate dependencies well-managed and justified.
+
+## Documentation Context
+
+*   Refer to `/docs/guides/cli-usage.md` and `/docs/reference/config-options.md` when working on `brush-cli` or `brush-process`.
+*   Consult `/docs/reference/api-notes.md` for information on feature flags relevant to the build system.
+*   Review `/docs/reference/glossary.md` for definitions of core concepts like VFS. 

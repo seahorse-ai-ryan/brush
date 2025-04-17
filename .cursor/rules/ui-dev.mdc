@@ -16,10 +16,16 @@ Apply these rules *in addition* to `cursor-rules.mdc` when working on UI code, p
 *   **Layout (`egui`, `egui_tiles`):** Understand how `egui`'s layout functions (`ui.horizontal`, `ui.vertical`, `ui.grid`) and `egui_tiles` (for panel management) determine the visual arrangement.
 *   **User Experience (UX):** Prioritize clear, intuitive workflows. Ensure controls are logically grouped and easy to understand. Consider the impact of changes on usability.
 *   **Performance:** Be mindful of UI responsiveness. Avoid blocking the UI thread within `AppPanel::ui`. Long-running operations belong in the background process (`brush-process`).
-*   **Egui/Eframe Best Practices:** Leverage standard `egui` patterns and widgets. Consult official `egui` documentation ([https://docs.rs/egui/](https://docs.rs/egui/), [https://www.egui.rs/](https://www.egui.rs/)) for fundamental concepts or widget usage.
+*   **Egui/Eframe Best Practices:** Leverage standard `egui` patterns and widgets. Consult official `egui` documentation ([https://docs.rs/egui/](mdc:https:/docs.rs/egui), [https://www.egui.rs/](mdc:https:/www.egui.rs)) for fundamental concepts or widget usage.
 
 ## Code Implementation
 
 *   Maintain clear separation between UI logic (`brush-app`) and core processing logic (`brush-process`, etc.).
 *   Use existing patterns (`AppPanel`, `AppContext`, message passing) for consistency.
-*   Ensure widgets correctly reflect and update the underlying application state via `AppContext`. 
+*   Ensure widgets correctly reflect and update the underlying application state via `AppContext`.
+
+## Documentation Context
+
+*   Refer to `/docs/guides/training-a-scene.md` and `/docs/guides/viewing-scenes.md` for descriptions of existing UI panels and workflows.
+*   Consult `/docs/reference/glossary.md` for definitions of UI-related terms.
+*   Review `scratchpad/egui-for-brush-ai-notes.md` for key Egui concepts summarized for AI context. 

@@ -21,12 +21,13 @@ Apply these rules *in addition* to `cursor-rules.mdc` when creating or editing d
     *   Verify CLI examples against the actual CLI arguments/flags available.
     *   Ensure pseudo-code accurately represents the structure and key elements of the actual code.
 3.  **Clarity and Audience:**
-    *   Write clearly and concisely. Define technical terms (or link to a glossary).
-    *   Consider the intended audience (developer guide vs. user guide vs. technical deep-dive) and tailor the level of detail accordingly.
-    *   Explain the "Why" behind concepts, not just the "What".
+    *   Write clearly and concisely. Define technical terms (or link to `/docs/reference/glossary.md`).
+    *   **Tailor Content:** Adjust the level of detail and technical depth based on the target audience and document type (e.g., User Guides focus on tasks, Developer Docs explain concepts/internals).
+    *   **Task-Oriented:** Structure guides around achieving specific user goals or tasks. Explain the "Why" behind concepts, not just the "What".
 4.  **Structure and Consistency:**
     *   Maintain a consistent structure and formatting within and across documents.
-    *   Use Markdown effectively for readability (headings, lists, code blocks, etc.).
+    *   Use Markdown effectively for readability (headings, lists, code blocks, etc.). Use backticks for code symbols, paths, and flags.
+    *   Use relative links for internal documentation references.
 
 ## Referencing Other Docs
 
