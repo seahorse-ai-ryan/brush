@@ -37,14 +37,10 @@ This guide walks through training a new 3D Gaussian Splatting scene from your ow
         *   **Model Settings:** `Spherical Harmonics Degree`, `Max image resolution`, `Max Splats`.
         *   **Load Settings:** `Limit max frames`, `Split dataset for evaluation` (if checked, enables the `eval` tab in the Dataset panel).
         *   **Training Settings:** `Train ... steps` (sets the target number of training iterations).
-        *   **Process Settings:** `Evaluate every ... steps`, `Export every ... steps` (enables automatic periodic export, see `## Exporting Results` below).
-        *   **Rerun Settings** (Desktop only, requires `--features=rerun` build):
-            *   `Enable rerun`: Check this to activate sending data to a running Rerun viewer.
-            *   `Log train stats every`: Controls frequency of scalar logging (loss, iter/s, etc.). Set > 0 to enable.
-            *   `Visualize splats every`: Controls frequency of logging the 3D splat point cloud (can be performance-intensive). Set > 0 to enable.
-            *   **(See notes below on workflow and setup)**
+        *   **Process Settings:** `Evaluate every ... steps`, `Export every ... steps` (enables automatic periodic export, see step 6 below).
+        *   **Rerun Settings:** (See Step 4 below if using Rerun visualization).
 
-    **Using Rerun for Detailed Visualization:**
+4.  **(Optional) Setup Rerun Visualization:**
 
     Brush can send detailed training data to the **Rerun Viewer**, which runs as a **separate application**. This allows for powerful, time-scrubbing visualization of the training process but requires specific setup:
 
@@ -53,11 +49,10 @@ This guide walks through training a new 3D Gaussian Splatting scene from your ow
         ```bash
         rerun ./brush_blueprint.rbl &
         ```
-    3.  **Run Brush:** Launch Brush with the feature enabled (`cargo run --bin brush_app --features=rerun`).
-    4.  **Enable Logging in Brush UI:** In Brush's `Settings -> Rerun Settings`, check `Enable rerun` and set the desired logging frequencies.
-    5.  **Start Training:** Load data and begin training.
-    6.  **Notes:**
-        *   Data will appear in the separate Rerun Viewer window.
+    3.  **Run Brush with Feature:** Launch Brush with the feature enabled (`cargo run --bin brush_app --features=rerun`).
+    4.  **Enable Logging in Brush UI:** In Brush's `Settings -> Rerun Settings`, check `Enable rerun` and set the desired logging frequencies (e.g., `Log train stats every: 50`, `Visualize splats every: 500`).
+    5.  **Notes:**
+        *   Data will appear in the separate Rerun Viewer window after training starts.
         *   Plots/eval data may take ~30 seconds or until the first evaluation cycle to populate.
         *   The blueprint layout works best if **`Split dataset for evaluation`** is enabled in Brush settings.
 
@@ -65,9 +60,9 @@ This guide walks through training a new 3D Gaussian Splatting scene from your ow
     <video src="https://github.com/user-attachments/assets/f679fec0-935d-4dd2-87e1-c301db9cdc2c" controls width="100%"></video>
     *Rerun viewer showing detailed training visualization for the LEGO dataset.*
 
-## Monitoring Training
+5.  **Monitor Training**
 
-Once a dataset is loaded, training typically starts automatically in the background. You can monitor and control it using the UI panels:
+    Once a dataset is loaded and settings are configured, click the `⏵ training` button below the Scene view (if it doesn't start automatically). You can monitor and control it using the UI panels:
 
 *   **`Stats` Panel:** Displays the current training iteration number (`Train step`) compared to the total steps planned (`Train ... steps`), along with the current training speed (`Steps/s`). It also shows other statistics like total splat count and estimated GPU memory usage.
 *   **`Scene` Panel Controls & View:** The area below the main 3D view provides crucial controls and feedback:
@@ -83,9 +78,9 @@ Once a dataset is loaded, training typically starts automatically in the backgro
 *   **Pausing/Stopping:**
     *   **Pausing:** Use the `⏸ paused` button in the **`Scene`** panel controls.
 
-## Exporting Results
+6.  **Export Results**
 
-Brush offers two ways to export the trained Gaussian splat data as `.ply` files:
+    Brush offers two ways to export the trained Gaussian splat data as `.ply` files:
 
 *   **Manual Export (Current View):**
     *   While training or viewing, click the **`⬆ Export`** button located below the **`Scene`** panel.
@@ -98,9 +93,9 @@ Brush offers two ways to export the trained Gaussian splat data as `.ply` files:
     *   **Location:** Saves to the *current working directory* by default, or to the path specified by the `--export-path` CLI argument.
     *   **Naming:** Uses `export_{iter}.ply` by default, customizable via `--export-name`.
 
-## Next Steps
+7.  **Next Steps**
 
-*   Once training is complete (or stopped) and you have `.ply` files, **view the results** following the [Viewing Scenes](./viewing-scenes.md) guide.
-*   To understand **command-line alternatives** for loading and training, see the [CLI Usage Guide](./cli-usage.md).
-*   For technical details on the **algorithms involved**, explore the [Training and Rendering Pipeline](../development/training-and-rendering.md) documentation.
-*   To learn about how the **user interface is built**, read the [UI Development Guide](../development/ui.md).
+    *   Once training is complete (or stopped) and you have `.ply` files, **view the results** following the [Viewing Scenes](./viewing-scenes.md) guide.
+    *   To understand **command-line alternatives** for loading and training, see the [CLI Usage Guide](./cli-usage.md).
+    *   For technical details on the **algorithms involved**, explore the [Training and Rendering Pipeline](../development/training-and-rendering.md) documentation.
+    *   To learn about how the **user interface is built**, read the [UI Development Guide](../development/ui.md).

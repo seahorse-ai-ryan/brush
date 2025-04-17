@@ -68,5 +68,3 @@ This is *not* an official Google product. It is an open-source project.
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) file.
-
-## Building Brush

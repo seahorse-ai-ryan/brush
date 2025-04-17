@@ -8,11 +8,7 @@ This guide details how to set up your local environment for developing and contr
 > *   **Rust Toolchain:** Brush requires a specific Rust toolchain version defined in the project to ensure consistent builds.
 > *   **System Dependencies:** Libraries needed for GUI development (windowing via `winit`/`eframe`), graphics rendering (WGPU backends like Vulkan/Metal/DX12), and potentially SSL.
 > *   **WASM Tools (`rustup target`, `trunk`):** Required for building and testing the WebAssembly version of the application.
-> *   **(Optional) Rerun Visualization Setup (for Live Visualization):**
->     *   Install the **Rerun Viewer application** using Cargo: `cargo install rerun-cli`.
->     *   This separate viewer application displays data sent by Brush when the `rerun` feature is enabled.
->     *   **Note:** Brush uses the `rerun` Rust crate internally. You do **not** need the Python `rerun-sdk` (installed via `pip`) for this workflow.
->     *   See the [Training Guide](../guides/training-a-scene.md#using-rerun-for-detailed-visualization) for detailed usage instructions.
+> *   **(Optional) Rerun Viewer:** The `rerun-cli` application is needed for live training visualization. Installation instructions are in the [Installing Brush Guide](../guides/installing-brush.md).
 
 ## 1. Clone the Repository
 
@@ -62,8 +58,8 @@ Ensure you have the necessary targets and build tools installed:
 *   **WASM Target & Trunk (Required for Web):**
     *   Install the WebAssembly target: `rustup target add wasm32-unknown-unknown`
     *   Install the Trunk build tool: `cargo install trunk`
-*   **(Optional) Rerun SDK (for Live Visualization):**
-    *   Follow the [Rerun SDK installation guide](https://www.rerun.io/docs/getting-started/installing-the-sdk).
+*   **(Optional) Install Rerun Viewer:**
+    *   If you plan to use the live training visualization feature, install the viewer following the instructions in the [Installing Brush Guide](../guides/installing-brush.md).
 
 ## 5. Building the Project
 
@@ -79,8 +75,11 @@ You can build and run the project using standard `cargo` commands:
     ```
 *   **Run Desktop App (`brush-app`):** The main GUI application.
     ```bash
+    # Standard debug build
     cargo run --bin brush_app
+    # Optimized release build
     cargo run --bin brush_app --release
+    # Release build with Rerun visualization enabled
     cargo run --bin brush_app --release --features=rerun
     ```
 *   **Build/Run Web App:** Uses `trunk` to manage the WASM build.
